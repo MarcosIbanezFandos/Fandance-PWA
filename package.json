@@ -1,0 +1,16 @@
+{
+    "name": "fandance-root",
+    "version": "1.0.0",
+    "private": true,
+    "scripts": {
+        "install:frontend": "cd frontend_rebalanceo && npm ci",
+        "build": "npm run install:frontend && cd frontend_rebalanceo && npm run build",
+        "start": "serve -s frontend_rebalanceo/dist -l $PORT"
+    },
+    "dependencies": {
+        "serve": "^14.2.1"
+    },
+    "engines": {
+        "node": "20.x"
+    }
+}
