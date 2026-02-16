@@ -3,7 +3,7 @@
     "version": "1.0.0",
     "private": true,
     "scripts": {
-        "install:frontend": "cd frontend_rebalanceo && npm ci",
+        "install:frontend": "cd frontend_rebalanceo && npm ci --include=dev",
         "build": "npm run install:frontend && cd frontend_rebalanceo && npm run build",
         "start": "node server.js"
     },
