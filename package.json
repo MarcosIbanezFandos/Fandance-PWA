@@ -5,10 +5,10 @@
     "scripts": {
         "install:frontend": "cd frontend_rebalanceo && npm ci",
         "build": "npm run install:frontend && cd frontend_rebalanceo && npm run build",
-        "start": "serve -s frontend_rebalanceo/dist -l $PORT"
+        "start": "node server.js"
     },
     "dependencies": {
-        "serve": "^14.2.1"
+        "express": "^4.18.2"
     },
     "engines": {
         "node": "20.x"
