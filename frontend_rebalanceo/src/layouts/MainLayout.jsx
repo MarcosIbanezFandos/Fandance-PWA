@@ -11,6 +11,7 @@ export const MainLayout = (props) => {
     const getHeaderTitle = () => {
         switch (location.pathname) {
             case '/': return props.activePortfolio?.name || 'Rebalancer';
+            case '/performance': return 'Performance';
             case '/analysis': return 'Asset Analysis';
             case '/simulations': return 'Financial Projections';
             case '/news': return 'Market News';

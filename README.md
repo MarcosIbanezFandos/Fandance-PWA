@@ -1,92 +1,152 @@
-# Fandance PWA
+# Fandance PWA 💸
 
-Fandance is a professional Progressive Web Application (PWA) designed for individual investors to track, manage, and mathematically rebalance their investment portfolios. 
+Fandance is a Progressive Web App (PWA) for individual investors to track and
+**rebalance an index-fund portfolio the same way a robo-advisor does** — you set
+a target allocation and Fandance tells you exactly how much to put into each
+asset every month to stay on plan.
 
-![Fandance Preview](https://github.com/MarcosIbanezFandos/Fandance-PWA/assets/preview.png)
+It follows the passive, target-weight rebalancing methodology popularised by
+robo-advisors such as **Indexa Capital**
+([reference](https://support.indexacapital.com/es/esp/rebalanceo)), and takes UI
+cues from broker/aggregator apps like **Trade Republic** and **Parqet**.
 
-## About
-Managing a diversified portfolio can be mathematically complex. Fandance solves this by allowing users to set target allocation weights for their assets (Stocks, ETFs, Crypto). The built-in algorithm calculates exactly what to buy or sell to restore the target balance while minimizing deviations.
+> ⚠️ Not investment advice. Fandance is a personal money-management tool; you
+> execute any trades yourself in your own broker.
 
-Fandance features a modern, responsive "Glassmorphism" UI with real-time financial data fetching, Monte Carlo simulations for future projections, and an AI-assisted sentiment analysis of recent market news.
+---
+
+## Why it stays in sync with your broker
+
+Fandance prices your holdings with **live market data from Yahoo Finance**
+(`units × current price`). Your broker (e.g. Trade Republic) values the *same*
+shares with the *same* market prices, so **as long as the number of units
+matches, the value in Fandance fluctuates identically to your broker** — no
+paid data feed needed. The only thing you keep in sync is the unit count, which
+you do once a month when you log your contribution (or via the CSV import).
+
+---
 
 ## Features
-- **Smart Rebalancing:** Automatically calculates buy/sell orders to reach target allocations when you add new capital.
-- **Real-Time Data:** Live market prices fetched via Yahoo Finance.
-- **Financial Projections:** Simulate your portfolio's future using Deterministic (Linear) and Monte Carlo models.
-- **Market News & Sentiment:** Fetches recent news for your assets and calculates an aggregated Technical Indicator (RSI) sentiment.
-- **PWA Ready:** Installable on iOS/Android and desktop with offline support and caching.
-- **Secure Authentication:** User accounts managed via Supabase Auth.
-- **Multilingual Support:** Seamless toggling between English and Spanish.
-- **Dark Mode:** Full dark mode support for night-time viewing.
+
+### Rebalancing
+- **Two modes:**
+  - **Contribute only** *(default)* — spreads your monthly money across the
+    assets that are furthest **below** their target, so you drift back toward
+    your plan **without ever selling**. The whole contribution is allocated
+    (buys only); nothing is left unspent.
+  - **Full rebalance** — also **sells** overweight assets to land exactly on
+    the target weights.
+- **Target weights set from Settings** — a dedicated *Target Allocation* editor
+  with a live "sum = 100%" check, plus **Equal split** and **Scale to 100%**
+  helpers. Targets can also be edited inline in the plan table.
+- **Clear plan table** — per asset: current %, target %, drift, and the exact
+  amount (€ and units) to buy/sell, with a totals row.
+- **History & undo** — every applied contribution is logged and reversible.
+
+### Performance (Rentabilidad)
+A Trade Republic / Parqet-style performance tab computed from your contribution
+history and live value:
+- Portfolio value, amount invested, gain (€ and %).
+- **IRR / TIR** (money-weighted return, XIRR over your real cash-flow dates).
+- Value-evolution chart.
+- **Net total** breakdown with optional fees and taxes.
+- "Since" date is derived from your first logged contribution (nothing is
+  hard-coded).
+
+### Sync & data
+- **CSV holdings import** — paste a `symbol/ISIN/name, units` export from
+  Trade Republic or Parqet to update your units in one go.
+- **Live market data** via `yfinance`; asset search and metadata auto-fetched.
+- **Market news & RSI sentiment** per asset.
+- **Projections** — deterministic and Monte Carlo future simulations.
+
+### App
+- Installable **PWA** (offline caching) for iOS/Android/desktop.
+- **Supabase Auth** accounts; multiple portfolios per user.
+- **English/Spanish** and full **light/dark mode**.
+
+---
 
 ## Architecture & Tech Stack
-The application uses a serverless monorepo architecture designed for seamless deployment on Vercel.
 
-**Frontend (Client):**
-- React 18
-- Vite
-- Tailwind CSS
-- Framer Motion (Animations)
-- Recharts (Data Visualization)
-- Vite PWA Plugin
+Serverless monorepo designed to deploy as a single **Vercel** project.
 
-**Backend (Serverless Vercel Functions):**
-- Python 3.10+
-- FastAPI (wrapped in Mangum for Vercel)
-- `yfinance` (Market data)
-- `pandas` & `numpy` (Calculations & Monte Carlo)
-- `feedparser` (News aggregation)
+**Frontend** — React 18 · Vite · Tailwind CSS · Framer Motion · Recharts · Vite PWA
+**Backend** — Python · FastAPI (Vercel Python Functions) · `yfinance` · `pandas`/`numpy` · `feedparser`
+**Data & Auth** — Supabase (PostgreSQL + GoTrue Auth)
 
-**Database & Auth:**
-- Supabase (PostgreSQL + GoTrue Auth)
+```
+Fandance-PWA/
+├─ frontend_rebalanceo/   # React + Vite SPA (the app)
+│  └─ src/
+│     ├─ components/       # Dashboard (rebalancer), Sidebar, UI, ...
+│     ├─ pages/            # Performance, Analysis, Settings, ...
+│     ├─ config/           # allocation.js (target-weight defaults)
+│     └─ utils.js          # rebalancing engine (buildRebalancePlan) + XIRR
+├─ api/                    # FastAPI serverless functions (index.py)
+└─ vercel.json             # build + routing for Vercel
+```
+
+The rebalancing math lives client-side in `frontend_rebalanceo/src/utils.js`
+(`buildRebalancePlan`), so it is easy to read, test and reuse.
+
+---
 
 ## Local Development
 
 ### Prerequisites
-- Node.js 20+
-- Python 3.10+
-- Supabase project
+- Node.js 20+, Python 3.10+
+- A Supabase project (free tier is enough)
 
-### Setup Environment
-1. Clone the repository
-2. Set up your environment variables based on `.env.example`:
-   - Create `frontend_rebalanceo/.env.development` (for frontend variables)
-   - Create `api/.env` or `.env` in the root (for Python variables)
+### Configure environment (use placeholders — never commit real keys)
+- `frontend_rebalanceo/.env.development`
+  ```
+  VITE_API_URL=http://localhost:8000/api
+  VITE_SUPABASE_URL=your-project-url
+  VITE_SUPABASE_ANON_KEY=your-anon-key      # ANON key only, never service_role
+  VITE_ADMIN_EMAIL=you@example.com          # optional: who gets the default targets
+  ```
+- Backend env (e.g. `api/.env`)
+  ```
+  SUPABASE_URL=your-project-url
+  SUPABASE_KEY=your-service-role-key         # server-side only
+  ```
 
-### Run Locally
+### Run
 ```bash
-# 1. Install frontend dependencies
-cd frontend_rebalanceo
-npm install
+# Frontend
+cd frontend_rebalanceo && npm install && npm run dev
 
-# 2. Install backend dependencies
-cd ../api
-pip install -r requirements.txt
-
-# 3. Start development servers
-# Terminal 1 (Frontend):
-cd frontend_rebalanceo
-npm run dev
-
-# Terminal 2 (Backend):
-cd api
-uvicorn index:app --reload
+# Backend (separate terminal)
+cd api && pip install -r requirements.txt && uvicorn index:app --reload --port 8000
 ```
 
-## Deployment
-This project is configured to be deployed on **Vercel** as a single project.
+The database schema (tables `portfolios`, `portfolio_items`, `assets`,
+`rebalance_history`, `rebalance_history_items`) lives in your Supabase project.
 
-1. Connect the repository to Vercel.
-2. The `vercel.json` file automatically configures:
-   - Frontend build (`cd frontend_rebalanceo && npm ci && npm run build`)
-   - Python Serverless Functions (`/api/*`)
-   - SPA Routing Rewrites
-3. Add your environment variables in the Vercel dashboard:
-   - `SUPABASE_URL`
-   - `SUPABASE_KEY` (Service Role Key)
-   - `VITE_SUPABASE_URL`
-   - `VITE_SUPABASE_ANON_KEY`
-   - `VITE_API_URL=/api`
+---
+
+## Deployment (Vercel)
+
+`vercel.json` wires everything up as one project: it builds the frontend, serves
+the Python API under `/api/*`, and rewrites SPA routes. Set these environment
+variables in the Vercel dashboard:
+
+| Variable | Scope | Notes |
+|----------|-------|-------|
+| `VITE_API_URL` | Frontend | `/api` |
+| `VITE_SUPABASE_URL` | Frontend | project URL |
+| `VITE_SUPABASE_ANON_KEY` | Frontend | **anon** key |
+| `VITE_ADMIN_EMAIL` | Frontend | optional owner email for default targets |
+| `SUPABASE_URL` | Backend | project URL |
+| `SUPABASE_KEY` | Backend | **service_role** key (server-side only) |
+
+> 🔐 **Security:** the `service_role` key bypasses Row Level Security — keep it
+> in server-side env vars only, **never** in the frontend and **never**
+> committed to the repo. If a key was ever committed, rotate it in
+> Supabase → *Settings → API*.
+
+---
 
 ## License
-MIT License. See `LICENSE` for more information.
+MIT — see `LICENSE`.

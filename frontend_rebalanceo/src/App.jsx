@@ -5,13 +5,15 @@ import { Loader2 } from 'lucide-react'
 import { Routes, Route, useNavigate, Navigate } from 'react-router-dom'
 
 import { supabase } from './supabaseClient'
-import { safeFloat } from './utils'
+import { safeFloat, buildRebalancePlan, roundTo } from './utils'
+import { isAdmin, applyDefaultTargets } from './config/allocation'
 import { AuthScreen } from './components/AuthScreen'
 import { Dashboard } from './components/Dashboard'
 import { SimulationView } from './components/SimulationView'
 import { NewsView } from './components/NewsView'
 import { MainLayout } from './layouts/MainLayout'
 import { Analysis } from './pages/Analysis'
+import { Performance } from './pages/Performance'
 import { Settings } from './pages/Settings'
 
 const TYPE_COLORS = {
@@ -32,6 +34,12 @@ function App() {
     // Dashboard Data
     const [portfolioItems, setPortfolioItems] = useState([])
     const [contribution, setContribution] = useState(1000)
+    // 'contribute' = only buy with the monthly money, 'full' = also sell to hit targets
+    const [rebalanceMode, setRebalanceMode] = useState(() => {
+        if (typeof window !== 'undefined') return localStorage.getItem('rebalanceMode') || 'contribute';
+        return 'contribute';
+    })
+    useEffect(() => { localStorage.setItem('rebalanceMode', rebalanceMode) }, [rebalanceMode])
 
     const [rebalanceHistory, setRebalanceHistory] = useState([])
 
@@ -95,27 +103,15 @@ function App() {
         } catch (e) { setRebalanceHistory([]) }
     }
 
-    // --- LOGIC: REBALANCE TABLE DATA ---
-    const tableData = useMemo(() => {
-        const currentTotal = (portfolioItems || []).reduce((sum, i) => sum + safeFloat(i.value), 0);
-        const futureTotal = currentTotal + safeFloat(contribution);
-
-        const calculated = (portfolioItems || []).map(item => {
-            const price = item.current_price || 0;
-            const targetVal = futureTotal * (safeFloat(item.target_weight) / 100);
-            const diff = targetVal - safeFloat(item.value);
-            const unitsToTrade = price > 0 ? diff / price : 0;
-
-            return {
-                ...item,
-                action: diff > 0 ? 'BUY' : 'SELL',
-                diffVal: diff,
-                unitsToTrade: unitsToTrade
-            };
-        });
-
-        return _.orderBy(calculated, ['value'], ['desc']);
-    }, [portfolioItems, contribution]);
+    // --- LOGIC: REBALANCE PLAN ---
+    const plan = useMemo(
+        () => buildRebalancePlan(portfolioItems, contribution, rebalanceMode),
+        [portfolioItems, contribution, rebalanceMode]
+    );
+    const tableData = useMemo(
+        () => _.orderBy(plan.rows, [r => safeFloat(r.value)], ['desc']),
+        [plan]
+    );
 
     // --- ACTIONS ---
     const handleUpdate = (id, field, val) => {
@@ -124,26 +120,84 @@ function App() {
             if (i.id === id) {
                 const copy = { ...i };
                 const price = copy.current_price || 0;
-                
-                // Keep the raw value in state so the user can type freely (like clearing the input)
+
+                // Keep the field the user is editing as the raw string so they can
+                // type freely (clear it, type a decimal point, etc).
                 copy[field] = val;
 
-                // Update math logic based on the parsed number
+                // Recompute the paired field as a rounded NUMBER (never a string,
+                // so downstream .toFixed()/formatting never crashes).
                 if (field === 'units_held') {
-                    copy.value = num * price;
+                    copy.value = roundTo(num * price, 2);
                 } else if (field === 'value') {
-                    copy.units_held = price > 0 ? num / price : 0;
+                    copy.units_held = price > 0 ? roundTo(num / price, 6) : 0;
                 }
-                
+
                 return copy;
             }
             return i;
         });
         setPortfolioItems(newItems);
         const updatedItem = newItems.find(x => x.id === id);
-        // Only save to the database using the true float numbers
+        // Persist using the parsed floats only.
         debouncedSave(id, safeFloat(updatedItem.units_held), safeFloat(updatedItem.target_weight));
     }
+
+    // Persist a single item immediately (used by the target-allocation helpers).
+    const persistItem = (item) => {
+        axios.put(`${import.meta.env.VITE_API_URL}/portfolio/update`, {
+            item_id: item.id,
+            units_held: safeFloat(item.units_held),
+            target_weight: safeFloat(item.target_weight)
+        }).catch(() => {});
+    }
+
+    // Set every asset to the same target weight (adds up to 100%).
+    const setEqualTargets = () => {
+        if (!portfolioItems.length) return;
+        const n = portfolioItems.length;
+        const base = Math.floor((100 / n) * 100) / 100;
+        const newItems = portfolioItems.map((i, idx) => ({
+            ...i,
+            // give the rounding remainder to the first asset so the sum is exactly 100
+            target_weight: idx === 0 ? roundTo(100 - base * (n - 1), 2) : base
+        }));
+        setPortfolioItems(newItems);
+        newItems.forEach(persistItem);
+    }
+
+    // Scale the current targets so they add up to exactly 100%.
+    const normalizeTargets = () => {
+        const sum = portfolioItems.reduce((s, i) => s + safeFloat(i.target_weight), 0);
+        if (sum <= 0) return;
+        const newItems = portfolioItems.map(i => ({
+            ...i,
+            target_weight: roundTo((safeFloat(i.target_weight) / sum) * 100, 2)
+        }));
+        setPortfolioItems(newItems);
+        newItems.forEach(persistItem);
+    }
+
+    // Load the owner's default Indexa/Vanguard allocation onto the active portfolio.
+    const applyAdminDefaults = () => {
+        const newItems = applyDefaultTargets(portfolioItems);
+        setPortfolioItems(newItems);
+        newItems.forEach(persistItem);
+    }
+
+    // Auto-seed the owner's default targets on a fresh portfolio (all targets 0).
+    const seededPortfolios = React.useRef(new Set());
+    useEffect(() => {
+        if (!session || !isAdmin(session.user?.email)) return;
+        if (!activePortfolio || !portfolioItems.length) return;
+        const pid = activePortfolio.id;
+        if (seededPortfolios.current.has(pid)) return;
+        const allZero = portfolioItems.every(i => safeFloat(i.target_weight) === 0);
+        if (allZero) {
+            seededPortfolios.current.add(pid);
+            applyAdminDefaults();
+        }
+    }, [portfolioItems, activePortfolio, session]);
 
     const debouncedSave = useCallback(_.debounce((id, u, t) => {
         axios.put(`${import.meta.env.VITE_API_URL}/portfolio/update`, { item_id: id, units_held: u, target_weight: t });
@@ -174,18 +228,24 @@ function App() {
     }
 
     const applyRebalance = async () => {
-        if (!confirm("Apply rebalance? Units will be updated.")) return;
+        const msg = rebalanceMode === 'contribute'
+            ? `Apply this month's contribution of ${safeFloat(contribution).toLocaleString('es-ES')} €? Units will be updated (buys only).`
+            : "Apply full rebalance? Units will be bought and sold to match your targets.";
+        if (!confirm(msg)) return;
         setCalculating(true);
 
-        const payloadOrders = tableData.map(o => ({
-            id: o.id,
-            asset_name: o.asset.name,
-            ticker: o.asset.ticker,
-            action: o.action,
-            units_to_trade: o.unitsToTrade,
-            diff_val: o.diffVal,
-            price: o.current_price
-        }));
+        // Only send real orders (skip HOLD rows with a ~0 trade).
+        const payloadOrders = tableData
+            .filter(o => Math.abs(o.unitsToTrade || 0) > 1e-6)
+            .map(o => ({
+                id: o.id,
+                asset_name: o.asset.name,
+                ticker: o.asset.ticker,
+                action: o.action,
+                units_to_trade: o.unitsToTrade,
+                diff_val: o.allocation,
+                price: o.current_price
+            }));
 
         try {
             await axios.post(`${import.meta.env.VITE_API_URL}/portfolio/apply_rebalance`, {
@@ -219,8 +279,8 @@ function App() {
     if (appLoading) return <div className="h-screen flex items-center justify-center bg-slate-900 text-white font-black uppercase tracking-tighter"><Loader2 className="animate-spin mr-3 text-indigo-500" /> Loading Fandance...</div>
     if (!session) return <AuthScreen onLogin={setSession} />
 
-    const totalVal = portfolioItems.reduce((s, i) => s + (i.value || 0), 0);
-    const totalWeight = portfolioItems.reduce((s, i) => s + (i.target_weight || 0), 0);
+    const totalVal = portfolioItems.reduce((s, i) => s + safeFloat(i.value), 0);
+    const totalWeight = portfolioItems.reduce((s, i) => s + safeFloat(i.target_weight), 0);
 
     let riskScore = 0;
     if (totalWeight > 0) {
@@ -229,14 +289,14 @@ function App() {
             const t = (i.asset.type || '').toLowerCase(); const n = (i.asset.name || '').toLowerCase();
             if (n.includes('gold') || n.includes('oro') || n.includes('silver') || t.includes('commodity')) r = 4;
             else if (n.includes('bond') || n.includes('treasury') || n.includes('renta fija')) r = 2;
-            return s + (r * (i.target_weight || 0));
+            return s + (r * safeFloat(i.target_weight));
         }, 0);
         riskScore = Math.round(weightedRisk / totalWeight);
     }
 
     const chartData = _(portfolioItems).groupBy(i => i.asset.type || 'Stock')
         .map((g, type) => g.map((i, idx) => ({
-            name: i.asset.name, value: i.value, fill: (TYPE_COLORS[type] || TYPE_COLORS['Other'])[idx % 5]
+            name: i.asset.name, value: safeFloat(i.value), fill: (TYPE_COLORS[type] || TYPE_COLORS['Other'])[idx % 5]
         }))).flatten().value().filter(x => x.value > 0);
 
     return (
@@ -258,6 +318,9 @@ function App() {
                     activePortfolio ? (
                         <Dashboard
                             portfolioItems={tableData}
+                            planTotals={plan.totals}
+                            rebalanceMode={rebalanceMode}
+                            setRebalanceMode={setRebalanceMode}
                             totalValue={totalVal}
                             riskProfile={riskScore}
                             contribution={contribution}
@@ -284,10 +347,23 @@ function App() {
                     )
                 } />
                 <Route path="/dashboard" element={<Navigate to="/" replace />} />
+                <Route path="/performance" element={<Performance portfolios={portfolios} activePortfolioId={activePortfolio?.id} />} />
                 <Route path="/analysis" element={<Analysis portfolios={portfolios} />} />
                 <Route path="/simulations" element={<SimulationView portfolios={portfolios} />} />
                 <Route path="/news" element={<NewsView portfolios={portfolios} activePortfolioId={activePortfolio?.id} />} />
-                <Route path="/settings" element={<Settings session={session} onLogout={() => supabase.auth.signOut()} />} />
+                <Route path="/settings" element={
+                    <Settings
+                        session={session}
+                        onLogout={() => supabase.auth.signOut()}
+                        activePortfolio={activePortfolio}
+                        portfolioItems={portfolioItems}
+                        handleUpdate={handleUpdate}
+                        onEqualSplit={setEqualTargets}
+                        onNormalize={normalizeTargets}
+                        onApplyDefaults={applyAdminDefaults}
+                        isAdmin={isAdmin(session.user?.email)}
+                    />
+                } />
             </Route>
         </Routes>
     )

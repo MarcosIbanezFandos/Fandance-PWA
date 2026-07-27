@@ -1,11 +1,13 @@
 import React from 'react';
 import { motion } from 'framer-motion';
-import { TrendingUp, Scale, FlaskConical, Newspaper, UserCircle, PlusCircle, LogOut, Briefcase, MoreVertical, Edit2, Copy, Trash2, Settings } from 'lucide-react';
+import { TrendingUp, Scale, FlaskConical, Newspaper, PieChart, PlusCircle, LogOut, Briefcase, MoreVertical, Edit2, Copy, Trash2, Settings } from 'lucide-react';
 import { NavLink, useNavigate, useLocation } from 'react-router-dom';
+import { useGlobal } from '../context/GlobalContext';
 
 export const Sidebar = ({ portfolios, activePortfolio, setActivePortfolio, onCreatePortfolio, onLogout, onRename, onDuplicate, onDelete, isOpen, setIsOpen }) => {
   const navigate = useNavigate();
   const location = useLocation();
+  const { t } = useGlobal();
 
   const handlePortfolioClick = (p) => {
     setActivePortfolio(p);
@@ -46,11 +48,12 @@ export const Sidebar = ({ portfolios, activePortfolio, setActivePortfolio, onCre
         </div>
 
         <nav className="space-y-2">
-          <MenuLink to="/" label="Rebalancer" icon={Scale} />
-          <MenuLink to="/analysis" label="Analysis" icon={FlaskConical} />
-          <MenuLink to="/simulations" label="Simulations" icon={TrendingUp} />
+          <MenuLink to="/" label={t('sidebar.rebalance')} icon={Scale} />
+          <MenuLink to="/performance" label={t('sidebar.performance')} icon={PieChart} />
+          <MenuLink to="/analysis" label={t('sidebar.analysis')} icon={FlaskConical} />
+          <MenuLink to="/simulations" label={t('sidebar.simulations')} icon={TrendingUp} />
           <MenuLink to="/news" label="News" icon={Newspaper} />
-          <MenuLink to="/settings" label="Settings" icon={Settings} />
+          <MenuLink to="/settings" label={t('sidebar.settings')} icon={Settings} />
 
           <div className="my-6 h-px bg-slate-800/50 mx-2"></div>
 
