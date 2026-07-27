@@ -32,20 +32,18 @@ export const Analysis = ({ portfolios }) => {
                 if (!item.asset?.ticker) return null;
                 try {
                     const ticker = item.asset.ticker;
-                    const chartRes = await axios.post(`${import.meta.env.VITE_API_URL}/portfolio/history_chart`, {
-                        portfolio_id: pid,
-                        period: p
-                    });
-                    const chartData = chartRes.data;
                     
                     // Per-asset: download individual ticker history
                     const assetChartRes = await axios.post(`${import.meta.env.VITE_API_URL}/portfolio/history_chart`, {
                         portfolio_id: pid,
-                        period: p
+                        period: p,
+                        ticker: ticker
                     }).catch(() => null);
 
-                    // Use portfolio-level data mapped per asset with yfinance price history
-                    const data = (chartData.history || []).map(point => {
+                    const assetData = assetChartRes?.data?.history || [];
+
+                    // Use asset-level data mapped per asset with yfinance price history
+                    const data = assetData.map(point => {
                         const d = new Date(point.date);
                         return {
                             value: point.value,
@@ -58,14 +56,14 @@ export const Analysis = ({ portfolios }) => {
                         ticker: ticker,
                         name: item.asset.name,
                         price: item.current_price,
-                        data: data,
-                        change_pct: chartData.change_pct || 0
+                        change_pct: assetChartRes?.data?.change_pct || 0,
+                        change_val: assetChartRes?.data?.change_val || 0,
+                        data: data
                     };
                 } catch (e) { return null; }
             });
 
             // Only need first result since history_chart returns portfolio-level data
-            const firstItem = items[0];
             try {
                 const chartRes = await axios.post(`${import.meta.env.VITE_API_URL}/portfolio/history_chart`, {
                     portfolio_id: pid,
@@ -144,11 +142,11 @@ export const Analysis = ({ portfolios }) => {
                         <GlassCard key={i} className="flex flex-col h-72 md:h-80 relative overflow-hidden group">
                             <div className="flex justify-between items-start mb-6 relative z-10 px-2 pt-2">
                                 <div className="max-w-[60%]">
-                                    <div className="text-sm md:text-base font-black text-slate-800 truncate leading-tight mb-1" title={asset.name}>{asset.name}</div>
+                                    <div className="text-sm md:text-base font-black text-slate-800 dark:text-slate-100 truncate leading-tight mb-1" title={asset.name}>{asset.name}</div>
                                     <div className="text-[10px] md:text-xs font-bold text-slate-400">{asset.ticker}</div>
                                 </div>
                                 <div className="text-right">
-                                    <div className="text-sm md:text-lg font-black text-slate-800">{asset.price?.toFixed(2)} €</div>
+                                    <div className="text-sm md:text-lg font-black text-slate-800 dark:text-slate-100">{asset.price?.toFixed(2)} €</div>
                                     <div className={`text-[10px] md:text-xs font-black flex items-center justify-end gap-1 ${asset.change_pct >= 0 ? 'text-emerald-500' : 'text-rose-500'}`}>
                                         {asset.change_pct >= 0 ? <ArrowUpRight size={12} /> : <ArrowDownRight size={12} />}
                                         {asset.change_pct >= 0 ? '+' : ''}{asset.change_pct}%

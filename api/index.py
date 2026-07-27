@@ -76,6 +76,7 @@ class ApplyRebalanceInput(BaseModel):
 class HistoryInput(BaseModel):
     portfolio_id: str
     period: str = "1mo"
+    ticker: Optional[str] = None
 
 class SimulationInput(BaseModel):
     portfolio_ids: List[str]
@@ -390,13 +391,16 @@ def get_rebalance_history(portfolio_id: str):
 @app.post("/api/portfolio/history_chart")
 def get_chart_data(data: HistoryInput):
     try:
-        items = supabase.table("portfolio_items").select("units_held, asset:assets(ticker)").eq("portfolio_id", data.portfolio_id).gt("units_held", 0).execute()
+        query = supabase.table("portfolio_items").select("units_held, asset:assets(ticker)").eq("portfolio_id", data.portfolio_id).gt("units_held", 0)
+        items = query.execute()
 
         if not items.data: return {"history": [], "change_pct": 0, "change_val": 0}
 
         tickers_map = {}
         for i in items.data:
             if i.get('asset') and i['asset'].get('ticker'):
+                if data.ticker and i['asset']['ticker'] != data.ticker:
+                    continue
                 tickers_map[i['asset']['ticker']] = float(i['units_held'])
 
         if not tickers_map: return {"history": [], "change_pct": 0, "change_val": 0}

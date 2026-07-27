@@ -16,7 +16,7 @@ export const staggerContainer = {
 export const GlassCard = ({ children, className = "" }) => (
   <motion.div
     variants={fadeInUp}
-    className={`relative bg-white p-6 rounded-[2rem] shadow-sm border border-slate-100 hover:shadow-md transition-shadow duration-300 ${className}`}
+    className={`relative bg-white dark:bg-slate-900 p-6 rounded-[2rem] shadow-sm border border-slate-100 dark:border-slate-800 hover:shadow-md transition-shadow transition-colors duration-300 ${className}`}
   >
     {children}
   </motion.div>

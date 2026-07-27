@@ -10,6 +10,7 @@ export const NewsView = ({ portfolios, activePortfolioId }) => {
     const [activeTab, setActiveTab] = useState('all');
 
     const activePortfolio = portfolios.find(p => p.id === activePortfolioId);
+    const [tickerToName, setTickerToName] = useState({});
 
     useEffect(() => {
         if (activePortfolioId) fetchNews();
@@ -33,6 +34,12 @@ export const NewsView = ({ portfolios, activePortfolioId }) => {
                 ticker: i.asset.ticker,
                 name: i.asset.name
             }));
+            
+            const mapping = {};
+            items.forEach(i => {
+                if (i.asset?.ticker) mapping[i.asset.ticker] = i.asset.name || i.asset.ticker;
+            });
+            setTickerToName(mapping);
 
             const newsRes = await axios.post(`${import.meta.env.VITE_API_URL}/portfolio/news`, { assets: assetsPayload });
             setNewsData(newsRes.data);
@@ -103,8 +110,8 @@ export const NewsView = ({ portfolios, activePortfolioId }) => {
                                             {ticker.substring(0, 2)}
                                         </div>
                                         <div>
-                                            <h2 className="text-xl font-black text-slate-800 tracking-tight">{ticker}</h2>
-                                            <div className="text-xs font-bold text-slate-400 uppercase tracking-widest">Asset News</div>
+                                            <h2 className="text-xl font-black text-slate-800 dark:text-slate-100 tracking-tight">{tickerToName[ticker] || ticker}</h2>
+                                            <div className="text-xs font-bold text-slate-400 uppercase tracking-widest">{ticker}</div>
                                         </div>
                                     </div>
                                     
