@@ -97,7 +97,7 @@ export const Dashboard = ({
                                     <Pie
                                         data={chartData}
                                         cx="50%"
-                                        cy="70%"
+                                        cy="100%"
                                         startAngle={180}
                                         endAngle={0}
                                         innerRadius={80}
@@ -164,12 +164,12 @@ export const Dashboard = ({
                                 <h3 className="text-xs font-black text-slate-400 uppercase tracking-widest mb-6 flex items-center gap-2"><HistoryIcon size={14} /> Operations History</h3>
                                 <div className="space-y-4">
                                     {rebalanceHistory.map(h => (
-                                        <motion.div key={h.id} variants={fadeInUp} className="group border border-slate-100 rounded-2xl overflow-hidden hover:shadow-md transition-all">
-                                            <div className="flex justify-between items-center p-5 bg-slate-50/50">
+                                        <motion.div key={h.id} variants={fadeInUp} className="group border border-slate-100 dark:border-slate-800 rounded-2xl overflow-hidden hover:shadow-md transition-all">
+                                            <div className="flex justify-between items-center p-5 bg-slate-50/50 dark:bg-slate-900/50">
                                                 <div className="flex items-center gap-4">
-                                                    <div className="p-3 bg-white rounded-xl border border-slate-100 text-slate-400"><Calendar size={16} /></div>
+                                                    <div className="p-3 bg-white dark:bg-slate-800 rounded-xl border border-slate-100 dark:border-slate-700 text-slate-400"><Calendar size={16} /></div>
                                                     <div>
-                                                        <div className="text-xs font-black text-slate-700">{new Date(h.created_at).toLocaleDateString()}</div>
+                                                        <div className="text-xs font-black text-slate-700 dark:text-slate-200">{new Date(h.created_at).toLocaleDateString()}</div>
                                                         <div className="text-[10px] font-bold text-slate-400 uppercase">{new Date(h.created_at).toLocaleTimeString()}</div>
                                                     </div>
                                                 </div>
@@ -179,16 +179,16 @@ export const Dashboard = ({
                                                         <div className="text-[10px] font-bold text-slate-400 uppercase">Contribution</div>
                                                     </div>
                                                     <div className="flex gap-1">
-                                                        <button onClick={() => undoRebalance(h.id)} className="p-2 hover:bg-indigo-100 rounded-xl text-slate-300 hover:text-indigo-600 transition-colors" title="Deshacer"><RotateCcw size={18} /></button>
-                                                        <button onClick={() => deleteHistoryItem(h.id)} className="p-2 hover:bg-rose-100 rounded-xl text-slate-300 hover:text-rose-600 transition-colors" title="Borrar"><Trash2 size={18} /></button>
+                                                        <button onClick={() => undoRebalance(h.id)} className="p-2 hover:bg-indigo-100 dark:hover:bg-indigo-900/50 rounded-xl text-slate-300 dark:text-slate-500 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors" title="Deshacer"><RotateCcw size={18} /></button>
+                                                        <button onClick={() => deleteHistoryItem(h.id)} className="p-2 hover:bg-rose-100 dark:hover:bg-rose-900/50 rounded-xl text-slate-300 dark:text-slate-500 hover:text-rose-600 dark:hover:text-rose-400 transition-colors" title="Borrar"><Trash2 size={18} /></button>
                                                     </div>
                                                 </div>
                                             </div>
-                                            <div className="p-5 bg-white border-t border-slate-100 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                                            <div className="p-5 bg-white dark:bg-slate-900 border-t border-slate-100 dark:border-slate-800 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
                                                 {h.items?.map(i => (
-                                                    <div key={i.id} className="text-[10px] bg-slate-50 p-3 rounded-xl flex justify-between items-center border border-slate-100">
+                                                    <div key={i.id} className="text-[10px] bg-slate-50 dark:bg-slate-800 p-3 rounded-xl flex justify-between items-center border border-slate-100 dark:border-slate-700">
                                                         <div>
-                                                            <div className="font-bold text-slate-700 truncate w-24">{i.asset_name}</div>
+                                                            <div className="font-bold text-slate-700 dark:text-slate-200 truncate w-24">{i.asset_name}</div>
                                                             <div className="font-mono text-slate-400">{i.ticker}</div>
                                                         </div>
                                                         <div className={`text-right font-black ${i.action === 'BUY' ? 'text-emerald-500' : 'text-rose-500'}`}>

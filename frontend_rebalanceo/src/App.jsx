@@ -124,22 +124,25 @@ function App() {
             if (i.id === id) {
                 const copy = { ...i };
                 const price = copy.current_price || 0;
+                
+                // Keep the raw value in state so the user can type freely (like clearing the input)
+                copy[field] = val;
+
+                // Update math logic based on the parsed number
                 if (field === 'units_held') {
-                    copy.units_held = num;
                     copy.value = num * price;
                 } else if (field === 'value') {
-                    copy.value = num;
                     copy.units_held = price > 0 ? num / price : 0;
-                } else if (field === 'target_weight') {
-                    copy.target_weight = num;
                 }
+                
                 return copy;
             }
             return i;
         });
         setPortfolioItems(newItems);
         const updatedItem = newItems.find(x => x.id === id);
-        debouncedSave(id, updatedItem.units_held, updatedItem.target_weight);
+        // Only save to the database using the true float numbers
+        debouncedSave(id, safeFloat(updatedItem.units_held), safeFloat(updatedItem.target_weight));
     }
 
     const debouncedSave = useCallback(_.debounce((id, u, t) => {

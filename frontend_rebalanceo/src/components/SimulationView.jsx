@@ -41,7 +41,7 @@ export const SimulationView = ({ portfolios = [] }) => {
     const SimTypeButton = ({ type, label, icon: Icon, active, onClick, desc }) => (
         <button
             onClick={onClick}
-            className={`w-full p-4 rounded-xl text-left border transition-all relative group ${active ? 'bg-indigo-600 text-white border-indigo-600 shadow-md' : 'bg-slate-50 text-slate-500 border-slate-100 hover:border-indigo-200 hover:bg-white'}`}
+            className={`w-full p-4 rounded-xl text-left border transition-all relative group ${active ? 'bg-indigo-600 text-white border-indigo-600 shadow-md' : 'bg-slate-50 dark:bg-slate-800 text-slate-500 dark:text-slate-400 border-slate-100 dark:border-slate-700 hover:border-indigo-200 dark:hover:border-indigo-800 hover:bg-white dark:hover:bg-slate-900'}`}
         >
             <div className="flex justify-between items-center mb-1">
                 <div className="flex items-center gap-2">
@@ -64,7 +64,7 @@ export const SimulationView = ({ portfolios = [] }) => {
                         <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-3">1. Select Portfolio</label>
                         <div className="space-y-2">
                             {portfolios.map(p => (
-                                <button key={p.id} onClick={() => togglePortfolio(p.id)} className={`w-full p-3 rounded-xl text-left text-xs font-bold border transition-all flex justify-between ${selectedPorts.includes(p.id) ? 'bg-indigo-600 text-white border-indigo-600 shadow-md' : 'bg-slate-50 text-slate-500 border-transparent hover:bg-white hover:border-slate-200'}`}>
+                                <button key={p.id} onClick={() => togglePortfolio(p.id)} className={`w-full p-3 rounded-xl text-left text-xs font-bold border transition-all flex justify-between ${selectedPorts.includes(p.id) ? 'bg-indigo-600 text-white border-indigo-600 shadow-md' : 'bg-slate-50 dark:bg-slate-800 text-slate-500 dark:text-slate-400 border-transparent hover:bg-white dark:hover:bg-slate-900 hover:border-slate-200 dark:hover:border-slate-700'}`}>
                                     {p.name}
                                     {selectedPorts.includes(p.id) && <ShieldCheck size={14} />}
                                 </button>
@@ -91,17 +91,17 @@ export const SimulationView = ({ portfolios = [] }) => {
                                 <input type="range" min="1" max="60" value={years} onChange={e => setYears(parseInt(e.target.value))} className="w-full accent-indigo-600 cursor-pointer" />
                             </div>
                             <div>
-                                <span className="text-xs font-bold text-slate-600 block mb-2">Monthly Contribution</span>
-                                <div className="flex items-center gap-2 bg-slate-50 p-3 rounded-xl border border-transparent focus-within:border-indigo-500 transition-colors">
-                                    <input type="number" value={monthlyContrib} onChange={e => setMonthlyContrib(parseFloat(e.target.value))} className="bg-transparent outline-none w-full font-bold text-sm text-slate-700" />
+                                <span className="text-xs font-bold text-slate-600 dark:text-slate-300 block mb-2">Monthly Contribution</span>
+                                <div className="flex items-center gap-2 bg-slate-50 dark:bg-slate-800 p-3 rounded-xl border border-transparent focus-within:border-indigo-500 transition-colors">
+                                    <input type="number" value={monthlyContrib} onChange={e => setMonthlyContrib(parseFloat(e.target.value))} className="bg-transparent outline-none w-full font-bold text-sm text-slate-700 dark:text-slate-200" />
                                     <span className="text-xs font-bold text-slate-400">€</span>
                                 </div>
                             </div>
 
-                            <div className="flex items-center justify-between p-3 bg-slate-50 rounded-xl">
-                                <span className="text-xs font-bold text-slate-600">Growing Contribution (CPI)</span>
-                                <button onClick={() => setContribMode(contribMode === 'constant' ? 'growing' : 'constant')} className={`w-10 h-6 rounded-full p-1 transition-colors ${contribMode === 'growing' ? 'bg-emerald-500' : 'bg-slate-200'}`}>
-                                    <div className={`w-4 h-4 bg-white rounded-full shadow-sm transform transition-transform ${contribMode === 'growing' ? 'translate-x-4' : ''}`} />
+                            <div className="flex items-center justify-between p-3 bg-slate-50 dark:bg-slate-800 rounded-xl">
+                                <span className="text-xs font-bold text-slate-600 dark:text-slate-300">Growing Contribution (CPI)</span>
+                                <button onClick={() => setContribMode(contribMode === 'constant' ? 'growing' : 'constant')} className={`w-10 h-6 rounded-full p-1 transition-colors ${contribMode === 'growing' ? 'bg-emerald-500' : 'bg-slate-200 dark:bg-slate-700'}`}>
+                                    <div className={`w-4 h-4 bg-white dark:bg-slate-300 rounded-full shadow-sm transform transition-transform ${contribMode === 'growing' ? 'translate-x-4 dark:bg-white' : ''}`} />
                                 </button>
                             </div>
 
@@ -112,10 +112,10 @@ export const SimulationView = ({ portfolios = [] }) => {
                                 </motion.div>
                             )}
 
-                            <div className="flex items-center justify-between p-3 bg-slate-50 rounded-xl">
-                                <span className="text-xs font-bold text-slate-600">Apply Tax (19%)</span>
-                                <button onClick={() => setApplyTax(!applyTax)} className={`w-10 h-6 rounded-full p-1 transition-colors ${applyTax ? 'bg-rose-500' : 'bg-slate-200'}`}>
-                                    <div className={`w-4 h-4 bg-white rounded-full shadow-sm transform transition-transform ${applyTax ? 'translate-x-4' : ''}`} />
+                            <div className="flex items-center justify-between p-3 bg-slate-50 dark:bg-slate-800 rounded-xl">
+                                <span className="text-xs font-bold text-slate-600 dark:text-slate-300">Apply Tax (19%)</span>
+                                <button onClick={() => setApplyTax(!applyTax)} className={`w-10 h-6 rounded-full p-1 transition-colors ${applyTax ? 'bg-rose-500' : 'bg-slate-200 dark:bg-slate-700'}`}>
+                                    <div className={`w-4 h-4 bg-white dark:bg-slate-300 rounded-full shadow-sm transform transition-transform ${applyTax ? 'translate-x-4 dark:bg-white' : ''}`} />
                                 </button>
                             </div>
                         </div>
@@ -136,17 +136,17 @@ export const SimulationView = ({ portfolios = [] }) => {
                                     <div className="text-xs font-black uppercase tracking-widest text-slate-400 mb-4">{res.portfolio_name}</div>
                                     <div className="space-y-4">
                                         <div className="flex justify-between items-end">
-                                            <div className="text-sm text-slate-500 font-bold">{t('sim.investment')}</div>
-                                            <div className="text-xl font-black text-slate-800">{res.total_invested.toLocaleString()} €</div>
+                                            <div className="text-sm text-slate-500 dark:text-slate-400 font-bold">{t('sim.investment')}</div>
+                                            <div className="text-xl font-black text-slate-800 dark:text-slate-100">{res.total_invested.toLocaleString()} €</div>
                                         </div>
                                         <div className="flex justify-between items-end">
                                             <div className="text-sm text-slate-500 font-bold">{t('sim.gross')}</div>
                                             <div className="text-2xl font-black text-indigo-600">{res.final_gross.toLocaleString()} €</div>
                                         </div>
                                         {applyTax && (
-                                            <div className="flex justify-between items-end pt-2 border-t border-slate-50">
-                                                <div className="text-sm text-slate-500 font-bold">{t('sim.net')}</div>
-                                                <div className="text-2xl font-black text-emerald-600">{res.final_net.toLocaleString()} €</div>
+                                            <div className="flex justify-between items-end pt-2 border-t border-slate-50 dark:border-slate-800">
+                                                <div className="text-sm text-slate-500 dark:text-slate-400 font-bold">{t('sim.net')}</div>
+                                                <div className="text-2xl font-black text-emerald-600 dark:text-emerald-400">{res.final_net.toLocaleString()} €</div>
                                             </div>
                                         )}
                                         <div className={`inline-flex items-center px-3 py-1 rounded-full text-[10px] font-black uppercase ${res.gain >= 0 ? 'bg-emerald-50 text-emerald-600' : 'bg-rose-50 text-rose-500'}`}>
