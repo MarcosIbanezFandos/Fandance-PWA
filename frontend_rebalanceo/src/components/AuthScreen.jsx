@@ -19,13 +19,13 @@ export const AuthScreen = ({ onLogin }) => {
       if (authMode === 'register') {
         const res = await supabase.auth.signUp({ email, password });
         error = res.error;
-        if (!error) alert("¡Cuenta creada! Revisa tu email.");
+        if (!error) alert("Account created! Check your email.");
       } else if (authMode === 'login') {
         const res = await supabase.auth.signInWithPassword({ email, password });
         error = res.error;
       }
       if (error) alert(error.message);
-    } catch (e) { alert("Error de conexión"); } 
+    } catch (e) { alert("Connection error"); } 
     finally { setLoading(false); }
   };
 
@@ -45,33 +45,33 @@ export const AuthScreen = ({ onLogin }) => {
             F<span className="text-indigo-600">AND</span>ANCE
           </h1>
           <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mt-2">
-            {authMode === 'login' ? 'Bienvenido de nuevo' : 'Crear nueva cuenta'}
+            {authMode === 'login' ? 'Welcome back' : 'Create new account'}
           </p>
         </motion.div>
 
         <form onSubmit={handleAuth} className="space-y-4 relative z-10">
           <motion.div variants={fadeInUp} className="relative">
             <Mail className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18}/>
-            <input className="w-full bg-slate-50 p-4 pl-12 rounded-2xl font-bold text-slate-700 outline-none focus:ring-2 ring-indigo-500 transition-all" type="email" placeholder="Tu Email" value={email} onChange={e=>setEmail(e.target.value)} required />
+            <input className="w-full bg-slate-50 p-4 pl-12 rounded-2xl font-bold text-slate-700 outline-none focus:ring-2 ring-indigo-500 transition-all" type="email" placeholder="Your Email" value={email} onChange={e=>setEmail(e.target.value)} required />
           </motion.div>
           
           {authMode !== 'recovery' && (
             <motion.div variants={fadeInUp} className="relative">
               <Lock className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18}/>
-              <input className="w-full bg-slate-50 p-4 pl-12 rounded-2xl font-bold text-slate-700 outline-none focus:ring-2 ring-indigo-500 transition-all" type="password" placeholder="Contraseña" value={password} onChange={e=>setPassword(e.target.value)} required />
+              <input className="w-full bg-slate-50 p-4 pl-12 rounded-2xl font-bold text-slate-700 outline-none focus:ring-2 ring-indigo-500 transition-all" type="password" placeholder="Password" value={password} onChange={e=>setPassword(e.target.value)} required />
             </motion.div>
           )}
 
           <motion.div variants={fadeInUp}>
             <BounceButton disabled={loading} className="w-full bg-indigo-600 text-white py-4 rounded-2xl font-black uppercase text-xs tracking-widest shadow-lg shadow-indigo-200">
-              {loading ? <Loader2 className="animate-spin mx-auto"/> : (authMode === 'login' ? 'Entrar' : 'Crear Cuenta')}
+              {loading ? <Loader2 className="animate-spin mx-auto"/> : (authMode === 'login' ? 'Sign In' : 'Create Account')}
             </BounceButton>
           </motion.div>
         </form>
 
         <motion.div variants={fadeInUp} className="mt-6 flex flex-col gap-3 text-center relative z-10">
             <button onClick={() => setAuthMode(authMode === 'login' ? 'register' : 'login')} className="text-xs font-bold text-slate-500 hover:text-indigo-600 transition-colors">
-                {authMode === 'login' ? '¿No tienes cuenta? Regístrate' : 'Volver al inicio de sesión'}
+                {authMode === 'login' ? "Don't have an account? Sign up" : 'Back to sign in'}
             </button>
         </motion.div>
       </motion.div>

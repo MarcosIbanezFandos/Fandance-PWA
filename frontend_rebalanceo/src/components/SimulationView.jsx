@@ -24,7 +24,7 @@ export const SimulationView = ({ portfolios = [] }) => {
     };
 
     const runSimulation = async () => {
-        if (selectedPorts.length === 0) return alert("Selecciona al menos una cartera");
+        if (selectedPorts.length === 0) return alert("Select at least one portfolio");
         setLoading(true);
         try {
             const res = await axios.post(`${import.meta.env.VITE_API_URL}/simulations/run`, {
@@ -34,7 +34,7 @@ export const SimulationView = ({ portfolios = [] }) => {
                 tax_rate: applyTax, sim_type: simType
             });
             setResults(res.data);
-        } catch (e) { alert("Error al simular."); }
+        } catch (e) { alert("Error running simulation."); }
         finally { setLoading(false); }
     };
 
@@ -61,7 +61,7 @@ export const SimulationView = ({ portfolios = [] }) => {
             <div className="space-y-6">
                 <GlassCard className="space-y-6">
                     <div>
-                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-3">1. Selecciona Cartera</label>
+                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-3">1. Select Portfolio</label>
                         <div className="space-y-2">
                             {portfolios.map(p => (
                                 <button key={p.id} onClick={() => togglePortfolio(p.id)} className={`w-full p-3 rounded-xl text-left text-xs font-bold border transition-all flex justify-between ${selectedPorts.includes(p.id) ? 'bg-indigo-600 text-white border-indigo-600 shadow-md' : 'bg-slate-50 text-slate-500 border-transparent hover:bg-white hover:border-slate-200'}`}>
@@ -73,25 +73,25 @@ export const SimulationView = ({ portfolios = [] }) => {
                     </div>
 
                     <div>
-                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-3">2. Modelo de Proyección</label>
+                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-3">2. Projection Model</label>
                         <div className="space-y-2">
-                            <SimTypeButton type="deterministic" label="Lineal (7%)" icon={TrendingUp} active={simType === 'deterministic'} onClick={() => setSimType('deterministic')} desc="Proyección estándar constante." />
-                            <SimTypeButton type="montecarlo" label="Monte Carlo" icon={Shuffle} active={simType === 'montecarlo'} onClick={() => setSimType('montecarlo')} desc="Simula volatilidad real del mercado." />
-                            <SimTypeButton type="pessimistic" label="Conservador (4%)" icon={TrendingDown} active={simType === 'pessimistic'} onClick={() => setSimType('pessimistic')} desc="Escenario de bajo rendimiento." />
+                            <SimTypeButton type="deterministic" label="Linear (7%)" icon={TrendingUp} active={simType === 'deterministic'} onClick={() => setSimType('deterministic')} desc="Standard constant projection." />
+                            <SimTypeButton type="montecarlo" label="Monte Carlo" icon={Shuffle} active={simType === 'montecarlo'} onClick={() => setSimType('montecarlo')} desc="Simulates real market volatility." />
+                            <SimTypeButton type="pessimistic" label="Conservative (4%)" icon={TrendingDown} active={simType === 'pessimistic'} onClick={() => setSimType('pessimistic')} desc="Low performance scenario." />
                         </div>
                     </div>
                 </GlassCard>
 
                 <GlassCard className="space-y-6">
                     <div>
-                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-3">3. Parámetros</label>
+                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-3">3. Parameters</label>
                         <div className="space-y-5">
                             <div>
-                                <div className="flex justify-between mb-2"><span className="text-xs font-bold text-slate-600">Horizonte</span><span className="text-xs font-black text-indigo-600">{years} Años</span></div>
+                                <div className="flex justify-between mb-2"><span className="text-xs font-bold text-slate-600">Horizon</span><span className="text-xs font-black text-indigo-600">{years} Years</span></div>
                                 <input type="range" min="1" max="60" value={years} onChange={e => setYears(parseInt(e.target.value))} className="w-full accent-indigo-600 cursor-pointer" />
                             </div>
                             <div>
-                                <span className="text-xs font-bold text-slate-600 block mb-2">Aportación Mensual</span>
+                                <span className="text-xs font-bold text-slate-600 block mb-2">Monthly Contribution</span>
                                 <div className="flex items-center gap-2 bg-slate-50 p-3 rounded-xl border border-transparent focus-within:border-indigo-500 transition-colors">
                                     <input type="number" value={monthlyContrib} onChange={e => setMonthlyContrib(parseFloat(e.target.value))} className="bg-transparent outline-none w-full font-bold text-sm text-slate-700" />
                                     <span className="text-xs font-bold text-slate-400">€</span>
@@ -99,7 +99,7 @@ export const SimulationView = ({ portfolios = [] }) => {
                             </div>
 
                             <div className="flex items-center justify-between p-3 bg-slate-50 rounded-xl">
-                                <span className="text-xs font-bold text-slate-600">Aportación Creciente (IPC)</span>
+                                <span className="text-xs font-bold text-slate-600">Growing Contribution (CPI)</span>
                                 <button onClick={() => setContribMode(contribMode === 'constant' ? 'growing' : 'constant')} className={`w-10 h-6 rounded-full p-1 transition-colors ${contribMode === 'growing' ? 'bg-emerald-500' : 'bg-slate-200'}`}>
                                     <div className={`w-4 h-4 bg-white rounded-full shadow-sm transform transition-transform ${contribMode === 'growing' ? 'translate-x-4' : ''}`} />
                                 </button>
@@ -107,13 +107,13 @@ export const SimulationView = ({ portfolios = [] }) => {
 
                             {contribMode === 'growing' && (
                                 <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} className="overflow-hidden">
-                                    <span className="text-xs font-bold text-emerald-600 block mb-1">Crecimiento Anual (%)</span>
+                                    <span className="text-xs font-bold text-emerald-600 block mb-1">Annual Growth (%)</span>
                                     <input type="number" value={growthRate} onChange={e => setGrowthRate(parseFloat(e.target.value))} className="w-full bg-emerald-50 p-2 rounded-lg font-bold text-sm text-emerald-700 outline-none border border-emerald-100" />
                                 </motion.div>
                             )}
 
                             <div className="flex items-center justify-between p-3 bg-slate-50 rounded-xl">
-                                <span className="text-xs font-bold text-slate-600">Aplicar Impuestos (19%)</span>
+                                <span className="text-xs font-bold text-slate-600">Apply Tax (19%)</span>
                                 <button onClick={() => setApplyTax(!applyTax)} className={`w-10 h-6 rounded-full p-1 transition-colors ${applyTax ? 'bg-rose-500' : 'bg-slate-200'}`}>
                                     <div className={`w-4 h-4 bg-white rounded-full shadow-sm transform transition-transform ${applyTax ? 'translate-x-4' : ''}`} />
                                 </button>
@@ -150,7 +150,7 @@ export const SimulationView = ({ portfolios = [] }) => {
                                             </div>
                                         )}
                                         <div className={`inline-flex items-center px-3 py-1 rounded-full text-[10px] font-black uppercase ${res.gain >= 0 ? 'bg-emerald-50 text-emerald-600' : 'bg-rose-50 text-rose-500'}`}>
-                                            {res.gain >= 0 ? 'Beneficio' : 'Pérdida'}: {res.gain.toLocaleString()} €
+                                            {res.gain >= 0 ? 'Profit' : 'Loss'}: {res.gain.toLocaleString()} €
                                         </div>
                                     </div>
                                 </GlassCard>
@@ -165,13 +165,13 @@ export const SimulationView = ({ portfolios = [] }) => {
                                         fontSize={10}
                                         tickLine={false}
                                         axisLine={false}
-                                        tickFormatter={(val) => val === 0 ? 'Ahora' : currentYear + val}
+                                        tickFormatter={(val) => val === 0 ? 'Now' : currentYear + val}
                                     />
                                     <YAxis fontSize={10} tickFormatter={(val) => `${(val / 1000).toFixed(0)}k`} tickLine={false} axisLine={false} />
                                     <Tooltip
                                         contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)', fontWeight: 'bold' }}
                                         formatter={(value) => `${value.toLocaleString()} €`}
-                                        labelFormatter={(val) => val === 0 ? 'Hoya' : `Año ${currentYear + val}`}
+                                        labelFormatter={(val) => val === 0 ? 'Today' : `Year ${currentYear + val}`}
                                     />
                                     <Legend />
                                     {results.map((res, i) => (
@@ -184,7 +184,7 @@ export const SimulationView = ({ portfolios = [] }) => {
                 ) : (
                     <div className="h-full flex flex-col items-center justify-center text-slate-300 border-2 border-dashed border-slate-200 rounded-[2.5rem]">
                         <FlaskConical size={48} className="mb-4 opacity-50" />
-                        <div className="text-sm font-bold uppercase tracking-widest text-center mt-4">Configura y simula</div>
+                        <div className="text-sm font-bold uppercase tracking-widest text-center mt-4">Configure and simulate</div>
                     </div>
                 )}
             </motion.div>

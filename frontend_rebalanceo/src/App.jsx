@@ -4,12 +4,12 @@ import _ from 'lodash'
 import { Loader2 } from 'lucide-react'
 import { Routes, Route, useNavigate, Navigate } from 'react-router-dom'
 
-// --- IMPORTACIONES ---
 import { supabase } from './supabaseClient'
 import { safeFloat } from './utils'
 import { AuthScreen } from './components/AuthScreen'
 import { Dashboard } from './components/Dashboard'
 import { SimulationView } from './components/SimulationView'
+import { NewsView } from './components/NewsView'
 import { MainLayout } from './layouts/MainLayout'
 import { Analysis } from './pages/Analysis'
 import { Settings } from './pages/Settings'
@@ -62,7 +62,7 @@ function App() {
 
     const loadPortfolios = async (uid) => {
         try {
-            const res = await axios.get(`${import.meta.env.VITE_API_URL}/portfolios/list?user_id=${uid}`);
+            const res = await axios.get(`${import.meta.env.VITE_API_URL}/portfolios/list?user_id=${uid}`, { timeout: 30000 });
             setPortfolios(res.data);
             const lastId = localStorage.getItem('lastActiveId');
             const found = res.data.find(p => p.id === lastId);
@@ -165,13 +165,13 @@ function App() {
     }
 
     const deleteItem = async (id) => {
-        if (!confirm("¿Eliminar activo?")) return;
+        if (!confirm("Delete this asset?")) return;
         await axios.delete(`${import.meta.env.VITE_API_URL}/portfolio/delete/${id}`);
         loadItems(activePortfolio.id);
     }
 
     const applyRebalance = async () => {
-        if (!confirm("¿Aplicar rebalanceo? Se actualizarán las unidades.")) return;
+        if (!confirm("Apply rebalance? Units will be updated.")) return;
         setCalculating(true);
 
         const payloadOrders = tableData.map(o => ({
@@ -188,32 +188,32 @@ function App() {
             await axios.post(`${import.meta.env.VITE_API_URL}/portfolio/apply_rebalance`, {
                 portfolio_id: activePortfolio.id, contribution: parseFloat(contribution), orders: payloadOrders
             });
-            alert("Aplicado ✅");
+            alert("Applied ✅");
             setTimeout(() => { loadItems(activePortfolio.id); loadRebalanceHistory(activePortfolio.id); setCalculating(false); }, 1000);
-        } catch (e) { alert("Error"); setCalculating(false); }
+        } catch (e) { alert("Error applying rebalance"); setCalculating(false); }
     }
 
     const undoRebalance = async (histId) => {
-        if (!confirm("¿Deshacer operación?")) return;
+        if (!confirm("Undo this operation?")) return;
         try {
             await axios.post(`${import.meta.env.VITE_API_URL}/portfolio/history/undo`, { history_id: histId });
-            alert("Deshecho ✅");
+            alert("Undone ✅");
             setTimeout(() => { loadItems(activePortfolio.id); loadRebalanceHistory(activePortfolio.id); }, 500);
-        } catch (e) { alert("Error al deshacer"); }
+        } catch (e) { alert("Error undoing operation"); }
     }
 
     const deleteHistoryItem = async (histId) => {
-        if (!confirm("¿Borrar registro?")) return;
+        if (!confirm("Delete this record?")) return;
         await axios.delete(`${import.meta.env.VITE_API_URL}/portfolio/history/delete/${histId}`);
         loadRebalanceHistory(activePortfolio.id);
     }
 
-    const handleCreatePort = async () => { const n = prompt("Nombre:"); if (n) { await axios.post(`${import.meta.env.VITE_API_URL}/portfolios/create`, { user_id: session.user.id, name: n }); loadPortfolios(session.user.id); } }
-    const handleRenamePort = async (pid) => { const n = prompt("Nuevo nombre:"); if (n) { await axios.put(`${import.meta.env.VITE_API_URL}/portfolios/rename`, { portfolio_id: pid, name: n }); loadPortfolios(session.user.id); } }
-    const handleDuplicatePort = async (pid, name) => { await axios.post(`${import.meta.env.VITE_API_URL}/portfolios/duplicate`, { portfolio_id: pid, user_id: session.user.id, new_name: name + " (Copia)" }); loadPortfolios(session.user.id); }
-    const handleDeletePort = async (pid) => { if (confirm("¿Borrar cartera entera?")) { await axios.delete(`${import.meta.env.VITE_API_URL}/portfolios/delete/${pid}`); loadPortfolios(session.user.id); setActivePortfolio(null); } }
+    const handleCreatePort = async () => { const n = prompt("Portfolio name:"); if (n) { await axios.post(`${import.meta.env.VITE_API_URL}/portfolios/create`, { user_id: session.user.id, name: n }); loadPortfolios(session.user.id); } }
+    const handleRenamePort = async (pid) => { const n = prompt("New name:"); if (n) { await axios.put(`${import.meta.env.VITE_API_URL}/portfolios/rename`, { portfolio_id: pid, name: n }); loadPortfolios(session.user.id); } }
+    const handleDuplicatePort = async (pid, name) => { await axios.post(`${import.meta.env.VITE_API_URL}/portfolios/duplicate`, { portfolio_id: pid, user_id: session.user.id, new_name: name + " (Copy)" }); loadPortfolios(session.user.id); }
+    const handleDeletePort = async (pid) => { if (confirm("Delete entire portfolio?")) { await axios.delete(`${import.meta.env.VITE_API_URL}/portfolios/delete/${pid}`); loadPortfolios(session.user.id); setActivePortfolio(null); } }
 
-    if (appLoading) return <div className="h-screen flex items-center justify-center bg-slate-900 text-white font-black uppercase tracking-tighter"><Loader2 className="animate-spin mr-3 text-indigo-500" /> Cargando Fandance...</div>
+    if (appLoading) return <div className="h-screen flex items-center justify-center bg-slate-900 text-white font-black uppercase tracking-tighter"><Loader2 className="animate-spin mr-3 text-indigo-500" /> Loading Fandance...</div>
     if (!session) return <AuthScreen onLogin={setSession} />
 
     const totalVal = portfolioItems.reduce((s, i) => s + (i.value || 0), 0);
@@ -276,13 +276,14 @@ function App() {
                         />
                     ) : (
                         <div className="flex items-center justify-center h-96 text-slate-400 font-bold bg-white rounded-[2.5rem] border border-slate-100 shadow-sm">
-                            {portfolios.length === 0 ? "Crea una cartera para empezar" : "Selecciona una cartera"}
+                            {portfolios.length === 0 ? "Create a portfolio to get started" : "Select a portfolio"}
                         </div>
                     )
                 } />
                 <Route path="/dashboard" element={<Navigate to="/" replace />} />
                 <Route path="/analysis" element={<Analysis portfolios={portfolios} />} />
                 <Route path="/simulations" element={<SimulationView portfolios={portfolios} />} />
+                <Route path="/news" element={<NewsView portfolios={portfolios} activePortfolioId={activePortfolio?.id} />} />
                 <Route path="/settings" element={<Settings session={session} onLogout={() => supabase.auth.signOut()} />} />
             </Route>
         </Routes>

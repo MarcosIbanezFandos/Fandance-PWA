@@ -12,7 +12,7 @@ export default defineConfig({
       manifest: {
         name: 'Fandance',
         short_name: 'Fandance',
-        description: 'Gestor de Carteras de Inversión',
+        description: 'Investment Portfolio Manager',
         theme_color: '#0f172a',
         background_color: '#0f172a',
         display: 'standalone',
@@ -48,7 +48,7 @@ export default defineConfig({
               cacheName: 'api-cache',
               expiration: {
                 maxEntries: 50,
-                maxAgeSeconds: 60 * 60 * 24 // 1 día
+                maxAgeSeconds: 60 * 60 * 24 // 1 day
               },
               cacheableResponse: {
                 statuses: [0, 200]

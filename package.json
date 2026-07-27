@@ -1,14 +1,9 @@
 {
-    "name": "fandance-root",
-    "version": "1.0.0",
+    "name": "fandance-pwa",
+    "version": "2.0.0",
     "private": true,
     "scripts": {
-        "install:frontend": "cd frontend_rebalanceo && npm ci --include=dev",
-        "build": "npm run install:frontend && cd frontend_rebalanceo && npm run build",
-        "start": "node server.js"
-    },
-    "dependencies": {
-        "express": "^4.18.2"
+        "build": "cd frontend_rebalanceo && npm ci && npm run build"
     },
     "engines": {
         "node": "20.x"

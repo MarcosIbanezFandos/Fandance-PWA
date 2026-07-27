@@ -17,10 +17,11 @@ export const MainLayout = ({
 
     const getHeaderTitle = () => {
         switch (location.pathname) {
-            case '/': return activePortfolio?.name || 'Rebalanceador';
-            case '/analysis': return 'Análisis de Activos';
-            case '/simulations': return 'Proyecciones Financieras';
-            case '/settings': return 'Ajustes de Cuenta';
+            case '/': return activePortfolio?.name || 'Rebalancer';
+            case '/analysis': return 'Asset Analysis';
+            case '/simulations': return 'Financial Projections';
+            case '/news': return 'Market News';
+            case '/settings': return 'Account Settings';
             default: return 'Fandance';
         }
     };
@@ -43,7 +44,7 @@ export const MainLayout = ({
                         {getHeaderTitle()}
                     </h1>
                     <div className="text-right hidden md:block">
-                        <div className="text-xs font-bold text-slate-400 uppercase tracking-widest">Usuario</div>
+                        <div className="text-xs font-bold text-slate-400 uppercase tracking-widest">User</div>
                         <div className="font-bold text-slate-700">{session?.user?.email}</div>
                     </div>
                 </header>

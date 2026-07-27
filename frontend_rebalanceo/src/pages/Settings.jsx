@@ -64,7 +64,7 @@ export const Settings = ({ session, onLogout }) => {
                     <div className="flex items-center gap-4 mb-4">
                         <div className="p-2 bg-white dark:bg-slate-700 rounded-xl shadow-sm text-slate-700 dark:text-slate-200"><Shield size={20} /></div>
                         <div>
-                            <div className="font-bold text-slate-700 dark:text-slate-200 text-sm">Sesión Actual</div>
+                            <div className="font-bold text-slate-700 dark:text-slate-200 text-sm">Current Session</div>
                             <div className="text-[10px] text-slate-400 font-bold uppercase">{session?.user?.email}</div>
                         </div>
                     </div>
@@ -77,32 +77,32 @@ export const Settings = ({ session, onLogout }) => {
             <GlassCard>
                 <h3 className="text-xs font-black text-slate-400 uppercase tracking-widest mb-6">{t('settings.about')}</h3>
                 <div className="p-6 bg-indigo-50 rounded-2xl border border-indigo-100 mb-6">
-                    <h4 className="text-lg font-black text-indigo-900 mb-2">Sobre Fandance</h4>
+                    <h4 className="text-lg font-black text-indigo-900 mb-2">About Fandance</h4>
                     <p className="text-sm text-indigo-700/80 mb-4 leading-relaxed font-medium">
-                        Fandance es una herramienta profesional de rebalanceo de carteras diseñada para inversores particulares.
-                        Nuestra misión es simplificar la gestión de activos y optimizar tu patrimonio con datos precisos y una experiencia de usuario superior.
+                        Fandance is a professional portfolio rebalancing tool designed for individual investors.
+                        Our mission is to simplify asset management and optimize your wealth with accurate data and a superior user experience.
                     </p>
                     <div className="flex flex-col gap-2">
-                        <div className="text-xs font-bold text-indigo-400 uppercase tracking-widest">Preguntas Frecuentes</div>
+                        <div className="text-xs font-bold text-indigo-400 uppercase tracking-widest">Frequently Asked Questions</div>
                         <details className="group">
                             <summary className="cursor-pointer text-sm font-bold text-indigo-800 list-none flex items-center justify-between">
-                                ¿Cómo se calculan los rebalanceos?
+                                How are rebalances calculated?
                                 <span className="text-indigo-400 group-open:rotate-180 transition-transform">▼</span>
                             </summary>
                             <p className="text-xs text-indigo-700/70 mt-2 pl-2 border-l-2 border-indigo-200">
-                                Utilizamos un algoritmo que compara tu asignación actual con la objetivo (Target %), sugiriendo compras/ventas para minimizar la desviación y optimizar fiscalmente si es posible.
+                                We use an algorithm that compares your current allocation with the target (Target %), suggesting buys/sells to minimize deviation and optimize fiscally if possible.
                             </p>
                         </details>
                         <details className="group mt-2">
                             <summary className="cursor-pointer text-sm font-bold text-indigo-800 list-none flex items-center justify-between">
-                                ¿Mis datos están seguros?
+                                Is my data safe?
                                 <span className="text-indigo-400 group-open:rotate-180 transition-transform">▼</span>
                             </summary>
                             <p className="text-xs text-indigo-700/70 mt-2 pl-2 border-l-2 border-indigo-200">
-                                Sí. Toda la información se almacena de forma segura en Supabase con autenticación robusta. No compartimos tus datos con terceros.
+                                Yes. All information is securely stored in Supabase with robust authentication. We do not share your data with third parties.
                             </p>
                         </details>
-                        <div className="mt-4 text-[10px] text-indigo-300 font-bold uppercase text-right">Versión 2.0.0 (SaaS Release)</div>
+                        <div className="mt-4 text-[10px] text-indigo-300 font-bold uppercase text-right">Version 2.0.0 (SaaS Release)</div>
                     </div>
                 </div>
             </GlassCard>

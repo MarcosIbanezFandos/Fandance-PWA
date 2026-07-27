@@ -71,15 +71,15 @@ export const NewsView = ({ portfolios, activePortfolioId }) => {
                             <TrendingUp size={32} />
                         </div>
                         <div>
-                            <div className="text-sm font-black text-slate-400 uppercase tracking-widest">Indicador Técnico (RSI) Ponderado</div>
+                            <div className="text-sm font-black text-slate-400 uppercase tracking-widest">Weighted Technical Indicator (RSI)</div>
                             <div className="text-3xl font-black text-slate-800 mt-1">{newsData.aggregate.label}</div>
                             <div className="text-xs font-bold text-slate-400 mt-1">
-                                Puntuación Global: <span className="text-slate-700">{newsData.aggregate.score}/100</span>
+                                Global Score: <span className="text-slate-700">{newsData.aggregate.score}/100</span>
                             </div>
                         </div>
                     </div>
                     <div className="text-right hidden md:block">
-                        <div className="text-xs font-bold text-slate-400">Noticias analizadas</div>
+                        <div className="text-xs font-bold text-slate-400">Analyzed News</div>
                         <div className="text-2xl font-black text-slate-800">{allNews.length}</div>
                     </div>
                 </GlassCard>
@@ -89,7 +89,7 @@ export const NewsView = ({ portfolios, activePortfolioId }) => {
             {loading ? (
                 <div className="flex justify-center py-20"><Loader2 className="animate-spin text-indigo-600" size={40} /></div>
             ) : allNews.length === 0 ? (
-                <div className="text-center py-20 text-slate-400 font-bold">No hay noticias recientes para tus activos.</div>
+                <div className="text-center py-20 text-slate-400 font-bold">No recent news for your assets.</div>
             ) : (
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                     {allNews.map((item, idx) => (
@@ -113,7 +113,7 @@ export const NewsView = ({ portfolios, activePortfolioId }) => {
                                     <span className="text-[10px] font-bold text-slate-400 uppercase">{item.publisher}</span>
                                     <span className="text-[10px] text-slate-300">•</span>
                                     <span className="text-[10px] font-bold text-slate-400 flex items-center gap-1">
-                                        <Calendar size={10} /> {new Date(item.time).toLocaleDateString() !== 'Invalid Date' ? new Date(item.time).toLocaleDateString() : 'Reciente'}
+                                        <Calendar size={10} /> {new Date(item.time).toLocaleDateString() !== 'Invalid Date' ? new Date(item.time).toLocaleDateString() : 'Recent'}
                                     </span>
                                 </div>
 
@@ -128,7 +128,7 @@ export const NewsView = ({ portfolios, activePortfolioId }) => {
                                         rel="noopener noreferrer"
                                         className="flex items-center justify-between text-xs font-black text-indigo-500 hover:text-indigo-700 transition-colors"
                                     >
-                                        LEER ARTÍCULO <ExternalLink size={14} />
+                                        READ ARTICLE <ExternalLink size={14} />
                                     </a>
                                 </div>
                             </div>

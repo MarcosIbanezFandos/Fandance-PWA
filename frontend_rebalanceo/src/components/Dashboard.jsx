@@ -17,10 +17,10 @@ export const Dashboard = ({
 }) => {
 
     const assetSummary = React.useMemo(() => {
-        if (!portfolioItems || portfolioItems.length === 0) return "Sin activos";
+        if (!portfolioItems || portfolioItems.length === 0) return "No assets";
         const counts = _.countBy(portfolioItems, (i) => {
-            const type = i.asset?.type || 'Otro';
-            return type === 'Stock' ? 'Acciones' : type === 'ETF' ? 'ETFs' : type === 'Crypto' ? 'Cripto' : 'Otros';
+            const type = i.asset?.type || 'Other';
+            return type === 'Stock' ? 'Stocks' : type === 'ETF' ? 'ETFs' : type === 'Crypto' ? 'Crypto' : 'Other';
         });
         return Object.entries(counts).map(([key, val]) => `${val} ${key}`).join(', ');
     }, [portfolioItems]);
@@ -36,29 +36,29 @@ export const Dashboard = ({
             {/* 1. KPI GRID */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
                 <GlassCard>
-                    <div className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Valor Total</div>
+                    <div className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Total Value</div>
                     <div className="text-3xl font-black text-slate-800"><CountUp value={totalValue} suffix=" €" /></div>
                     <div className="mt-2 text-[10px] font-black uppercase text-slate-400">
-                        Capital Actual
+                        Current Capital
                     </div>
                     <div className="absolute top-6 right-6 p-3 bg-slate-50 rounded-xl text-indigo-600"><Wallet /></div>
                 </GlassCard>
 
                 <GlassCard>
-                    <div className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Perfil Riesgo</div>
+                    <div className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Risk Profile</div>
                     <div className={`text-3xl font-black ${getRiskColor(riskProfile)}`}>{riskProfile}/10</div>
-                    <div className="text-xs font-bold text-slate-400 mt-1">{riskProfile >= 8 ? 'Agresivo' : riskProfile <= 4 ? 'Conservador' : 'Moderado'}</div>
+                    <div className="text-xs font-bold text-slate-400 mt-1">{riskProfile >= 8 ? 'Aggressive' : riskProfile <= 4 ? 'Conservative' : 'Moderate'}</div>
                     <div className={`absolute top-6 right-6 p-3 rounded-xl ${riskProfile >= 8 ? 'bg-rose-50 text-rose-600' : 'bg-slate-50 text-slate-600'}`}><Activity /></div>
                 </GlassCard>
 
                 <GlassCard className="flex flex-col justify-between">
-                    <div><div className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Aportación</div>
+                    <div><div className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Contribution</div>
                         <div className="flex items-center"><input className="text-3xl font-black text-slate-800 w-32 bg-transparent outline-none" value={contribution} onChange={e => setContribution(e.target.value)} /><span className="text-xl text-slate-400 font-bold">€</span></div></div>
                     <div className="absolute top-6 right-6 p-3 bg-indigo-50 text-indigo-600 rounded-xl"><Plus /></div>
                 </GlassCard>
 
                 <GlassCard>
-                    <div className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Composición</div>
+                    <div className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Composition</div>
                     <div className="text-3xl font-black text-slate-800">{portfolioItems.length}</div>
                     <div className="text-[10px] font-bold text-slate-400 mt-1 uppercase truncate">{assetSummary}</div>
                     <div className="absolute top-6 right-6 p-3 bg-emerald-50 text-emerald-600 rounded-xl"><ListFilter /></div>
@@ -72,7 +72,7 @@ export const Dashboard = ({
                     <div className="bg-white p-6 rounded-[2rem] shadow-sm relative z-50 border border-slate-100">
                         <div className="relative flex items-center bg-slate-50 rounded-2xl p-3 border border-slate-100 focus-within:border-indigo-500 focus-within:ring-4 focus-within:ring-indigo-500/10 transition-all">
                             <Search className="text-slate-400 mr-3" size={20} />
-                            <input className="bg-transparent w-full outline-none font-bold text-sm text-slate-700 placeholder:text-slate-400" placeholder="Buscar (Ej: Apple, BTC)..." value={query} onChange={e => { setQuery(e.target.value); searchAsset(e.target.value) }} />
+                            <input className="bg-transparent w-full outline-none font-bold text-sm text-slate-700 placeholder:text-slate-400" placeholder="Search (e.g. Apple, BTC)..." value={query} onChange={e => { setQuery(e.target.value); searchAsset(e.target.value) }} />
                             {isSearching && <Loader2 className="animate-spin text-indigo-600" size={18} />}
                         </div>
                         <AnimatePresence>
@@ -90,7 +90,7 @@ export const Dashboard = ({
                     </div>
 
                     <GlassCard className="h-72 hidden md:block flex flex-col items-center justify-center relative">
-                        <h3 className="absolute top-6 left-6 text-xs font-black text-slate-400 uppercase tracking-widest">Distribución</h3>
+                        <h3 className="absolute top-6 left-6 text-xs font-black text-slate-400 uppercase tracking-widest">Distribution</h3>
                         <div className="w-full h-full flex items-center justify-center mt-4">
                             <ResponsiveContainer width="100%" height="100%">
                                 <PieChart>
@@ -130,7 +130,7 @@ export const Dashboard = ({
                         <div className="overflow-x-auto">
                             <table className="w-full text-left min-w-[600px]">
                                 <thead className="bg-slate-50/80 text-[10px] font-black text-slate-400 uppercase tracking-widest border-b border-slate-100">
-                                    <tr><th className="p-5 pl-8">Activo</th><th className="p-5 text-right">Precio</th><th className="p-5 text-center">Uds</th><th className="p-5 text-center">Valor</th><th className="p-5 text-center">Target %</th><th className="p-5 text-center bg-indigo-50/30 text-indigo-400">Acción</th><th className="p-5 text-right bg-indigo-50/30 text-indigo-400">Coste</th><th className="p-5"></th></tr>
+                                    <tr><th className="p-5 pl-8">Asset</th><th className="p-5 text-right">Price</th><th className="p-5 text-center">Units</th><th className="p-5 text-center">Value</th><th className="p-5 text-center">Target %</th><th className="p-5 text-center bg-indigo-50/30 text-indigo-400">Action</th><th className="p-5 text-right bg-indigo-50/30 text-indigo-400">Cost</th><th className="p-5"></th></tr>
                                 </thead>
                                 <tbody className="divide-y divide-slate-50">
                                     <AnimatePresence>
@@ -152,7 +152,7 @@ export const Dashboard = ({
                         </div>
                         <div className="p-5 border-t border-slate-100 flex justify-end bg-white">
                             <BounceButton onClick={applyRebalance} disabled={calculating} className="bg-slate-900 hover:bg-indigo-600 text-white px-8 py-4 rounded-2xl font-black text-xs uppercase tracking-widest shadow-xl hover:shadow-indigo-200">
-                                {calculating ? <Loader2 className="animate-spin" /> : 'Aplicar Rebalanceo'}
+                                {calculating ? <Loader2 className="animate-spin" /> : 'Apply Rebalance'}
                             </BounceButton>
                         </div>
                     </div>
@@ -161,7 +161,7 @@ export const Dashboard = ({
                     <AnimatePresence>
                         {rebalanceHistory.length > 0 && (
                             <motion.div variants={staggerContainer} initial="hidden" animate="visible" className="bg-white p-8 rounded-[2.5rem] shadow-sm border border-slate-100">
-                                <h3 className="text-xs font-black text-slate-400 uppercase tracking-widest mb-6 flex items-center gap-2"><HistoryIcon size={14} /> Historial de Operaciones</h3>
+                                <h3 className="text-xs font-black text-slate-400 uppercase tracking-widest mb-6 flex items-center gap-2"><HistoryIcon size={14} /> Operations History</h3>
                                 <div className="space-y-4">
                                     {rebalanceHistory.map(h => (
                                         <motion.div key={h.id} variants={fadeInUp} className="group border border-slate-100 rounded-2xl overflow-hidden hover:shadow-md transition-all">
@@ -176,7 +176,7 @@ export const Dashboard = ({
                                                 <div className="flex items-center gap-4">
                                                     <div className="text-right">
                                                         <div className="text-xs font-black text-indigo-600">+{h.contribution?.toLocaleString()} €</div>
-                                                        <div className="text-[10px] font-bold text-slate-400 uppercase">Aportación</div>
+                                                        <div className="text-[10px] font-bold text-slate-400 uppercase">Contribution</div>
                                                     </div>
                                                     <div className="flex gap-1">
                                                         <button onClick={() => undoRebalance(h.id)} className="p-2 hover:bg-indigo-100 rounded-xl text-slate-300 hover:text-indigo-600 transition-colors" title="Deshacer"><RotateCcw size={18} /></button>
@@ -192,7 +192,7 @@ export const Dashboard = ({
                                                             <div className="font-mono text-slate-400">{i.ticker}</div>
                                                         </div>
                                                         <div className={`text-right font-black ${i.action === 'BUY' ? 'text-emerald-500' : 'text-rose-500'}`}>
-                                                            {i.action === 'BUY' ? 'COMPRA' : 'VENTA'}<br />
+                                                            {i.action === 'BUY' ? 'BUY' : 'SELL'}<br />
                                                             <span className="text-slate-500 font-mono">{safeFloat(i.units).toFixed(4)} uds</span>
                                                         </div>
                                                     </div>

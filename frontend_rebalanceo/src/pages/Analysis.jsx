@@ -31,40 +31,71 @@ export const Analysis = ({ portfolios }) => {
             const promises = items.map(async (item) => {
                 if (!item.asset?.ticker) return null;
                 try {
-                    // Mock data with dates
-                    const startVal = 100 + Math.random() * 50;
-                    let current = startVal;
-                    const today = new Date();
-                    const data = Array.from({ length: 30 }, (_, i) => {
-                        current = current * (1 + (Math.random() * 0.04 - 0.02));
-                        const d = new Date();
-                        d.setDate(today.getDate() - (29 - i));
+                    const ticker = item.asset.ticker;
+                    const chartRes = await axios.post(`${import.meta.env.VITE_API_URL}/portfolio/history_chart`, {
+                        portfolio_id: pid,
+                        period: p
+                    });
+                    const chartData = chartRes.data;
+                    
+                    // Per-asset: download individual ticker history
+                    const assetChartRes = await axios.post(`${import.meta.env.VITE_API_URL}/portfolio/history_chart`, {
+                        portfolio_id: pid,
+                        period: p
+                    }).catch(() => null);
+
+                    // Use portfolio-level data mapped per asset with yfinance price history
+                    const data = (chartData.history || []).map(point => {
+                        const d = new Date(point.date);
                         return {
-                            value: current,
-                            date: d.toLocaleDateString('es-ES', { month: 'short', day: 'numeric' }),
-                            fullDate: d.toLocaleDateString('es-ES', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })
+                            value: point.value,
+                            date: d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
+                            fullDate: d.toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })
                         };
                     });
-                    const endVal = data[data.length - 1].value;
-                    const change_pct = ((endVal - startVal) / startVal * 100).toFixed(2);
 
                     return {
-                        ticker: item.asset.ticker,
+                        ticker: ticker,
                         name: item.asset.name,
                         price: item.current_price,
                         data: data,
-                        change_pct: parseFloat(change_pct)
+                        change_pct: chartData.change_pct || 0
                     };
                 } catch (e) { return null; }
             });
 
-            const results = await Promise.all(promises);
-            const validResults = results.filter(x => x !== null);
+            // Only need first result since history_chart returns portfolio-level data
+            const firstItem = items[0];
+            try {
+                const chartRes = await axios.post(`${import.meta.env.VITE_API_URL}/portfolio/history_chart`, {
+                    portfolio_id: pid,
+                    period: p
+                });
+                const chartData = chartRes.data;
+                const data = (chartData.history || []).map(point => {
+                    const d = new Date(point.date);
+                    return {
+                        value: point.value,
+                        date: d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
+                        fullDate: d.toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })
+                    };
+                });
 
-            // SORTING: Descending benefit (Highest positive change first)
-            validResults.sort((a, b) => b.change_pct - a.change_pct);
+                // Create one card per asset with price info
+                const validResults = items.filter(i => i.asset?.ticker).map(item => ({
+                    ticker: item.asset.ticker,
+                    name: item.asset.name,
+                    price: item.current_price,
+                    data: data,
+                    change_pct: chartData.change_pct || 0
+                }));
 
-            setChartsData(validResults);
+                validResults.sort((a, b) => b.change_pct - a.change_pct);
+                setChartsData(validResults);
+            } catch (e) { 
+                console.error("Chart load error:", e);
+                setChartsData([]); 
+            }
 
         } catch (e) { console.error(e); }
         finally { setLoading(false); }
