@@ -3,12 +3,13 @@ import { motion } from 'framer-motion';
 import { TrendingUp, Scale, FlaskConical, Newspaper, UserCircle, PlusCircle, LogOut, Briefcase, MoreVertical, Edit2, Copy, Trash2, Settings } from 'lucide-react';
 import { NavLink, useNavigate, useLocation } from 'react-router-dom';
 
-export const Sidebar = ({ portfolios, activePortfolio, setActivePortfolio, onCreatePortfolio, onLogout, onRename, onDuplicate, onDelete }) => {
+export const Sidebar = ({ portfolios, activePortfolio, setActivePortfolio, onCreatePortfolio, onLogout, onRename, onDuplicate, onDelete, isOpen, setIsOpen }) => {
   const navigate = useNavigate();
   const location = useLocation();
 
   const handlePortfolioClick = (p) => {
     setActivePortfolio(p);
+    if (setIsOpen) setIsOpen(false);
     if (location.pathname !== '/') navigate('/');
   };
 
@@ -28,18 +29,18 @@ export const Sidebar = ({ portfolios, activePortfolio, setActivePortfolio, onCre
             />
           )}
           <Icon size={20} className="relative z-10" />
-          <span className="hidden lg:block font-bold text-sm relative z-10">{label}</span>
+          <span className="font-bold text-sm relative z-10 truncate">{label}</span>
         </>
       )}
     </NavLink>
   );
 
   return (
-    <aside className="w-20 lg:w-72 bg-slate-900 text-white fixed h-full flex flex-col justify-between z-50 border-r border-slate-800 shadow-2xl">
+    <aside className={`fixed top-0 left-0 w-72 bg-slate-900 text-white h-full flex flex-col justify-between z-50 border-r border-slate-800 shadow-2xl transition-transform duration-300 ease-in-out ${isOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}`}>
       <div className="p-6">
         <div className="flex items-center gap-3 mb-10 text-indigo-400 overflow-hidden">
-          <div className="p-2 bg-indigo-600/20 rounded-xl"><TrendingUp size={24} /></div>
-          <h1 className="text-xl font-black tracking-tighter uppercase text-white hidden lg:block">F<span className="text-indigo-500">AND</span>ANCE</h1>
+          <div className="p-2 bg-indigo-600/20 rounded-xl shrink-0"><TrendingUp size={24} /></div>
+          <h1 className="text-xl font-black tracking-tighter uppercase text-white truncate">F<span className="text-indigo-500">AND</span>ANCE</h1>
         </div>
 
         <nav className="space-y-2">
@@ -53,11 +54,11 @@ export const Sidebar = ({ portfolios, activePortfolio, setActivePortfolio, onCre
 
           <button onClick={onCreatePortfolio} className="w-full flex items-center gap-4 p-4 rounded-2xl text-indigo-400 hover:bg-indigo-900/20 transition-all border border-dashed border-indigo-900/50 hover:border-indigo-500">
             <PlusCircle size={20} />
-            <span className="hidden lg:block font-bold text-sm">New Portfolio</span>
+            <span className="font-bold text-sm truncate">New Portfolio</span>
           </button>
         </nav>
 
-        <div className="mt-8 hidden lg:block">
+        <div className="mt-8">
           <div className="text-[10px] font-black uppercase text-slate-500 tracking-widest mb-4 px-2">My Portfolios</div>
           <div className="space-y-2 max-h-64 overflow-y-auto pr-2 custom-scrollbar">
             {portfolios.map(p => (
@@ -76,7 +77,7 @@ export const Sidebar = ({ portfolios, activePortfolio, setActivePortfolio, onCre
       <div className="p-4 border-t border-slate-800 bg-slate-900/50 backdrop-blur-sm">
         <button onClick={onLogout} className="w-full flex items-center gap-4 p-3 text-rose-400 hover:bg-rose-900/20 rounded-xl transition-all group">
           <LogOut size={20} className="group-hover:-translate-x-1 transition-transform" />
-          <span className="hidden lg:block font-bold text-xs">Log Out</span>
+          <span className="font-bold text-xs truncate">Log Out</span>
         </button>
       </div>
     </aside>
