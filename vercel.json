@@ -3,12 +3,11 @@
   "outputDirectory": "frontend_rebalanceo/dist",
   "framework": null,
   "rewrites": [
-    { "source": "/api/(.*)", "destination": "/api" },
+    { "source": "/api/(.*)", "destination": "/api/index.py" },
     { "source": "/(.*)", "destination": "/index.html" }
   ],
   "functions": {
-    "api/index.py": {
-      "runtime": "@vercel/python@4.5.0",
+    "api/**/*.py": {
       "maxDuration": 60
     }
   }

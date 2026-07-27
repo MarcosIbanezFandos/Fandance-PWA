@@ -10,8 +10,6 @@ import numpy as np
 import feedparser
 from typing import List, Optional, Dict, Any
 from supabase import create_client, Client
-from mangum import Mangum
-
 # --- CONFIG ---
 SUPABASE_URL = os.getenv("SUPABASE_URL", "")
 SUPABASE_KEY = os.getenv("SUPABASE_KEY", "")
@@ -528,4 +526,3 @@ def run_sim(data: SimulationInput):
     return results
 
 # --- Vercel Serverless Handler ---
-handler = Mangum(app, lifespan="off")
