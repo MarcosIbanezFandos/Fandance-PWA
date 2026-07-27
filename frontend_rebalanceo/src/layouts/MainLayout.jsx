@@ -30,11 +30,11 @@ export const MainLayout = (props) => {
             
             <Sidebar {...props} isOpen={sidebarOpen} setIsOpen={setSidebarOpen} />
             
-            <main className="flex-1 w-full lg:ml-72 p-4 md:p-8 lg:p-12 transition-all min-w-0 overflow-y-auto h-screen">
+            <main className="flex-1 w-full md:ml-20 lg:ml-72 p-4 md:p-8 lg:p-12 transition-all min-w-0 overflow-y-auto h-screen">
                 <header className="flex justify-between items-center mb-6 lg:mb-10">
                     <div className="flex items-center gap-3 overflow-hidden">
                         <button 
-                            className="lg:hidden p-2 -ml-2 text-slate-600 hover:bg-slate-200 rounded-lg shrink-0"
+                            className="md:hidden p-2 -ml-2 text-slate-600 hover:bg-slate-200 rounded-lg shrink-0"
                             onClick={() => setSidebarOpen(true)}
                         >
                             <Menu size={24} />
