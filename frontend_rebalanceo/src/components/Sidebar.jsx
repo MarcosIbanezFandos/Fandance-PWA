@@ -52,19 +52,19 @@ export const Sidebar = ({ portfolios, activePortfolio, setActivePortfolio, onCre
           <MenuLink to="/performance" label={t('sidebar.performance')} icon={PieChart} />
           <MenuLink to="/analysis" label={t('sidebar.analysis')} icon={FlaskConical} />
           <MenuLink to="/simulations" label={t('sidebar.simulations')} icon={TrendingUp} />
-          <MenuLink to="/news" label="News" icon={Newspaper} />
+          <MenuLink to="/news" label={t('sidebar.news')} icon={Newspaper} />
           <MenuLink to="/settings" label={t('sidebar.settings')} icon={Settings} />
 
           <div className="my-6 h-px bg-slate-800/50 mx-2"></div>
 
           <button onClick={onCreatePortfolio} className="w-full flex items-center gap-4 p-4 md:p-3 lg:p-4 md:justify-center lg:justify-start rounded-2xl text-indigo-400 hover:bg-indigo-900/20 transition-all border border-dashed border-indigo-900/50 hover:border-indigo-500">
             <PlusCircle size={20} className="shrink-0" />
-            <span className="font-bold text-sm md:hidden lg:block truncate">New Portfolio</span>
+            <span className="font-bold text-sm md:hidden lg:block truncate">{t('sidebar.new_portfolio')}</span>
           </button>
         </nav>
 
         <div className="mt-8 md:hidden lg:block">
-          <div className="text-[10px] font-black uppercase text-slate-500 tracking-widest mb-4 px-2">My Portfolios</div>
+          <div className="text-[10px] font-black uppercase text-slate-500 tracking-widest mb-4 px-2">{t('sidebar.my_portfolios')}</div>
           <div className="space-y-2 max-h-64 overflow-y-auto pr-2 custom-scrollbar">
             {portfolios.map(p => (
               <PortfolioItem
@@ -82,7 +82,7 @@ export const Sidebar = ({ portfolios, activePortfolio, setActivePortfolio, onCre
       <div className="p-4 md:p-3 lg:p-4 border-t border-slate-800 bg-slate-900/50 backdrop-blur-sm">
         <button onClick={onLogout} className="w-full flex items-center gap-4 p-3 md:p-2 lg:p-3 md:justify-center lg:justify-start text-rose-400 hover:bg-rose-900/20 rounded-xl transition-all group">
           <LogOut size={20} className="group-hover:-translate-x-1 transition-transform shrink-0" />
-          <span className="font-bold text-xs md:hidden lg:block truncate">Log Out</span>
+          <span className="font-bold text-xs md:hidden lg:block truncate">{t('sidebar.logout')}</span>
         </button>
       </div>
     </aside>
@@ -91,6 +91,7 @@ export const Sidebar = ({ portfolios, activePortfolio, setActivePortfolio, onCre
 
 const PortfolioItem = ({ portfolio, isActive, onClick, onRename, onDuplicate, onDelete }) => {
   const [menuOpen, setMenuOpen] = React.useState(false);
+  const { t } = useGlobal();
   return (
     <div className={`group relative w-full flex items-center gap-3 p-3 rounded-xl text-left transition-all ${isActive ? 'bg-slate-800 text-white border border-slate-700 shadow-md' : 'text-slate-500 hover:text-slate-300 hover:bg-slate-800/50 border border-transparent'}`}>
       <button className="flex-1 flex items-center gap-3 text-left overflow-hidden" onClick={onClick}>
@@ -101,10 +102,10 @@ const PortfolioItem = ({ portfolio, isActive, onClick, onRename, onDuplicate, on
         <button onClick={(e) => { e.stopPropagation(); setMenuOpen(!menuOpen) }} className="p-1 hover:bg-slate-700 rounded"><MoreVertical size={14} /></button>
         {menuOpen && (
           <div className="absolute right-0 top-full mt-1 w-36 bg-slate-800 border border-slate-700 rounded-xl shadow-2xl z-50 overflow-hidden py-1" onMouseLeave={() => setMenuOpen(false)}>
-            <button onClick={(e) => { e.stopPropagation(); onRename(portfolio.id) }} className="w-full text-left px-3 py-3 text-[10px] font-bold text-slate-300 hover:bg-slate-700 flex gap-2 items-center"><Edit2 size={12} /> Rename</button>
-            <button onClick={(e) => { e.stopPropagation(); onDuplicate(portfolio.id, portfolio.name) }} className="w-full text-left px-3 py-3 text-[10px] font-bold text-slate-300 hover:bg-slate-700 flex gap-2 items-center"><Copy size={12} /> Duplicate</button>
+            <button onClick={(e) => { e.stopPropagation(); onRename(portfolio.id) }} className="w-full text-left px-3 py-3 text-[10px] font-bold text-slate-300 hover:bg-slate-700 flex gap-2 items-center"><Edit2 size={12} /> {t('portfolio.rename')}</button>
+            <button onClick={(e) => { e.stopPropagation(); onDuplicate(portfolio.id, portfolio.name) }} className="w-full text-left px-3 py-3 text-[10px] font-bold text-slate-300 hover:bg-slate-700 flex gap-2 items-center"><Copy size={12} /> {t('portfolio.duplicate')}</button>
             <div className="h-px bg-slate-700 my-1"></div>
-            <button onClick={(e) => { e.stopPropagation(); onDelete(portfolio.id) }} className="w-full text-left px-3 py-3 text-[10px] font-bold text-rose-400 hover:bg-rose-900/30 flex gap-2 items-center"><Trash2 size={12} /> Delete</button>
+            <button onClick={(e) => { e.stopPropagation(); onDelete(portfolio.id) }} className="w-full text-left px-3 py-3 text-[10px] font-bold text-rose-400 hover:bg-rose-900/30 flex gap-2 items-center"><Trash2 size={12} /> {t('portfolio.delete')}</button>
           </div>
         )}
       </div>

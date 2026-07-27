@@ -25,52 +25,18 @@ export const Analysis = ({ portfolios }) => {
         setLoading(true);
         try {
             const res = await axios.get(`${import.meta.env.VITE_API_URL}/portfolio/${pid}?t=${Date.now()}`);
-            const items = res.data || [];
+            const items = (res.data || []).filter(i => i.asset?.ticker);
             if (items.length === 0) { setChartsData([]); return; }
 
-            const promises = items.map(async (item) => {
-                if (!item.asset?.ticker) return null;
-                try {
-                    const ticker = item.asset.ticker;
-                    
-                    // Per-asset: download individual ticker history
-                    const assetChartRes = await axios.post(`${import.meta.env.VITE_API_URL}/portfolio/history_chart`, {
-                        portfolio_id: pid,
-                        period: p,
-                        ticker: ticker
-                    }).catch(() => null);
+            // Fetch each asset's OWN price history so every card shows its real
+            // series and % change (not the portfolio total repeated).
+            const results = await Promise.all(items.map(async (item) => {
+                const ticker = item.asset.ticker;
+                const r = await axios.post(`${import.meta.env.VITE_API_URL}/portfolio/history_chart`, {
+                    portfolio_id: pid, period: p, ticker
+                }).catch(() => null);
 
-                    const assetData = assetChartRes?.data?.history || [];
-
-                    // Use asset-level data mapped per asset with yfinance price history
-                    const data = assetData.map(point => {
-                        const d = new Date(point.date);
-                        return {
-                            value: point.value,
-                            date: d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
-                            fullDate: d.toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })
-                        };
-                    });
-
-                    return {
-                        ticker: ticker,
-                        name: item.asset.name,
-                        price: item.current_price,
-                        change_pct: assetChartRes?.data?.change_pct || 0,
-                        change_val: assetChartRes?.data?.change_val || 0,
-                        data: data
-                    };
-                } catch (e) { return null; }
-            });
-
-            // Only need first result since history_chart returns portfolio-level data
-            try {
-                const chartRes = await axios.post(`${import.meta.env.VITE_API_URL}/portfolio/history_chart`, {
-                    portfolio_id: pid,
-                    period: p
-                });
-                const chartData = chartRes.data;
-                const data = (chartData.history || []).map(point => {
+                const data = (r?.data?.history || []).map(point => {
                     const d = new Date(point.date);
                     return {
                         value: point.value,
@@ -79,24 +45,24 @@ export const Analysis = ({ portfolios }) => {
                     };
                 });
 
-                // Create one card per asset with price info
-                const validResults = items.filter(i => i.asset?.ticker).map(item => ({
-                    ticker: item.asset.ticker,
+                return {
+                    ticker,
                     name: item.asset.name,
                     price: item.current_price,
-                    data: data,
-                    change_pct: chartData.change_pct || 0
-                }));
+                    change_pct: r?.data?.change_pct || 0,
+                    change_val: r?.data?.change_val || 0,
+                    data
+                };
+            }));
 
-                validResults.sort((a, b) => b.change_pct - a.change_pct);
-                setChartsData(validResults);
-            } catch (e) { 
-                console.error("Chart load error:", e);
-                setChartsData([]); 
-            }
-
-        } catch (e) { console.error(e); }
-        finally { setLoading(false); }
+            results.sort((a, b) => b.change_pct - a.change_pct);
+            setChartsData(results);
+        } catch (e) {
+            console.error("Chart load error:", e);
+            setChartsData([]);
+        } finally {
+            setLoading(false);
+        }
     };
 
     const periodOptions = [
@@ -108,23 +74,23 @@ export const Analysis = ({ portfolios }) => {
 
     return (
         <motion.div variants={staggerContainer} initial="hidden" animate="visible" className="space-y-8">
-            <GlassCard className="!p-4 flex flex-col md:flex-row justify-between items-center gap-4 sticky top-4 z-40 bg-white/80 backdrop-blur-md">
+            <GlassCard className="!p-4 flex flex-col md:flex-row justify-between items-center gap-4 sticky top-4 z-40 bg-white/80 dark:bg-slate-900/80 backdrop-blur-md">
                 <div className="flex items-center gap-2 w-full md:w-auto">
                     <select
                         value={selectedPortId}
                         onChange={(e) => setSelectedPortId(e.target.value)}
-                        className="w-full md:w-64 bg-slate-50 border border-slate-200 text-slate-700 text-sm font-bold rounded-xl p-2.5 outline-none focus:border-indigo-500"
+                        className="w-full md:w-64 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 text-sm font-bold rounded-xl p-2.5 outline-none focus:border-indigo-500"
                     >
                         {portfolios.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
                     </select>
                 </div>
 
-                <div className="flex bg-slate-100 p-1 rounded-xl">
+                <div className="flex bg-slate-100 dark:bg-slate-800 p-1 rounded-xl">
                     {periodOptions.map(opt => (
                         <button
                             key={opt.id}
                             onClick={() => setPeriod(opt.id)}
-                            className={`px-4 py-1.5 rounded-lg text-xs font-black transition-all ${period === opt.id ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-400 hover:text-slate-600'}`}
+                            className={`px-4 py-1.5 rounded-lg text-xs font-black transition-all ${period === opt.id ? 'bg-white dark:bg-slate-700 text-indigo-600 dark:text-indigo-400 shadow-sm' : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-300'}`}
                         >
                             {opt.label}
                         </button>

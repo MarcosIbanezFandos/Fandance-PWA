@@ -2,20 +2,22 @@ import React, { useState } from 'react';
 import { Sidebar } from '../components/Sidebar';
 import { Outlet, useLocation } from 'react-router-dom';
 import { Menu } from 'lucide-react';
+import { useGlobal } from '../context/GlobalContext';
 
 export const MainLayout = (props) => {
     const { session } = props;
     const location = useLocation();
+    const { t } = useGlobal();
     const [sidebarOpen, setSidebarOpen] = useState(false);
 
     const getHeaderTitle = () => {
         switch (location.pathname) {
-            case '/': return props.activePortfolio?.name || 'Rebalancer';
-            case '/performance': return 'Performance';
-            case '/analysis': return 'Asset Analysis';
-            case '/simulations': return 'Financial Projections';
-            case '/news': return 'Market News';
-            case '/settings': return 'Account Settings';
+            case '/': return props.activePortfolio?.name || t('header.rebalancer');
+            case '/performance': return t('header.performance');
+            case '/analysis': return t('header.analysis');
+            case '/simulations': return t('header.simulations');
+            case '/news': return t('header.news');
+            case '/settings': return t('header.settings');
             default: return 'Fandance';
         }
     };
@@ -45,7 +47,7 @@ export const MainLayout = (props) => {
                         </h1>
                     </div>
                     <div className="text-right hidden md:block shrink-0">
-                        <div className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest">User</div>
+                        <div className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest">{t('header.user')}</div>
                         <div className="text-xs font-bold text-slate-700 dark:text-slate-300">{session?.user?.email}</div>
                     </div>
                 </header>
