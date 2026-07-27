@@ -82,7 +82,7 @@ function App() {
 
     const loadItems = async (pid) => {
         try {
-            const res = await axios.get(`${import.meta.env.VITE_API_URL}/portfolio/${pid}`);
+            const res = await axios.get(`${import.meta.env.VITE_API_URL}/portfolio/${pid}?t=${Date.now()}`);
             setPortfolioItems(res.data || []);
         } catch (e) { setPortfolioItems([]) }
     }
@@ -90,7 +90,7 @@ function App() {
 
     const loadRebalanceHistory = async (pid) => {
         try {
-            const res = await axios.get(`${import.meta.env.VITE_API_URL}/portfolio/history/${pid}`);
+            const res = await axios.get(`${import.meta.env.VITE_API_URL}/portfolio/history/${pid}?t=${Date.now()}`);
             setRebalanceHistory(res.data || []);
         } catch (e) { setRebalanceHistory([]) }
     }

@@ -24,7 +24,7 @@ export const Analysis = ({ portfolios }) => {
     const loadCharts = async (pid, p) => {
         setLoading(true);
         try {
-            const res = await axios.get(`${import.meta.env.VITE_API_URL}/portfolio/${pid}`);
+            const res = await axios.get(`${import.meta.env.VITE_API_URL}/portfolio/${pid}?t=${Date.now()}`);
             const items = res.data || [];
             if (items.length === 0) { setChartsData([]); return; }
 

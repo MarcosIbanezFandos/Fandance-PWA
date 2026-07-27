@@ -20,7 +20,7 @@ export const NewsView = ({ portfolios, activePortfolioId }) => {
         try {
             // Updated endpoint logic in backend now accepts assets list
             // We first need the assets of the active portfolio
-            const res = await axios.get(`${import.meta.env.VITE_API_URL}/portfolio/${activePortfolioId}`);
+            const res = await axios.get(`${import.meta.env.VITE_API_URL}/portfolio/${activePortfolioId}?t=${Date.now()}`);
             const items = res.data || [];
 
             if (items.length === 0) {
