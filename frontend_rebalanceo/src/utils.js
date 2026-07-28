@@ -37,6 +37,86 @@ export const formatUnits = (units) => {
 };
 
 /**
+ * Aggregate a portfolio X-ray from per-position look-through data
+ * (as returned by POST /api/portfolio/xray).
+ *
+ * positions: [{ ticker, name, type, value, coverage, holdings:[{symbol,name,weight,country,currency}],
+ *               sectors:{name:weight}, region, currency }]
+ * filterTicker: null = whole portfolio; a ticker = drill into that single position.
+ *
+ * Returns { total, companies, countries, currencies, sectors } where each list is
+ * sorted desc with { key, name, symbol, value, pct, sources[], other }.
+ */
+export const buildXray = (positions, filterTicker = null) => {
+    const list = (positions || []).filter(p => !filterTicker || p.ticker === filterTicker);
+    const total = list.reduce((s, p) => s + safeFloat(p.value), 0);
+
+    const companies = new Map();
+    const countries = {};
+    const currencies = {};
+    const sectors = {};
+
+    const addCompany = (key, name, symbol, val, sourceTicker, other = false) => {
+        const c = companies.get(key) || { key, name, symbol, value: 0, sources: new Set(), other };
+        c.value += val;
+        if (sourceTicker) c.sources.add(sourceTicker);
+        companies.set(key, c);
+    };
+
+    for (const p of list) {
+        const value = safeFloat(p.value);
+        let covered = 0;
+
+        for (const h of (p.holdings || [])) {
+            const val = value * safeFloat(h.weight);
+            if (val <= 0) continue;
+            covered += val;
+            const key = (h.symbol || h.name || '').toUpperCase();
+            addCompany(key, h.name || h.symbol, h.symbol, val, p.ticker);
+            const country = h.country || 'Other';
+            const currency = h.currency || 'USD';
+            countries[country] = (countries[country] || 0) + val;
+            currencies[currency] = (currencies[currency] || 0) + val;
+        }
+
+        // Remainder of a fund that isn't in the top holdings.
+        const rem = value - covered;
+        if (rem > 0.5) {
+            addCompany('__other_' + p.ticker, `Otros de ${p.name}`, null, rem, p.ticker, true);
+            const region = p.region || 'Global (diversified)';
+            const cur = p.currency || 'USD';
+            countries[region] = (countries[region] || 0) + rem;
+            currencies[cur] = (currencies[cur] || 0) + rem;
+        }
+
+        // Sectors (fractions of the position value).
+        let secCovered = 0;
+        for (const [s, w] of Object.entries(p.sectors || {})) {
+            const val = value * safeFloat(w);
+            sectors[s] = (sectors[s] || 0) + val;
+            secCovered += val;
+        }
+        if (value - secCovered > 0.5) sectors['unknown'] = (sectors['unknown'] || 0) + (value - secCovered);
+    }
+
+    const toSorted = (obj) => Object.entries(obj)
+        .map(([key, value]) => ({ key, name: key, value, pct: total > 0 ? (value / total) * 100 : 0 }))
+        .sort((a, b) => b.value - a.value);
+
+    const companyList = [...companies.values()]
+        .map(c => ({ ...c, sources: [...c.sources], pct: total > 0 ? (c.value / total) * 100 : 0 }))
+        .sort((a, b) => b.value - a.value);
+
+    return {
+        total,
+        companies: companyList,
+        countries: toSorted(countries),
+        currencies: toSorted(currencies),
+        sectors: toSorted(sectors),
+    };
+};
+
+/**
  * Money-weighted return (XIRR) for irregularly-timed cash flows.
  * cashflows: [{ amount, date }] where deposits are negative and the final
  * portfolio value is a positive inflow dated today.

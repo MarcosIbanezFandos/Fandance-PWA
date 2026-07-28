@@ -2,6 +2,7 @@ import React from 'react';
 import { GlassCard, BounceButton } from '../components/UI';
 import { Moon, Sun, Globe, Shield, LogOut, Target, Scale, Sparkles, CheckCircle2, AlertTriangle, RefreshCw } from 'lucide-react';
 import { useGlobal } from '../context/GlobalContext';
+import { Dropdown } from '../components/Dropdown';
 import { safeFloat, formatNumber } from '../utils';
 
 // Parse a loose CSV: each line is "<symbol/ISIN/name> , <units>" (extra columns ok).
@@ -204,14 +205,13 @@ export const Settings = ({ session, onLogout, activePortfolio, portfolioItems, h
                             <div className="text-[10px] text-slate-400 font-bold uppercase">{language === 'es' ? 'Español (ES)' : 'English (EN)'}</div>
                         </div>
                     </div>
-                    <select
+                    <Dropdown
+                        className="w-40"
+                        align="right"
                         value={language}
-                        onChange={(e) => setLanguage(e.target.value)}
-                        className="bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-lg py-2 px-4 text-xs font-bold outline-none focus:border-indigo-500 dark:text-slate-200 transition-colors"
-                    >
-                        <option value="es">Español</option>
-                        <option value="en">English</option>
-                    </select>
+                        onChange={setLanguage}
+                        options={[{ value: 'es', label: 'Español' }, { value: 'en', label: 'English' }]}
+                    />
                 </div>
             </GlassCard>
 

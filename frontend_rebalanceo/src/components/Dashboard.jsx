@@ -105,10 +105,8 @@ export const Dashboard = ({
                 </GlassCard>
             </div>
 
-            {/* 2. MAIN AREA */}
-            <div className="grid grid-cols-1 xl:grid-cols-12 gap-8">
-                {/* LEFT COLUMN */}
-                <motion.div variants={fadeInUp} className="xl:col-span-4 space-y-6">
+            {/* 2. SEARCH — full width */}
+            <motion.div variants={fadeInUp} className="relative z-50">
                     <div className="bg-white dark:bg-slate-900 p-6 rounded-[2rem] shadow-sm relative z-50 border border-slate-100 dark:border-slate-800">
                         <div className="relative flex items-center bg-slate-50 dark:bg-slate-800 rounded-2xl p-3 border border-slate-100 dark:border-slate-700 focus-within:border-indigo-500 focus-within:ring-4 focus-within:ring-indigo-500/10 transition-all">
                             <Search className="text-slate-400 mr-3" size={20} />
@@ -128,25 +126,10 @@ export const Dashboard = ({
                             )}
                         </AnimatePresence>
                     </div>
-
-                    <GlassCard className="h-72 hidden md:block relative">
-                        <h3 className="absolute top-6 left-6 text-xs font-black text-slate-400 uppercase tracking-widest z-10">{t('dash.distribution')}</h3>
-                        <div className="w-full h-full flex items-center justify-center mt-4">
-                            <ResponsiveContainer width="100%" height="100%">
-                                <PieChart>
-                                    <Pie data={chartData} cx="50%" cy="100%" startAngle={180} endAngle={0} innerRadius={80} outerRadius={100} paddingAngle={2} dataKey="value" cornerRadius={4}>
-                                        {chartData.map((e, i) => <Cell key={i} fill={e.fill} stroke="none" />)}
-                                    </Pie>
-                                    <Tooltip contentStyle={{ borderRadius: '16px', border: 'none', boxShadow: '0 10px 30px -5px rgba(0,0,0,0.2)', fontWeight: 'bold', background: '#0f172a', color: '#fff' }} itemStyle={{ color: '#fff' }} formatter={(val) => `${formatNumber(val)} €`} />
-                                </PieChart>
-                            </ResponsiveContainer>
-                        </div>
-                    </GlassCard>
                 </motion.div>
 
-                {/* RIGHT COLUMN */}
-                <motion.div variants={fadeInUp} className="xl:col-span-8 space-y-6">
-                    {/* PLAN CARD */}
+                {/* PLAN CARD — full width */}
+                <motion.div variants={fadeInUp}>
                     <div className="bg-white dark:bg-slate-900 rounded-[2.5rem] shadow-sm border border-slate-100 dark:border-slate-800 overflow-hidden">
                         {/* Header: mode toggle + targets badge */}
                         <div className="p-5 md:p-6 border-b border-slate-100 dark:border-slate-800 flex flex-col lg:flex-row lg:items-center justify-between gap-4">
@@ -280,7 +263,27 @@ export const Dashboard = ({
                             </BounceButton>
                         </div>
                     </div>
+                </motion.div>
 
+                {/* BOTTOM: distribution + history */}
+                <div className="grid grid-cols-1 xl:grid-cols-12 gap-8">
+                    <motion.div variants={fadeInUp} className="xl:col-span-5">
+                        <GlassCard className="relative h-full min-h-[19rem]">
+                            <h3 className="absolute top-6 left-6 text-xs font-black text-slate-400 uppercase tracking-widest z-10">{t('dash.distribution')}</h3>
+                            <div className="w-full h-72 flex items-center justify-center mt-4">
+                                <ResponsiveContainer width="100%" height="100%">
+                                    <PieChart>
+                                        <Pie data={chartData} cx="50%" cy="100%" startAngle={180} endAngle={0} innerRadius={80} outerRadius={100} paddingAngle={2} dataKey="value" cornerRadius={4}>
+                                            {chartData.map((e, i) => <Cell key={i} fill={e.fill} stroke="none" />)}
+                                        </Pie>
+                                        <Tooltip contentStyle={{ borderRadius: '16px', border: 'none', boxShadow: '0 10px 30px -5px rgba(0,0,0,0.2)', fontWeight: 'bold', background: '#0f172a', color: '#fff' }} itemStyle={{ color: '#fff' }} formatter={(val) => `${formatNumber(val)} €`} />
+                                    </PieChart>
+                                </ResponsiveContainer>
+                            </div>
+                        </GlassCard>
+                    </motion.div>
+
+                    <motion.div variants={fadeInUp} className="xl:col-span-7">
                     {/* HISTORY LOG */}
                     <AnimatePresence>
                         {rebalanceHistory.length > 0 && (

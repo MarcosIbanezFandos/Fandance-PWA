@@ -91,6 +91,9 @@ class SimulationInput(BaseModel):
 class NewsInput(BaseModel):
     assets: List[dict]
 
+class XrayInput(BaseModel):
+    positions: List[dict]  # [{ticker, name, type, value, sector, country, currency}]
+
 # --- DATA FETCHING ---
 def get_asset_metadata(ticker: str):
     clean_ticker = ticker.strip().upper()
@@ -528,5 +531,109 @@ def run_sim(data: SimulationInput):
             "total_invested": round(invested), "tax_paid": round(tax_paid), "gain": round(gain)
         })
     return results
+
+# --- PORTFOLIO X-RAY (look-through) ---
+import time as _time
+
+# Exchange-suffix -> (country, currency)
+_SUFFIX = {
+    '': ('United States', 'USD'), 'TW': ('Taiwan', 'TWD'), 'KS': ('South Korea', 'KRW'), 'KQ': ('South Korea', 'KRW'),
+    'HK': ('Hong Kong', 'HKD'), 'T': ('Japan', 'JPY'), 'L': ('United Kingdom', 'GBP'), 'AS': ('Netherlands', 'EUR'),
+    'PA': ('France', 'EUR'), 'DE': ('Germany', 'EUR'), 'F': ('Germany', 'EUR'), 'MC': ('Spain', 'EUR'),
+    'MI': ('Italy', 'EUR'), 'BR': ('Belgium', 'EUR'), 'LS': ('Portugal', 'EUR'), 'VI': ('Austria', 'EUR'),
+    'IR': ('Ireland', 'EUR'), 'HE': ('Finland', 'EUR'),
+    'SW': ('Switzerland', 'CHF'), 'TO': ('Canada', 'CAD'), 'V': ('Canada', 'CAD'), 'AX': ('Australia', 'AUD'),
+    'SS': ('China', 'CNY'), 'SZ': ('China', 'CNY'), 'NS': ('India', 'INR'), 'BO': ('India', 'INR'),
+    'SA': ('Brazil', 'BRL'), 'MX': ('Mexico', 'MXN'), 'ST': ('Sweden', 'SEK'), 'OL': ('Norway', 'NOK'),
+    'CO': ('Denmark', 'DKK'), 'JO': ('South Africa', 'ZAR'), 'SI': ('Singapore', 'SGD'),
+}
+
+def _loc_from_symbol(symbol):
+    parts = str(symbol).split('.')
+    suf = parts[-1] if len(parts) > 1 else ''
+    return _SUFFIX.get(suf.upper(), ('United States' if suf == '' else 'Other', 'USD'))
+
+def _etf_region(name, ticker):
+    n = f"{name} {ticker}".lower()
+    if 'japan' in n or 'jpn' in n: return ('Japan', 'JPY')
+    if 'emerg' in n or 'emrg' in n: return ('Emerging Markets', 'USD')
+    if 'europ' in n or 'euro stoxx' in n or 'eurozone' in n: return ('Europe (diversified)', 'EUR')
+    if 'small cap' in n or 'smallcap' in n: return ('Global small cap (diversified)', 'USD')
+    if 'world' in n or 'global' in n or 'all-world' in n or 'all world' in n or 'msci acwi' in n: return ('Global (diversified)', 'USD')
+    if 'u.s' in n or ' us ' in f" {n} " or 's&p' in n or '500' in n or 'nasdaq' in n or 'north america' in n: return ('United States', 'USD')
+    if 'china' in n: return ('China', 'CNY')
+    if 'pacific' in n or 'asia' in n: return ('Asia-Pacific (diversified)', 'USD')
+    return ('Global (diversified)', 'USD')
+
+_XRAY_CACHE = {}  # ticker -> (timestamp, payload)
+_XRAY_TTL = 60 * 60 * 12  # 12h
+
+def _etf_lookthrough(ticker, name):
+    key = ticker.upper()
+    now = _time.time()
+    cached = _XRAY_CACHE.get(key)
+    if cached and now - cached[0] < _XRAY_TTL:
+        return cached[1]
+
+    holdings, sectors, coverage = [], {}, 0.0
+    try:
+        fd = yf.Ticker(ticker).funds_data
+        th = getattr(fd, 'top_holdings', None)
+        if th is not None and not th.empty:
+            for sym, row in th.iterrows():
+                w = safe_float(row.get('Holding Percent'))
+                if w <= 0:
+                    continue
+                coverage += w
+                country, currency = _loc_from_symbol(sym)
+                holdings.append({
+                    "symbol": str(sym), "name": str(row.get('Name') or sym),
+                    "weight": round(w, 6), "country": country, "currency": currency
+                })
+        sw = getattr(fd, 'sector_weightings', None) or {}
+        for s, w in sw.items():
+            sectors[str(s)] = round(safe_float(w), 6)
+    except Exception as e:
+        print(f"XRAY etf {ticker} err: {e}")
+
+    region, region_currency = _etf_region(name, ticker)
+    payload = {
+        "holdings": holdings, "sectors": sectors,
+        "coverage": round(min(1.0, coverage), 6),
+        "region": region, "currency": region_currency
+    }
+    _XRAY_CACHE[key] = (now, payload)
+    return payload
+
+@app.post("/api/portfolio/xray")
+def portfolio_xray(data: XrayInput):
+    out = []
+    for p in data.positions:
+        ticker = (p.get("ticker") or "").strip()
+        name = p.get("name") or ticker
+        ptype = (p.get("type") or "Stock")
+        value = safe_float(p.get("value"))
+        is_fund = str(ptype).upper() in ("ETF", "FUND")
+
+        if is_fund and ticker:
+            lt = _etf_lookthrough(ticker, name)
+            out.append({
+                "ticker": ticker, "name": name, "type": ptype, "value": value,
+                "coverage": lt["coverage"], "holdings": lt["holdings"],
+                "sectors": lt["sectors"], "region": lt["region"], "currency": lt["currency"]
+            })
+        else:
+            # single asset (stock / crypto / other) counts fully as itself
+            country = p.get("country") or _loc_from_symbol(ticker)[0]
+            currency = p.get("currency") or _loc_from_symbol(ticker)[1]
+            sector = p.get("sector")
+            out.append({
+                "ticker": ticker, "name": name, "type": ptype, "value": value,
+                "coverage": 1.0,
+                "holdings": [{"symbol": ticker, "name": name, "weight": 1.0, "country": country, "currency": currency}],
+                "sectors": ({sector: 1.0} if sector and str(sector).lower() not in ("general", "unknown", "") else {}),
+                "region": country, "currency": currency
+            })
+    return {"positions": out}
 
 # --- Vercel Serverless Handler ---

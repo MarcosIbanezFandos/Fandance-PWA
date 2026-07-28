@@ -1,6 +1,6 @@
 import React from 'react';
 import { motion } from 'framer-motion';
-import { TrendingUp, Scale, FlaskConical, Newspaper, PieChart, PlusCircle, LogOut, Briefcase, MoreVertical, Edit2, Copy, Trash2, Settings } from 'lucide-react';
+import { TrendingUp, Scale, FlaskConical, Newspaper, PieChart, ScanSearch, PlusCircle, LogOut, Briefcase, MoreVertical, Edit2, Copy, Trash2, Settings } from 'lucide-react';
 import { NavLink, useNavigate, useLocation } from 'react-router-dom';
 import { useGlobal } from '../context/GlobalContext';
 
@@ -20,7 +20,7 @@ export const Sidebar = ({ portfolios, activePortfolio, setActivePortfolio, onCre
       to={to}
       onClick={() => setIsOpen(false)}
       className={({ isActive }) =>
-        `w-full flex items-center gap-4 p-4 md:p-3 lg:p-4 md:justify-center lg:justify-start rounded-2xl transition-all relative group ${isActive ? 'text-white' : 'text-slate-400 hover:text-white hover:bg-slate-800/50'}`
+        `w-full flex items-center gap-4 p-4 md:p-3 lg:p-4 md:justify-center lg:justify-start rounded-2xl transition-all relative group ${isActive ? 'text-white' : 'text-slate-300 hover:text-white hover:bg-slate-800/60'}`
       }
     >  {({ isActive }) => (
         <>
@@ -50,6 +50,7 @@ export const Sidebar = ({ portfolios, activePortfolio, setActivePortfolio, onCre
         <nav className="space-y-2">
           <MenuLink to="/" label={t('sidebar.rebalance')} icon={Scale} />
           <MenuLink to="/performance" label={t('sidebar.performance')} icon={PieChart} />
+          <MenuLink to="/xray" label={t('sidebar.xray')} icon={ScanSearch} />
           <MenuLink to="/analysis" label={t('sidebar.analysis')} icon={FlaskConical} />
           <MenuLink to="/simulations" label={t('sidebar.simulations')} icon={TrendingUp} />
           <MenuLink to="/news" label={t('sidebar.news')} icon={Newspaper} />
@@ -64,7 +65,7 @@ export const Sidebar = ({ portfolios, activePortfolio, setActivePortfolio, onCre
         </nav>
 
         <div className="mt-8 md:hidden lg:block">
-          <div className="text-[10px] font-black uppercase text-slate-500 tracking-widest mb-4 px-2">{t('sidebar.my_portfolios')}</div>
+          <div className="text-[10px] font-black uppercase text-slate-400 tracking-widest mb-4 px-2">{t('sidebar.my_portfolios')}</div>
           <div className="space-y-2 max-h-64 overflow-y-auto pr-2 custom-scrollbar">
             {portfolios.map(p => (
               <PortfolioItem
@@ -93,9 +94,9 @@ const PortfolioItem = ({ portfolio, isActive, onClick, onRename, onDuplicate, on
   const [menuOpen, setMenuOpen] = React.useState(false);
   const { t } = useGlobal();
   return (
-    <div className={`group relative w-full flex items-center gap-3 p-3 rounded-xl text-left transition-all ${isActive ? 'bg-slate-800 text-white border border-slate-700 shadow-md' : 'text-slate-500 hover:text-slate-300 hover:bg-slate-800/50 border border-transparent'}`}>
+    <div className={`group relative w-full flex items-center gap-3 p-3 rounded-xl text-left transition-all ${isActive ? 'bg-slate-800 text-white border border-slate-700 shadow-md' : 'text-slate-300 hover:text-white hover:bg-slate-800/60 border border-transparent'}`}>
       <button className="flex-1 flex items-center gap-3 text-left overflow-hidden" onClick={onClick}>
-        <Briefcase size={16} className={isActive ? 'text-indigo-400' : ''} />
+        <Briefcase size={16} className={isActive ? 'text-indigo-400' : 'text-slate-400'} />
         <span className="text-xs font-bold truncate">{portfolio.name}</span>
       </button>
       <div className="opacity-0 group-hover:opacity-100 transition-opacity">

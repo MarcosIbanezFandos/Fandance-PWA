@@ -3,6 +3,7 @@ import axios from 'axios';
 import { Loader2, ArrowUpRight, ArrowDownRight } from 'lucide-react';
 import { AreaChart, Area, ResponsiveContainer, YAxis, Tooltip, XAxis } from 'recharts';
 import { GlassCard, staggerContainer } from '../components/UI';
+import { Dropdown } from '../components/Dropdown';
 import { motion } from 'framer-motion';
 import { useGlobal } from '../context/GlobalContext';
 
@@ -75,15 +76,12 @@ export const Analysis = ({ portfolios }) => {
     return (
         <motion.div variants={staggerContainer} initial="hidden" animate="visible" className="space-y-8">
             <GlassCard className="!p-4 flex flex-col md:flex-row justify-between items-center gap-4 sticky top-4 z-40 bg-white/80 dark:bg-slate-900/80 backdrop-blur-md">
-                <div className="flex items-center gap-2 w-full md:w-auto">
-                    <select
-                        value={selectedPortId}
-                        onChange={(e) => setSelectedPortId(e.target.value)}
-                        className="w-full md:w-64 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 text-sm font-bold rounded-xl p-2.5 outline-none focus:border-indigo-500"
-                    >
-                        {portfolios.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
-                    </select>
-                </div>
+                <Dropdown
+                    className="w-full md:w-64"
+                    value={selectedPortId}
+                    onChange={setSelectedPortId}
+                    options={portfolios.map(p => ({ value: p.id, label: p.name }))}
+                />
 
                 <div className="flex bg-slate-100 dark:bg-slate-800 p-1 rounded-xl">
                     {periodOptions.map(opt => (

@@ -14,6 +14,7 @@ import { NewsView } from './components/NewsView'
 import { MainLayout } from './layouts/MainLayout'
 import { Analysis } from './pages/Analysis'
 import { Performance } from './pages/Performance'
+import { Xray } from './pages/Xray'
 import { Settings } from './pages/Settings'
 
 const TYPE_COLORS = {
@@ -348,6 +349,7 @@ function App() {
                 } />
                 <Route path="/dashboard" element={<Navigate to="/" replace />} />
                 <Route path="/performance" element={<Performance portfolios={portfolios} activePortfolioId={activePortfolio?.id} />} />
+                <Route path="/xray" element={<Xray portfolios={portfolios} activePortfolioId={activePortfolio?.id} />} />
                 <Route path="/analysis" element={<Analysis portfolios={portfolios} />} />
                 <Route path="/simulations" element={<SimulationView portfolios={portfolios} />} />
                 <Route path="/news" element={<NewsView portfolios={portfolios} activePortfolioId={activePortfolio?.id} />} />

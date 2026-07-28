@@ -14,6 +14,7 @@ export const MainLayout = (props) => {
         switch (location.pathname) {
             case '/': return props.activePortfolio?.name || t('header.rebalancer');
             case '/performance': return t('header.performance');
+            case '/xray': return t('header.xray');
             case '/analysis': return t('header.analysis');
             case '/simulations': return t('header.simulations');
             case '/news': return t('header.news');
