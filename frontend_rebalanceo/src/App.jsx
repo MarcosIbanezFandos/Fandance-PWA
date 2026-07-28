@@ -57,21 +57,32 @@ function App() {
             setAppLoading(true);
             const { data: { session } } = await supabase.auth.getSession();
             setSession(session);
-            if (session) await loadPortfolios(session.user.id);
+            if (session) await loadPortfolios(session.user.id, session.user.email);
             setAppLoading(false);
         };
         init();
         const { data: { subscription } } = supabase.auth.onAuthStateChange((_e, s) => {
             setSession(s);
             if (!s) { setPortfolios([]); setActivePortfolio(null); }
-            else if (s && portfolios.length === 0) loadPortfolios(s.user.id);
+            else if (s && portfolios.length === 0) loadPortfolios(s.user.id, s.user.email);
         });
         return () => subscription.unsubscribe();
     }, [])
 
-    const loadPortfolios = async (uid) => {
+    const seedingRef = React.useRef(false);
+    const loadPortfolios = async (uid, email) => {
         try {
-            const res = await axios.get(`${import.meta.env.VITE_API_URL}/portfolios/list?user_id=${uid}`, { timeout: 30000 });
+            let res = await axios.get(`${import.meta.env.VITE_API_URL}/portfolios/list?user_id=${uid}`, { timeout: 30000 });
+
+            // First-time NON-admin user with nothing yet → seed 3 starter portfolios.
+            if ((res.data || []).length === 0 && email && !isAdmin(email) && !seedingRef.current) {
+                seedingRef.current = true;
+                try {
+                    await axios.post(`${import.meta.env.VITE_API_URL}/portfolios/seed_defaults`, { user_id: uid }, { timeout: 90000 });
+                    res = await axios.get(`${import.meta.env.VITE_API_URL}/portfolios/list?user_id=${uid}`, { timeout: 30000 });
+                } catch (e) { /* seeding is best-effort */ }
+            }
+
             setPortfolios(res.data);
             const lastId = localStorage.getItem('lastActiveId');
             const found = res.data.find(p => p.id === lastId);

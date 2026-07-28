@@ -94,6 +94,14 @@ class NewsInput(BaseModel):
 class XrayInput(BaseModel):
     positions: List[dict]  # [{ticker, name, type, value, sector, country, currency}]
 
+class BenchmarkInput(BaseModel):
+    holdings: List[dict]          # [{ticker, units}]
+    benchmarks: List[str] = []    # e.g. ["^GSPC", "URTH"]
+    period: str = "1y"
+
+class SeedInput(BaseModel):
+    user_id: str
+
 # --- DATA FETCHING ---
 def get_asset_metadata(ticker: str):
     clean_ticker = ticker.strip().upper()
@@ -635,5 +643,173 @@ def portfolio_xray(data: XrayInput):
                 "region": country, "currency": currency
             })
     return {"positions": out}
+
+# --- BENCHMARK COMPARISON ---
+BENCHMARK_LABELS = {
+    "^GSPC": "S&P 500", "URTH": "MSCI World", "^IXIC": "Nasdaq 100",
+    "^STOXX50E": "Euro Stoxx 50", "ACWI": "MSCI ACWI", "GLD": "Gold",
+    "BTC-EUR": "Bitcoin", "AGG": "US Aggregate Bond", "^N225": "Nikkei 225",
+    "EEM": "Emerging Markets",
+}
+
+def _series_stats(s, bench_returns=None):
+    s = s.dropna()
+    if len(s) < 2:
+        return {"return_pct": 0, "cagr": 0, "volatility": 0, "max_drawdown": 0}
+    ret = (s.iloc[-1] / s.iloc[0] - 1) * 100
+    years = max((s.index[-1] - s.index[0]).days / 365.25, 1e-6)
+    cagr = ((s.iloc[-1] / s.iloc[0]) ** (1 / years) - 1) * 100 if s.iloc[0] > 0 else 0
+    daily = s.pct_change().dropna()
+    vol = safe_float(daily.std() * (252 ** 0.5) * 100)
+    cummax = s.cummax()
+    max_dd = safe_float(((s - cummax) / cummax).min() * 100)
+    out = {"return_pct": round(safe_float(ret), 2), "cagr": round(safe_float(cagr), 2),
+           "volatility": round(vol, 2), "max_drawdown": round(max_dd, 2)}
+    if bench_returns is not None:
+        aligned = pd.concat([daily.rename("p"), bench_returns.rename("b")], axis=1).dropna()
+        if len(aligned) > 2 and aligned["b"].var() > 0:
+            beta = aligned["p"].cov(aligned["b"]) / aligned["b"].var()
+            corr = aligned["p"].corr(aligned["b"])
+            out["beta"] = round(safe_float(beta), 2)
+            out["correlation"] = round(safe_float(corr), 2)
+    return out
+
+@app.post("/api/portfolio/benchmark")
+def portfolio_benchmark(data: BenchmarkInput):
+    try:
+        holdings = {}
+        for h in data.holdings:
+            tk = (h.get("ticker") or "").strip().upper()
+            if tk == "BTC":
+                tk = "BTC-EUR"
+            u = safe_float(h.get("units"))
+            if tk and u > 0:
+                holdings[tk] = holdings.get(tk, 0) + u
+
+        benches = [b for b in (data.benchmarks or []) if b][:6]
+        all_tickers = list(set(list(holdings.keys()) + benches))
+        if not all_tickers:
+            return {"series": [], "stats": {}, "labels": {}}
+
+        interval = "1d"
+        if data.period in ["1d", "5d"]:
+            interval = "60m"
+
+        df = yf.download(all_tickers, period=data.period, interval=interval, progress=False)["Close"]
+        if isinstance(df, pd.Series):
+            df = df.to_frame(name=all_tickers[0])
+        elif len(all_tickers) == 1:
+            df.columns = [all_tickers[0]]
+        df.index = df.index.tz_localize(None)
+        df = df.ffill().bfill()
+
+        # Portfolio value series from current holdings.
+        port = pd.Series(0.0, index=df.index)
+        have_port = False
+        for tk, units in holdings.items():
+            if tk in df.columns:
+                port = port + df[tk].fillna(0) * units
+                have_port = True
+        port = port[port > 0]
+
+        # Build normalized (base 100) combined series on the common date index.
+        cols = {}
+        if have_port and len(port) > 1:
+            cols["portfolio"] = (port / port.iloc[0]) * 100
+        for b in benches:
+            if b in df.columns:
+                s = df[b].dropna()
+                if len(s) > 1:
+                    cols[b] = (s / s.iloc[0]) * 100
+
+        if not cols:
+            return {"series": [], "stats": {}, "labels": {}}
+
+        combined = pd.concat(cols.values(), axis=1, keys=cols.keys()).dropna()
+        series = [{"date": d.isoformat(), **{k: round(safe_float(combined.loc[d, k]), 2) for k in cols}} for d in combined.index]
+
+        # Stats (portfolio beta/correlation computed vs first selected benchmark).
+        stats = {}
+        primary = benches[0] if benches else None
+        bench_daily = df[primary].pct_change().dropna() if (primary and primary in df.columns) else None
+        if "portfolio" in cols:
+            stats["portfolio"] = _series_stats(port, bench_daily)
+        for b in benches:
+            if b in df.columns:
+                stats[b] = _series_stats(df[b])
+
+        labels = {b: BENCHMARK_LABELS.get(b, b) for b in benches}
+        return {"series": series, "stats": stats, "labels": labels,
+                "start": series[0]["date"] if series else None, "end": series[-1]["date"] if series else None}
+    except Exception as e:
+        print(f"BENCHMARK ERROR: {e}")
+        return {"series": [], "stats": {}, "labels": {}}
+
+# --- SEED DEFAULT PORTFOLIOS (for new, non-admin users) ---
+# Mix of asset types so the app is exercised beyond ETFs: stocks, ETFs, a bond
+# ETF (renta fija), gold and crypto. Risk profile ≈ equities+crypto weight.
+SEED_PORTFOLIOS = [
+    {"name": "Conservadora (20% riesgo)", "assets": [
+        ("URTH", 18, 3), ("AGG", 62, 12), ("GLD", 15, 4), ("BTC-EUR", 5, 0.002),
+    ]},
+    {"name": "Moderada (50% riesgo)", "assets": [
+        ("URTH", 28, 5), ("AAPL", 8, 2), ("NVDA", 7, 3), ("AGG", 37, 8),
+        ("GLD", 10, 3), ("BTC-EUR", 10, 0.004),
+    ]},
+    {"name": "Agresiva (80% riesgo)", "assets": [
+        ("URTH", 28, 5), ("NVDA", 14, 5), ("AAPL", 10, 3), ("MSFT", 8, 2),
+        ("AGG", 8, 2), ("GLD", 8, 2), ("BTC-EUR", 16, 0.006), ("ETH-EUR", 8, 0.1),
+    ]},
+]
+
+def _get_or_create_asset(ticker):
+    meta = get_asset_metadata(ticker)
+    final_ticker = meta['real_ticker']
+    existing = supabase.table("assets").select("id").eq("ticker", final_ticker).execute()
+    if existing.data:
+        return existing.data[0]["id"]
+    try:
+        new_asset = supabase.table("assets").insert({
+            "ticker": final_ticker, "name": meta["name"], "type": meta["type"],
+            "sector": meta["sector"], "country": meta["country"], "currency": meta["currency"]
+        }).execute()
+        if new_asset.data:
+            return new_asset.data[0]["id"]
+    except Exception:
+        r = supabase.table("assets").select("id").eq("ticker", final_ticker).execute()
+        if r.data:
+            return r.data[0]["id"]
+    return None
+
+@app.post("/api/portfolios/seed_defaults")
+def seed_defaults(data: SeedInput):
+    try:
+        # Never seed if the user already has portfolios.
+        existing = supabase.table("portfolios").select("id").eq("user_id", data.user_id).limit(1).execute()
+        if existing.data:
+            return {"status": "skipped", "reason": "already has portfolios"}
+
+        created = []
+        for pdef in SEED_PORTFOLIOS:
+            pf = supabase.table("portfolios").insert({"user_id": data.user_id, "name": pdef["name"]}).execute()
+            if not pf.data:
+                continue
+            pid = pf.data[0]["id"]
+            created.append(pid)
+            for ticker, weight, units in pdef["assets"]:
+                try:
+                    asset_id = _get_or_create_asset(ticker)
+                    if not asset_id:
+                        continue
+                    supabase.table("portfolio_items").insert({
+                        "portfolio_id": pid, "asset_id": asset_id,
+                        "units_held": units, "target_weight": weight
+                    }).execute()
+                except Exception as e:
+                    print(f"SEED item {ticker} err: {e}")
+        return {"status": "ok", "created": len(created)}
+    except Exception as e:
+        print(f"SEED ERROR: {e}")
+        raise HTTPException(500, str(e))
 
 # --- Vercel Serverless Handler ---

@@ -5,6 +5,8 @@ import { Loader2, TrendingUp, TrendingDown, Wallet, PiggyBank, Percent, Receipt 
 import { AreaChart, Area, ResponsiveContainer, YAxis, XAxis, Tooltip } from 'recharts';
 import { GlassCard, staggerContainer, fadeInUp } from '../components/UI';
 import { Dropdown } from '../components/Dropdown';
+import { BenchmarkCompare } from '../components/BenchmarkCompare';
+import { CostBasis } from '../components/CostBasis';
 import { useGlobal } from '../context/GlobalContext';
 import { safeFloat, formatNumber, xirr } from '../utils';
 
@@ -232,6 +234,10 @@ export const Performance = ({ portfolios, activePortfolioId }) => {
                             </GlassCard>
                         </>
                     )}
+
+                    {/* Benchmark comparison + profit-since-purchase (independent of contribution history) */}
+                    <BenchmarkCompare holdings={items.map(i => ({ ticker: i.asset?.ticker, units: i.units_held }))} period={period} />
+                    <CostBasis items={items} pid={pid} />
                 </>
             )}
         </motion.div>
