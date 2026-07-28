@@ -13,3 +13,20 @@
   background-color: #cbd5e1;
   border-radius: 20px;
 }
+
+/* Remove the grey tap flash on mobile for a native, app-like feel (harmless on desktop). */
+html { -webkit-tap-highlight-color: transparent; }
+
+/* App-like behaviour ONLY when launched from the home screen (installed PWA).
+   These rules never apply in a normal browser tab or on desktop. */
+@media (display-mode: standalone) {
+  html {
+    /* Matches the dark theme_color behind the status bar / any overscroll area. */
+    background: #0f172a;
+    /* No rubber-band bounce → feels native. */
+    overscroll-behavior-y: none;
+  }
+  body {
+    overscroll-behavior-y: none;
+  }
+}

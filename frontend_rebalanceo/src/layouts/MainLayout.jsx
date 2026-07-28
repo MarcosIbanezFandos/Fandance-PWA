@@ -34,7 +34,7 @@ export const MainLayout = (props) => {
             
             <Sidebar {...props} isOpen={sidebarOpen} setIsOpen={setSidebarOpen} />
             
-            <main className="flex-1 w-full md:ml-20 lg:ml-72 p-4 md:p-8 lg:p-12 transition-all min-w-0 overflow-y-auto h-screen">
+            <main className="flex-1 w-full md:ml-20 lg:ml-72 px-4 md:px-8 lg:px-12 pt-[calc(1rem+env(safe-area-inset-top))] pb-[calc(1rem+env(safe-area-inset-bottom))] md:py-8 lg:py-12 transition-all min-w-0 overflow-y-auto h-screen">
                 <header className="flex justify-between items-center mb-6 lg:mb-10">
                     <div className="flex items-center gap-3 overflow-hidden">
                         <button 

@@ -40,7 +40,7 @@ export const Sidebar = ({ portfolios, activePortfolio, setActivePortfolio, onCre
   );
 
   return (
-    <aside className={`fixed top-0 left-0 h-full bg-slate-900 text-white flex flex-col justify-between z-50 border-r border-slate-800 shadow-2xl transition-all duration-300 ease-in-out w-72 md:w-20 lg:w-72 ${isOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'}`}>
+    <aside className={`fixed top-0 left-0 h-full bg-slate-900 text-white flex flex-col justify-between z-50 border-r border-slate-800 shadow-2xl transition-all duration-300 ease-in-out w-72 md:w-20 lg:w-72 pt-[env(safe-area-inset-top)] pb-[env(safe-area-inset-bottom)] ${isOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'}`}>
       <div className="p-6 md:p-3 lg:p-6">
         <div className="flex items-center gap-3 mb-10 text-indigo-400 overflow-hidden md:justify-center lg:justify-start">
           <div className="p-2 bg-indigo-600/20 rounded-xl shrink-0"><TrendingUp size={24} /></div>
