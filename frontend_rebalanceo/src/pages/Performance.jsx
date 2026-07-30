@@ -165,11 +165,6 @@ export const Performance = ({ portfolios, activePortfolioId }) => {
                     {/* HERO: value + gain */}
                     <motion.div variants={fadeInUp}>
                         <GlassCard className="text-center py-10 relative">
-                            <div className="absolute top-4 right-4">
-                                <button onClick={() => document.getElementById('csv-upload-input')?.click()} className="flex items-center gap-2 px-3 py-1.5 bg-slate-800/50 hover:bg-slate-700/50 text-slate-300 rounded-lg text-xs font-bold transition-all border border-slate-700">
-                                    <Receipt size={14} /> Importar TR
-                                </button>
-                            </div>
                             <div className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">{t('perf.portfolio_value')}</div>
                             <div className="text-5xl font-black text-slate-900 dark:text-white tracking-tight">{formatNumber(metrics.currentValue, 2)} €</div>
                             {hasData && (
@@ -186,33 +181,50 @@ export const Performance = ({ portfolios, activePortfolioId }) => {
                         </GlassCard>
                     </motion.div>
 
-                    <div className="hidden"><TRCsvParser currentValue={metrics.currentValue} onParsed={setCsvMetrics} /></div>
+                    {/* Trade Republic import — visible drop zone */}
+                    <GlassCard>
+                        <div className="flex items-center gap-2 mb-3">
+                            <Receipt size={15} className="text-slate-400" />
+                            <h3 className="text-xs font-black text-slate-400 uppercase tracking-widest">{t('tr.title')}</h3>
+                        </div>
+                        <TRCsvParser
+                            currentValue={metrics.currentValue}
+                            onParsed={setCsvMetrics}
+                            onClear={() => setCsvMetrics(null)}
+                            hasData={!!csvMetrics}
+                        />
+                        {csvMetrics?.firstPurchase && (
+                            <div className="mt-3 text-[11px] font-bold text-slate-400 uppercase tracking-widest text-center">
+                                {t('tr.since_first')}: {new Date(csvMetrics.firstPurchase).toLocaleDateString('es-ES', { day: '2-digit', month: 'short', year: 'numeric' })}
+                            </div>
+                        )}
+                    </GlassCard>
 
                     {csvMetrics && (
-                        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mt-6">
-                            <GlassCard className="bg-[#1b2333] border-slate-800 p-5 rounded-2xl flex flex-col justify-center">
-                                <div className="text-[11px] text-slate-400 mb-1">Invertido</div>
-                                <div className="text-xl font-bold text-white">{formatNumber(csvMetrics.invested, 2)} €</div>
+                        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+                            <GlassCard className="!p-5 flex flex-col justify-center">
+                                <div className="text-[11px] text-slate-400 mb-1">{t('perf.invested')}</div>
+                                <div className="text-xl font-black text-slate-800 dark:text-white tabular-nums">{formatNumber(csvMetrics.invested, 2)} €</div>
                             </GlassCard>
-                            <GlassCard className="bg-[#1b2333] border-slate-800 p-5 rounded-2xl flex flex-col justify-center">
+                            <GlassCard className="!p-5 flex flex-col justify-center">
                                 <div className="text-[11px] text-slate-400 mb-1">TIR</div>
-                                <div className={`text-xl font-bold ${csvMetrics.tir >= 0 ? 'text-emerald-500' : 'text-rose-500'}`}>
+                                <div className={`text-xl font-black tabular-nums ${csvMetrics.tir >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-500 dark:text-rose-400'}`}>
                                     {csvMetrics.tir !== null ? `${formatNumber(csvMetrics.tir, 2)} %` : 'N/A'}
                                 </div>
                             </GlassCard>
-                            <GlassCard className="bg-[#1b2333] border-slate-800 p-5 rounded-2xl flex flex-col justify-center">
+                            <GlassCard className="!p-5 flex flex-col justify-center">
                                 <div className="text-[11px] text-slate-400 mb-1">Ganancias realizadas</div>
-                                <div className={`text-xl font-bold ${csvMetrics.realizedGross >= 0 ? 'text-emerald-500' : 'text-rose-500'}`}>
+                                <div className={`text-xl font-black tabular-nums ${csvMetrics.realizedGross >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-500 dark:text-rose-400'}`}>
                                     {formatNumber(csvMetrics.realizedGross, 2)} €
                                 </div>
-                                <div className={`text-[10px] mt-1 px-1.5 py-0.5 inline-block rounded w-max ${csvMetrics.realizedGross >= 0 ? 'bg-emerald-900/30 text-emerald-400' : 'bg-rose-900/30 text-rose-400'}`}>
+                                <div className={`text-[10px] mt-1 px-1.5 py-0.5 inline-block rounded w-max font-bold ${csvMetrics.realizedGross >= 0 ? 'bg-emerald-50 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400' : 'bg-rose-50 dark:bg-rose-900/30 text-rose-500 dark:text-rose-400'}`}>
                                     {csvMetrics.realizedGross >= 0 ? '↑' : '↓'} {csvMetrics.invested > 0 ? formatNumber((csvMetrics.realizedGross / csvMetrics.invested) * 100, 2) : 0} %
                                 </div>
                             </GlassCard>
-                            <GlassCard className="bg-[#1b2333] border-slate-800 p-5 rounded-2xl flex flex-col justify-center">
+                            <GlassCard className="!p-5 flex flex-col justify-center">
                                 <div className="text-[11px] text-slate-400 mb-1">Dividendos</div>
-                                <div className="text-xl font-bold text-slate-300">{formatNumber(csvMetrics.dividends, 2)} €</div>
-                                <div className="text-[10px] mt-1 px-1.5 py-0.5 inline-block rounded w-max bg-slate-800 text-slate-400 border border-slate-700">
+                                <div className="text-xl font-black text-slate-700 dark:text-slate-200 tabular-nums">{formatNumber(csvMetrics.dividends, 2)} €</div>
+                                <div className="text-[10px] mt-1 px-1.5 py-0.5 inline-block rounded w-max font-bold bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400">
                                     {csvMetrics.invested > 0 ? formatNumber((csvMetrics.dividends / csvMetrics.invested) * 100, 2) : 0} %
                                 </div>
                             </GlassCard>
