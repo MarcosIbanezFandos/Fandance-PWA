@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import axios from 'axios';
+import api from '../api'
 import { Loader2, ArrowUpRight, ArrowDownRight } from 'lucide-react';
 import { AreaChart, Area, ResponsiveContainer, YAxis, Tooltip, XAxis } from 'recharts';
 import { GlassCard, staggerContainer } from '../components/UI';
@@ -25,7 +25,7 @@ export const Analysis = ({ portfolios }) => {
     const loadCharts = async (pid, p) => {
         setLoading(true);
         try {
-            const res = await axios.get(`${import.meta.env.VITE_API_URL}/portfolio/${pid}?t=${Date.now()}`);
+            const res = await api.get(`${import.meta.env.VITE_API_URL}/portfolio/${pid}?t=${Date.now()}`);
             const items = (res.data || []).filter(i => i.asset?.ticker);
             if (items.length === 0) { setChartsData([]); return; }
 
@@ -33,7 +33,7 @@ export const Analysis = ({ portfolios }) => {
             // series and % change (not the portfolio total repeated).
             const results = await Promise.all(items.map(async (item) => {
                 const ticker = item.asset.ticker;
-                const r = await axios.post(`${import.meta.env.VITE_API_URL}/portfolio/history_chart`, {
+                const r = await api.post(`${import.meta.env.VITE_API_URL}/portfolio/history_chart`, {
                     portfolio_id: pid, period: p, ticker
                 }).catch(() => null);
 

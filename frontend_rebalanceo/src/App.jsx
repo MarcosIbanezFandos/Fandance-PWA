@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react'
-import axios from 'axios'
+import api from './api'
 import _ from 'lodash'
 import { Loader2 } from 'lucide-react'
 import { Routes, Route, useNavigate, Navigate } from 'react-router-dom'
@@ -72,14 +72,14 @@ function App() {
     const seedingRef = React.useRef(false);
     const loadPortfolios = async (uid, email) => {
         try {
-            let res = await axios.get(`${import.meta.env.VITE_API_URL}/portfolios/list?user_id=${uid}`, { timeout: 30000 });
+            let res = await api.get(`${import.meta.env.VITE_API_URL}/portfolios/list`, { timeout: 30000 });
 
             // First-time NON-admin user with nothing yet → seed 3 starter portfolios.
             if ((res.data || []).length === 0 && email && !isAdmin(email) && !seedingRef.current) {
                 seedingRef.current = true;
                 try {
-                    await axios.post(`${import.meta.env.VITE_API_URL}/portfolios/seed_defaults`, { user_id: uid }, { timeout: 90000 });
-                    res = await axios.get(`${import.meta.env.VITE_API_URL}/portfolios/list?user_id=${uid}`, { timeout: 30000 });
+                    await api.post(`${import.meta.env.VITE_API_URL}/portfolios/seed_defaults`, {}, { timeout: 90000 });
+                    res = await api.get(`${import.meta.env.VITE_API_URL}/portfolios/list`, { timeout: 30000 });
                 } catch (e) { /* seeding is best-effort */ }
             }
 
@@ -102,7 +102,7 @@ function App() {
 
     const loadItems = async (pid) => {
         try {
-            const res = await axios.get(`${import.meta.env.VITE_API_URL}/portfolio/${pid}?t=${Date.now()}`);
+            const res = await api.get(`${import.meta.env.VITE_API_URL}/portfolio/${pid}?t=${Date.now()}`);
             setPortfolioItems(res.data || []);
         } catch (e) { setPortfolioItems([]) }
     }
@@ -110,7 +110,7 @@ function App() {
 
     const loadRebalanceHistory = async (pid) => {
         try {
-            const res = await axios.get(`${import.meta.env.VITE_API_URL}/portfolio/history/${pid}?t=${Date.now()}`);
+            const res = await api.get(`${import.meta.env.VITE_API_URL}/portfolio/history/${pid}?t=${Date.now()}`);
             setRebalanceHistory(res.data || []);
         } catch (e) { setRebalanceHistory([]) }
     }
@@ -157,7 +157,7 @@ function App() {
 
     // Persist a single item immediately (used by the target-allocation helpers).
     const persistItem = (item) => {
-        axios.put(`${import.meta.env.VITE_API_URL}/portfolio/update`, {
+        api.put(`${import.meta.env.VITE_API_URL}/portfolio/update`, {
             item_id: item.id,
             units_held: safeFloat(item.units_held),
             target_weight: safeFloat(item.target_weight)
@@ -212,30 +212,30 @@ function App() {
     }, [portfolioItems, activePortfolio, session]);
 
     const debouncedSave = useCallback(_.debounce((id, u, t) => {
-        axios.put(`${import.meta.env.VITE_API_URL}/portfolio/update`, { item_id: id, units_held: u, target_weight: t });
+        api.put(`${import.meta.env.VITE_API_URL}/portfolio/update`, { item_id: id, units_held: u, target_weight: t });
     }, 500), []);
 
     const saveContribution = useCallback(_.debounce((pid, amount) => {
-        axios.put(`${import.meta.env.VITE_API_URL}/portfolios/update_contribution?portfolio_id=${pid}&amount=${amount}`)
+        api.put(`${import.meta.env.VITE_API_URL}/portfolios/update_contribution?portfolio_id=${pid}&amount=${amount}`)
     }, 500), []);
 
     useEffect(() => { if (activePortfolio && contribution) saveContribution(activePortfolio.id, contribution) }, [contribution]);
 
     const searchAsset = async (q) => {
         setIsSearching(true);
-        try { const res = await axios.get(`${import.meta.env.VITE_API_URL}/assets/search?q=${q}`); setSearchResults(res.data); }
+        try { const res = await api.get(`${import.meta.env.VITE_API_URL}/assets/search?q=${q}`); setSearchResults(res.data); }
         catch (e) { } finally { setIsSearching(false); }
     }
 
     const addAsset = async (asset) => {
         if (!activePortfolio) return;
-        await axios.post(`${import.meta.env.VITE_API_URL}/portfolio/add`, { portfolio_id: activePortfolio.id, ticker: asset.ticker, name: asset.name });
+        await api.post(`${import.meta.env.VITE_API_URL}/portfolio/add`, { portfolio_id: activePortfolio.id, ticker: asset.ticker, name: asset.name });
         loadItems(activePortfolio.id); setQuery(''); setSearchResults([]);
     }
 
     const deleteItem = async (id) => {
         if (!confirm("Delete this asset?")) return;
-        await axios.delete(`${import.meta.env.VITE_API_URL}/portfolio/delete/${id}`);
+        await api.delete(`${import.meta.env.VITE_API_URL}/portfolio/delete/${id}`);
         loadItems(activePortfolio.id);
     }
 
@@ -260,7 +260,7 @@ function App() {
             }));
 
         try {
-            await axios.post(`${import.meta.env.VITE_API_URL}/portfolio/apply_rebalance`, {
+            await api.post(`${import.meta.env.VITE_API_URL}/portfolio/apply_rebalance`, {
                 portfolio_id: activePortfolio.id, contribution: parseFloat(contribution), orders: payloadOrders
             });
             alert("Applied ✅");
@@ -271,7 +271,7 @@ function App() {
     const undoRebalance = async (histId) => {
         if (!confirm("Undo this operation?")) return;
         try {
-            await axios.post(`${import.meta.env.VITE_API_URL}/portfolio/history/undo`, { history_id: histId });
+            await api.post(`${import.meta.env.VITE_API_URL}/portfolio/history/undo`, { history_id: histId });
             alert("Undone ✅");
             setTimeout(() => { loadItems(activePortfolio.id); loadRebalanceHistory(activePortfolio.id); }, 500);
         } catch (e) { alert("Error undoing operation"); }
@@ -279,14 +279,14 @@ function App() {
 
     const deleteHistoryItem = async (histId) => {
         if (!confirm("Delete this record?")) return;
-        await axios.delete(`${import.meta.env.VITE_API_URL}/portfolio/history/delete/${histId}`);
+        await api.delete(`${import.meta.env.VITE_API_URL}/portfolio/history/delete/${histId}`);
         loadRebalanceHistory(activePortfolio.id);
     }
 
-    const handleCreatePort = async () => { const n = prompt("Portfolio name:"); if (n) { await axios.post(`${import.meta.env.VITE_API_URL}/portfolios/create`, { user_id: session.user.id, name: n }); loadPortfolios(session.user.id); } }
-    const handleRenamePort = async (pid) => { const n = prompt("New name:"); if (n) { await axios.put(`${import.meta.env.VITE_API_URL}/portfolios/rename`, { portfolio_id: pid, name: n }); loadPortfolios(session.user.id); } }
-    const handleDuplicatePort = async (pid, name) => { await axios.post(`${import.meta.env.VITE_API_URL}/portfolios/duplicate`, { portfolio_id: pid, user_id: session.user.id, new_name: name + " (Copy)" }); loadPortfolios(session.user.id); }
-    const handleDeletePort = async (pid) => { if (confirm("Delete entire portfolio?")) { await axios.delete(`${import.meta.env.VITE_API_URL}/portfolios/delete/${pid}`); loadPortfolios(session.user.id); setActivePortfolio(null); } }
+    const handleCreatePort = async () => { const n = prompt("Portfolio name:"); if (n) { await api.post(`${import.meta.env.VITE_API_URL}/portfolios/create`, { name: n }); loadPortfolios(session.user.id); } }
+    const handleRenamePort = async (pid) => { const n = prompt("New name:"); if (n) { await api.put(`${import.meta.env.VITE_API_URL}/portfolios/rename`, { portfolio_id: pid, name: n }); loadPortfolios(session.user.id); } }
+    const handleDuplicatePort = async (pid, name) => { await api.post(`${import.meta.env.VITE_API_URL}/portfolios/duplicate`, { portfolio_id: pid, new_name: name + " (Copy)" }); loadPortfolios(session.user.id); }
+    const handleDeletePort = async (pid) => { if (confirm("Delete entire portfolio?")) { await api.delete(`${import.meta.env.VITE_API_URL}/portfolios/delete/${pid}`); loadPortfolios(session.user.id); setActivePortfolio(null); } }
 
     if (appLoading) return <div className="h-screen flex items-center justify-center bg-slate-900 text-white font-black uppercase tracking-tighter"><Loader2 className="animate-spin mr-3 text-indigo-500" /> Loading Fandance...</div>
     if (!session) return <AuthScreen onLogin={setSession} />

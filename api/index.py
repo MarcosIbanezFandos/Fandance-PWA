@@ -1,27 +1,37 @@
 import os
 import urllib.parse
 import math
-from fastapi import FastAPI, HTTPException
+from fastapi import Depends, FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseModel
+from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
+from pydantic import BaseModel, Field, StringConstraints
 import yfinance as yf
 import pandas as pd
 import numpy as np
 import feedparser
-from typing import List, Optional, Dict, Any
+from typing import Annotated, List, Literal, Optional, Dict, Any
 from supabase import create_client, Client
 # --- CONFIG ---
 SUPABASE_URL = os.getenv("SUPABASE_URL", "")
 SUPABASE_KEY = os.getenv("SUPABASE_KEY", "")
 
+# Orígenes autorizados. "*" junto a allow_credentials=True no es válido y deja
+# que cualquier web haga peticiones autenticadas en nombre del usuario.
+ALLOWED_ORIGINS = [
+    o.strip() for o in os.getenv(
+        "ALLOWED_ORIGINS",
+        "http://localhost:5173,http://127.0.0.1:5173",
+    ).split(",") if o.strip()
+]
+
 app = FastAPI(title="Fandance API")
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=ALLOWED_ORIGINS,
     allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+    allow_headers=["Authorization", "Content-Type"],
 )
 
 supabase: Client = None
@@ -40,67 +50,145 @@ def safe_float(val):
         return f
     except: return 0.0
 
+# --- AUTENTICACIÓN Y AUTORIZACIÓN ---
+# El servidor usa la service_role key, que bypassa Row Level Security: aquí no
+# hay red de seguridad debajo. La identidad sale SIEMPRE del JWT firmado por
+# Supabase, nunca de un user_id que mande el cliente, y todo acceso a un
+# recurso por id comprueba antes que pertenece a quien llama.
+
+bearer_scheme = HTTPBearer(auto_error=False)
+
+
+def current_user_id(
+    cred: Optional[HTTPAuthorizationCredentials] = Depends(bearer_scheme),
+) -> str:
+    """Valida el access token de Supabase y devuelve el id del usuario."""
+    if cred is None or not cred.credentials:
+        raise HTTPException(401, "Falta el token de autenticación")
+    if supabase is None:
+        raise HTTPException(503, "Servicio no disponible")
+    try:
+        res = supabase.auth.get_user(cred.credentials)
+    except Exception:
+        raise HTTPException(401, "Token inválido o expirado")
+    user = getattr(res, "user", None)
+    if user is None or not getattr(user, "id", None):
+        raise HTTPException(401, "Token inválido o expirado")
+    return user.id
+
+
+def assert_owns_portfolio(user_id: str, portfolio_id: str) -> str:
+    """404 si la cartera no existe o no es del usuario (no revelamos cuál)."""
+    res = (
+        supabase.table("portfolios")
+        .select("id")
+        .eq("id", portfolio_id)
+        .eq("user_id", user_id)
+        .limit(1)
+        .execute()
+    )
+    if not res.data:
+        raise HTTPException(404, "Cartera no encontrada")
+    return portfolio_id
+
+
+def assert_owns_item(user_id: str, item_id: str) -> str:
+    """Comprueba portfolio_items -> portfolios.user_id."""
+    res = (
+        supabase.table("portfolio_items")
+        .select("id, portfolio:portfolios(user_id)")
+        .eq("id", item_id)
+        .limit(1)
+        .execute()
+    )
+    row = res.data[0] if res.data else None
+    if not row or (row.get("portfolio") or {}).get("user_id") != user_id:
+        raise HTTPException(404, "Posición no encontrada")
+    return item_id
+
+
+def assert_owns_history(user_id: str, history_id: str) -> str:
+    """Comprueba rebalance_history -> portfolios.user_id. Devuelve portfolio_id."""
+    res = (
+        supabase.table("rebalance_history")
+        .select("id, portfolio_id, portfolio:portfolios(user_id)")
+        .eq("id", history_id)
+        .limit(1)
+        .execute()
+    )
+    row = res.data[0] if res.data else None
+    if not row or (row.get("portfolio") or {}).get("user_id") != user_id:
+        raise HTTPException(404, "Operación no encontrada")
+    return row["portfolio_id"]
+
 # --- MODELS ---
+# Los tipos por sí solos no validan nada útil: sin rangos ni longitudes, un
+# years=10**9 o una lista de 100.000 posiciones tumban la función serverless.
+# Ningún modelo acepta user_id: la identidad sale del token, no del cliente.
+
+Name = Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=60)]
+Ticker = Annotated[str, StringConstraints(strip_whitespace=True, to_upper=True, min_length=1, max_length=15, pattern=r"^[A-Za-z0-9.\-^=]+$")]
+Uuid = Annotated[str, StringConstraints(strip_whitespace=True, max_length=64)]
+
+Period = Literal["1d", "5d", "1mo", "3mo", "6mo", "1y", "2y", "5y", "10y", "max"]
+
+
 class CreatePortfolioInput(BaseModel):
-    user_id: str
-    name: str
+    name: Name
 
 class RenamePortfolioInput(BaseModel):
-    portfolio_id: str
-    name: str
+    portfolio_id: Uuid
+    name: Name
 
 class DuplicatePortfolioInput(BaseModel):
-    portfolio_id: str
-    user_id: str
-    new_name: str
+    portfolio_id: Uuid
+    new_name: Name
 
 class AddAssetInput(BaseModel):
-    portfolio_id: str
-    ticker: str
-    name: Optional[str] = ""
+    portfolio_id: Uuid
+    ticker: Ticker
+    name: Optional[str] = Field(default="", max_length=120)
 
 class UpdateItemInput(BaseModel):
-    item_id: str
-    units_held: float
-    target_weight: float
+    item_id: Uuid
+    units_held: float = Field(ge=0, le=1e12)
+    target_weight: float = Field(ge=0, le=100)
 
 class RebalanceInput(BaseModel):
-    portfolio_id: str
-    contribution: float
+    portfolio_id: Uuid
+    contribution: float = Field(ge=0, le=1e9)
 
 class ApplyRebalanceInput(BaseModel):
-    portfolio_id: str
-    contribution: float
-    orders: List[Dict[str, Any]]
+    portfolio_id: Uuid
+    contribution: float = Field(ge=0, le=1e9)
+    orders: List[Dict[str, Any]] = Field(max_length=500)
 
 class HistoryInput(BaseModel):
-    portfolio_id: str
-    period: str = "1mo"
-    ticker: Optional[str] = None
+    portfolio_id: Uuid
+    period: Period = "1mo"
+    ticker: Optional[Ticker] = None
 
 class SimulationInput(BaseModel):
-    portfolio_ids: List[str]
-    years: int
-    initial_capital: float
-    monthly_contribution: float
-    contribution_mode: str
-    growth_rate: float = 0.0
+    portfolio_ids: List[Uuid] = Field(min_length=1, max_length=20)
+    years: int = Field(ge=1, le=60)
+    initial_capital: float = Field(ge=0, le=1e9)
+    monthly_contribution: float = Field(ge=0, le=1e7)
+    contribution_mode: Literal["constant", "growing"]
+    growth_rate: float = Field(default=0.0, ge=-100, le=100)
     tax_rate: bool
-    sim_type: str
+    sim_type: Literal["deterministic", "montecarlo", "pessimistic"]
 
 class NewsInput(BaseModel):
-    assets: List[dict]
+    assets: List[dict] = Field(max_length=50)
 
 class XrayInput(BaseModel):
-    positions: List[dict]  # [{ticker, name, type, value, sector, country, currency}]
+    # [{ticker, name, type, value, sector, country, currency}]
+    positions: List[dict] = Field(max_length=200)
 
 class BenchmarkInput(BaseModel):
-    holdings: List[dict]          # [{ticker, units}]
-    benchmarks: List[str] = []    # e.g. ["^GSPC", "URTH"]
-    period: str = "1y"
-
-class SeedInput(BaseModel):
-    user_id: str
+    holdings: List[dict] = Field(max_length=200)   # [{ticker, units}]
+    benchmarks: List[Ticker] = Field(default=[], max_length=6)
+    period: Period = "1y"
 
 # --- DATA FETCHING ---
 def get_asset_metadata(ticker: str):
@@ -160,47 +248,63 @@ def get_sentiment_label(score):
     return "Neutral (RSI)", "yellow"
 
 # --- ENDPOINTS ---
+# Todos exigen Depends(current_user_id). No hay endpoints públicos.
 @app.post("/api/portfolios/create")
-def create_portfolio(data: CreatePortfolioInput):
+def create_portfolio(data: CreatePortfolioInput, user_id: str = Depends(current_user_id)):
     try:
-        res = supabase.table("portfolios").insert({"user_id": data.user_id, "name": data.name}).execute()
+        res = supabase.table("portfolios").insert({"user_id": user_id, "name": data.name}).execute()
         return res.data[0]
-    except Exception as e: raise HTTPException(500, str(e))
+    except Exception as e:
+        print(f"CREATE ERROR: {e}")
+        raise HTTPException(500, "No se pudo crear la cartera")
 
 @app.get("/api/portfolios/list")
-def list_portfolios(user_id: str):
+def list_portfolios(user_id: str = Depends(current_user_id)):
     res = supabase.table("portfolios").select("*").eq("user_id", user_id).order('created_at').execute()
     return res.data
 
 @app.put("/api/portfolios/rename")
-def rename_portfolio(data: RenamePortfolioInput):
+def rename_portfolio(data: RenamePortfolioInput, user_id: str = Depends(current_user_id)):
+    assert_owns_portfolio(user_id, data.portfolio_id)
     supabase.table("portfolios").update({"name": data.name}).eq("id", data.portfolio_id).execute()
     return {"msg": "OK"}
 
 @app.post("/api/portfolios/duplicate")
-def duplicate_portfolio(data: DuplicatePortfolioInput):
+def duplicate_portfolio(data: DuplicatePortfolioInput, user_id: str = Depends(current_user_id)):
+    assert_owns_portfolio(user_id, data.portfolio_id)
     try:
-        res = supabase.table("portfolios").insert({"user_id": data.user_id, "name": data.new_name}).execute()
+        res = supabase.table("portfolios").insert({"user_id": user_id, "name": data.new_name}).execute()
         new_id = res.data[0]["id"]
         items = supabase.table("portfolio_items").select("*").eq("portfolio_id", data.portfolio_id).execute()
         if items.data:
             new_items = [{"portfolio_id": new_id, "asset_id": i["asset_id"], "units_held": i["units_held"], "target_weight": i["target_weight"]} for i in items.data]
             supabase.table("portfolio_items").insert(new_items).execute()
         return {"msg": "Duplicated"}
-    except Exception as e: raise HTTPException(500, str(e))
+    except Exception as e:
+        print(f"DUPLICATE ERROR: {e}")
+        raise HTTPException(500, "No se pudo duplicar la cartera")
 
 @app.delete("/api/portfolios/delete/{portfolio_id}")
-def delete_portfolio(portfolio_id: str):
+def delete_portfolio(portfolio_id: str, user_id: str = Depends(current_user_id)):
+    assert_owns_portfolio(user_id, portfolio_id)
     supabase.table("portfolios").delete().eq("id", portfolio_id).execute()
     return {"msg": "OK"}
 
 @app.put("/api/portfolios/update_contribution")
-def update_contribution(portfolio_id: str, amount: float):
+def update_contribution(
+    portfolio_id: str,
+    amount: float = Query(ge=0, le=1e9),
+    user_id: str = Depends(current_user_id),
+):
+    assert_owns_portfolio(user_id, portfolio_id)
     supabase.table("portfolios").update({"last_contribution": amount}).eq("id", portfolio_id).execute()
     return {"msg": "Updated"}
 
 @app.get("/api/assets/search")
-def search_assets(q: str):
+def search_assets(
+    q: str = Query(min_length=2, max_length=40),
+    user_id: str = Depends(current_user_id),
+):
     if not q or len(q) < 2: return []
     results = []
     try:
@@ -218,7 +322,8 @@ def search_assets(q: str):
     return results
 
 @app.post("/api/portfolio/add")
-def add_asset(data: AddAssetInput):
+def add_asset(data: AddAssetInput, user_id: str = Depends(current_user_id)):
+    assert_owns_portfolio(user_id, data.portfolio_id)
     try:
         meta = get_asset_metadata(data.ticker)
         final_ticker = meta['real_ticker']
@@ -240,10 +345,14 @@ def add_asset(data: AddAssetInput):
         if not exists_item.data:
             supabase.table("portfolio_items").insert({"portfolio_id": data.portfolio_id, "asset_id": asset_id, "units_held": 0, "target_weight": 0}).execute()
         return {"status": "ok", "asset_name": meta["name"]}
-    except Exception as e: raise HTTPException(500, str(e))
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"ADD ASSET ERROR: {e}")
+        raise HTTPException(500, "No se pudo añadir el activo")
 
-@app.get("/api/portfolio/{portfolio_id}")
 def get_portfolio(portfolio_id: str):
+    """Uso interno: NO comprueba propiedad. Quien llame debe hacerlo antes."""
     try:
         items = supabase.table("portfolio_items").select("id, units_held, target_weight, asset:assets(id, name, ticker, type, sector)").eq("portfolio_id", portfolio_id).execute()
         data = []
@@ -258,19 +367,27 @@ def get_portfolio(portfolio_id: str):
         return data
     except: return []
 
+@app.get("/api/portfolio/{portfolio_id}")
+def read_portfolio(portfolio_id: str, user_id: str = Depends(current_user_id)):
+    assert_owns_portfolio(user_id, portfolio_id)
+    return get_portfolio(portfolio_id)
+
 @app.put("/api/portfolio/update")
-def update_item(data: UpdateItemInput):
+def update_item(data: UpdateItemInput, user_id: str = Depends(current_user_id)):
+    assert_owns_item(user_id, data.item_id)
     supabase.table("portfolio_items").update({"units_held": data.units_held, "target_weight": data.target_weight}).eq("id", data.item_id).execute()
     return {"msg": "OK"}
 
 @app.delete("/api/portfolio/delete/{item_id}")
-def delete_item(item_id: str):
+def delete_item(item_id: str, user_id: str = Depends(current_user_id)):
+    assert_owns_item(user_id, item_id)
     supabase.table("portfolio_items").delete().eq("id", item_id).execute()
     return {"msg": "OK"}
 
 # --- REBALANCE ---
 @app.post("/api/portfolio/rebalance")
-def calculate_rebalance(data: RebalanceInput):
+def calculate_rebalance(data: RebalanceInput, user_id: str = Depends(current_user_id)):
+    assert_owns_portfolio(user_id, data.portfolio_id)
     port = get_portfolio(data.portfolio_id)
     total = safe_float(sum(x["value"] for x in port))
     future = total + data.contribution
@@ -292,7 +409,12 @@ def calculate_rebalance(data: RebalanceInput):
     return {"current_total": total, "contribution": data.contribution, "future_total": future, "orders": orders}
 
 @app.post("/api/portfolio/apply_rebalance")
-def apply_rebalance(data: ApplyRebalanceInput):
+def apply_rebalance(data: ApplyRebalanceInput, user_id: str = Depends(current_user_id)):
+    assert_owns_portfolio(user_id, data.portfolio_id)
+    # Los item_id de las órdenes los elige el cliente: solo aceptamos los que
+    # pertenecen de verdad a esta cartera.
+    valid_items = supabase.table("portfolio_items").select("id").eq("portfolio_id", data.portfolio_id).execute()
+    allowed_item_ids = {r["id"] for r in (valid_items.data or [])}
     try:
         port_items = get_portfolio(data.portfolio_id)
         val_before = sum(i['value'] for i in port_items)
@@ -324,7 +446,7 @@ def apply_rebalance(data: ApplyRebalanceInput):
                 })
 
                 item_id = order.get('id')
-                if item_id:
+                if item_id in allowed_item_ids:
                     curr = supabase.table("portfolio_items").select("units_held").eq("id", item_id).execute()
                     if curr.data:
                         actual = safe_float(curr.data[0]['units_held'])
@@ -336,19 +458,18 @@ def apply_rebalance(data: ApplyRebalanceInput):
 
         supabase.table("portfolios").update({"last_contribution": data.contribution}).eq("id", data.portfolio_id).execute()
         return {"msg": "Applied"}
+    except HTTPException:
+        raise
     except Exception as e:
         print(f"APPLY ERROR: {e}")
-        raise HTTPException(500, str(e))
+        raise HTTPException(500, "No se pudo aplicar el rebalanceo")
 
 @app.post("/api/portfolio/history/undo")
-def undo_rebalance_operation(data: Dict[str, str]):
+def undo_rebalance_operation(data: Dict[str, str], user_id: str = Depends(current_user_id)):
     history_id = data.get("history_id")
     if not history_id: raise HTTPException(400, "Missing history_id")
+    portfolio_id = assert_owns_history(user_id, history_id)
     try:
-        header = supabase.table("rebalance_history").select("portfolio_id").eq("id", history_id).execute()
-        if not header.data: raise HTTPException(404, "History not found")
-        portfolio_id = header.data[0]['portfolio_id']
-
         items = supabase.table("rebalance_history_items").select("*").eq("history_id", history_id).execute()
 
         for item in items.data:
@@ -375,19 +496,25 @@ def undo_rebalance_operation(data: Dict[str, str]):
 
         supabase.table("rebalance_history").delete().eq("id", history_id).execute()
         return {"msg": "Undone successfully"}
+    except HTTPException:
+        raise
     except Exception as e:
         print(f"UNDO ERROR: {e}")
-        raise HTTPException(500, str(e))
+        raise HTTPException(500, "No se pudo deshacer la operación")
 
 @app.delete("/api/portfolio/history/delete/{history_id}")
-def delete_history_entry(history_id: str):
+def delete_history_entry(history_id: str, user_id: str = Depends(current_user_id)):
+    assert_owns_history(user_id, history_id)
     try:
         supabase.table("rebalance_history").delete().eq("id", history_id).execute()
         return {"msg": "Deleted"}
-    except Exception as e: raise HTTPException(500, str(e))
+    except Exception as e:
+        print(f"DELETE HISTORY ERROR: {e}")
+        raise HTTPException(500, "No se pudo borrar la operación")
 
 @app.get("/api/portfolio/history/{portfolio_id}")
-def get_rebalance_history(portfolio_id: str):
+def get_rebalance_history(portfolio_id: str, user_id: str = Depends(current_user_id)):
+    assert_owns_portfolio(user_id, portfolio_id)
     try:
         hists = supabase.table("rebalance_history").select("*").eq("portfolio_id", portfolio_id).order('created_at', desc=True).execute()
         if not hists.data: return []
@@ -400,7 +527,8 @@ def get_rebalance_history(portfolio_id: str):
 
 # --- CHART & NEWS ---
 @app.post("/api/portfolio/history_chart")
-def get_chart_data(data: HistoryInput):
+def get_chart_data(data: HistoryInput, user_id: str = Depends(current_user_id)):
+    assert_owns_portfolio(user_id, data.portfolio_id)
     try:
         query = supabase.table("portfolio_items").select("units_held, asset:assets(ticker)").eq("portfolio_id", data.portfolio_id).gt("units_held", 0)
         items = query.execute()
@@ -452,7 +580,7 @@ def get_chart_data(data: HistoryInput):
         return {"history": [], "change_pct": 0, "change_val": 0}
 
 @app.post("/api/portfolio/news")
-def get_news(data: NewsInput):
+def get_news(data: NewsInput, user_id: str = Depends(current_user_id)):
     import re
     news_map = {}
     sentiments = {}
@@ -494,7 +622,9 @@ def get_news(data: NewsInput):
     return {"news": news_map, "sentiments": sentiments, "aggregate": {"score": avg, "label": albl, "color": acol}}
 
 @app.post("/api/simulations/run")
-def run_sim(data: SimulationInput):
+def run_sim(data: SimulationInput, user_id: str = Depends(current_user_id)):
+    for pid in data.portfolio_ids:
+        assert_owns_portfolio(user_id, pid)
     results = []
     base_rate = 0.07
     volatility = 0.0
@@ -632,7 +762,7 @@ def _etf_lookthrough(ticker, name):
     return payload
 
 @app.post("/api/portfolio/xray")
-def portfolio_xray(data: XrayInput):
+def portfolio_xray(data: XrayInput, user_id: str = Depends(current_user_id)):
     out = []
     for p in data.positions:
         ticker = (p.get("ticker") or "").strip()
@@ -693,7 +823,7 @@ def _series_stats(s, bench_returns=None):
     return out
 
 @app.post("/api/portfolio/benchmark")
-def portfolio_benchmark(data: BenchmarkInput):
+def portfolio_benchmark(data: BenchmarkInput, user_id: str = Depends(current_user_id)):
     try:
         holdings = {}
         for h in data.holdings:
@@ -800,16 +930,16 @@ def _get_or_create_asset(ticker):
     return None
 
 @app.post("/api/portfolios/seed_defaults")
-def seed_defaults(data: SeedInput):
+def seed_defaults(user_id: str = Depends(current_user_id)):
     try:
         # Never seed if the user already has portfolios.
-        existing = supabase.table("portfolios").select("id").eq("user_id", data.user_id).limit(1).execute()
+        existing = supabase.table("portfolios").select("id").eq("user_id", user_id).limit(1).execute()
         if existing.data:
             return {"status": "skipped", "reason": "already has portfolios"}
 
         created = []
         for pdef in SEED_PORTFOLIOS:
-            pf = supabase.table("portfolios").insert({"user_id": data.user_id, "name": pdef["name"]}).execute()
+            pf = supabase.table("portfolios").insert({"user_id": user_id, "name": pdef["name"]}).execute()
             if not pf.data:
                 continue
             pid = pf.data[0]["id"]
@@ -828,6 +958,6 @@ def seed_defaults(data: SeedInput):
         return {"status": "ok", "created": len(created)}
     except Exception as e:
         print(f"SEED ERROR: {e}")
-        raise HTTPException(500, str(e))
+        raise HTTPException(500, "No se pudieron crear las carteras de ejemplo")
 
 # --- Vercel Serverless Handler ---
