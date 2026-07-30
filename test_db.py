@@ -1,7 +1,18 @@
+"""Comprobación manual de conectividad con Supabase.
+
+Uso (solo en local):
+    SUPABASE_URL=... SUPABASE_KEY=... python test_db.py
+
+SUPABASE_KEY es la service_role key: bypassa RLS. Vive solo en el entorno,
+jamás en el repositorio.
+"""
 import os
-from supabase import create_client, Client
-url = "https://rozjdmysesczntcdseho.supabase.co"
-key = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJvempkbXlzZXNjem50Y2RzZWhvIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3MDg0MDEzNCwiZXhwIjoyMDg2NDE2MTM0fQ.u_FYfPaBALigrvVmZPYhR-qVW__Yndc3binSWoe3X0Y"
+
+from supabase import Client, create_client
+
+url = os.environ["SUPABASE_URL"]
+key = os.environ["SUPABASE_KEY"]
+
 supabase: Client = create_client(url, key)
 res = supabase.table("portfolios").select("*").execute()
 print(res)
