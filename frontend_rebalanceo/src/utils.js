@@ -86,7 +86,9 @@ export const buildXray = (positions, filterTicker = null) => {
             addCompany(key, h.name || h.symbol, h.symbol, val, p.ticker);
             const country = h.country || 'Other';
             const currency = h.currency || 'USD';
-            countries[country] = (countries[country] || 0) + val;
+            if (!/diversified|Emerging|Global/i.test(country)) {
+                countries[country] = (countries[country] || 0) + val;
+            }
             currencies[currency] = (currencies[currency] || 0) + val;
             const region = COUNTRY_TO_REGION[country] || 'Other';
             regions[region] = (regions[region] || 0) + val;
@@ -105,7 +107,9 @@ export const buildXray = (positions, filterTicker = null) => {
                     addCompany(key, h.name || h.symbol, h.symbol, extra, p.ticker);
                     const country = h.country || 'Other';
                     const currency = h.currency || 'USD';
-                    countries[country] = (countries[country] || 0) + extra;
+                    if (!/diversified|Emerging|Global/i.test(country)) {
+                        countries[country] = (countries[country] || 0) + extra;
+                    }
                     currencies[currency] = (currencies[currency] || 0) + extra;
                     const region = COUNTRY_TO_REGION[country] || 'Other';
                     regions[region] = (regions[region] || 0) + extra;
@@ -114,7 +118,9 @@ export const buildXray = (positions, filterTicker = null) => {
                 // No holdings at all — attribute to the ETF's region
                 const region = p.region || 'Global (diversified)';
                 const cur = p.currency || 'USD';
-                countries[region] = (countries[region] || 0) + rem;
+                if (!/diversified|Emerging|Global/i.test(region)) {
+                    countries[region] = (countries[region] || 0) + rem;
+                }
                 currencies[cur] = (currencies[cur] || 0) + rem;
                 const reg = COUNTRY_TO_REGION[region] || 'Other';
                 regions[reg] = (regions[reg] || 0) + rem;
@@ -123,7 +129,9 @@ export const buildXray = (positions, filterTicker = null) => {
             // Position with no holdings at all (shouldn't happen for stocks)
             const region = p.region || 'Global (diversified)';
             const cur = p.currency || 'USD';
-            countries[region] = (countries[region] || 0) + rem;
+            if (!/diversified|Emerging|Global/i.test(region)) {
+                countries[region] = (countries[region] || 0) + rem;
+            }
             currencies[cur] = (currencies[cur] || 0) + rem;
             const reg = COUNTRY_TO_REGION[region] || 'Other';
             regions[reg] = (regions[reg] || 0) + rem;
