@@ -1,15 +1,25 @@
-import os
-from supabase import create_client, Client
-import json
+"""Script de utilidad: busca el UUID de un usuario por email.
 
-SUPABASE_URL = "https://rozjdmysesczntcdseho.supabase.co"
-SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJvempkbXlzZXNjem50Y2RzZWhvIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3MDg0MDEzNCwiZXhwIjoyMDg2NDE2MTM0fQ.u_FYfPaBALigrvVmZPYhR-qVW__Yndc3binSWoe3X0Y"
+Uso (nunca en producción, solo en local):
+    SUPABASE_URL=... SUPABASE_KEY=... TARGET_EMAIL=... python api/get_user.py
+
+SUPABASE_KEY es la service_role key: bypassa RLS. Vive solo en el entorno,
+jamás en el repositorio.
+"""
+import os
+
+from supabase import Client, create_client
+
+SUPABASE_URL = os.environ["SUPABASE_URL"]
+SUPABASE_KEY = os.environ["SUPABASE_KEY"]
+TARGET_EMAIL = os.environ["TARGET_EMAIL"]
+
 supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
 
 try:
     response = supabase.auth.admin.list_users()
     for u in response:
-        if hasattr(u, 'email') and u.email == 'marcosibanezfandos@gmail.com':
+        if hasattr(u, 'email') and u.email == TARGET_EMAIL:
             print(f"FOUND: {u.id}")
             break
 except Exception as e:
