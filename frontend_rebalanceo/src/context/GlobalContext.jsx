@@ -171,6 +171,16 @@ export const GlobalProvider = ({ children }) => {
                 'perf.no_data': 'Aún no hay aportaciones registradas. Registra tu primera aportación en el Rebalanceador para calcular tu rentabilidad.',
                 'perf.net_hint': 'Introduce comisiones e impuestos para obtener tu total neto (opcional).',
                 'perf.select_portfolio': 'Selecciona una cartera para ver su rentabilidad.',
+                // Trade Republic CSV import
+                'tr.drop': 'Arrastra aquí tu CSV de Trade Republic',
+                'tr.hint': 'o toca para elegir el archivo · se procesa en tu dispositivo, no se sube a ningún sitio',
+                'tr.parsing': 'Procesando tus movimientos…',
+                'tr.clear': 'Quitar',
+                'tr.err_type': 'El archivo debe ser un .csv',
+                'tr.err_empty': 'No se han encontrado movimientos en el archivo.',
+                'tr.err_parse': 'Error procesando el CSV. Asegúrate de que es el export de Trade Republic.',
+                'tr.since_first': 'Desde tu primera compra',
+                'tr.title': 'Importar historial (Trade Republic)',
                 // Benchmark
                 'bench.title': 'Comparativa con índices',
                 'bench.hint': 'Tu cartera actual frente a los principales índices (base 100).',
@@ -377,6 +387,16 @@ export const GlobalProvider = ({ children }) => {
                 'perf.no_data': 'No contributions logged yet. Log your first contribution in the Rebalancer to compute performance.',
                 'perf.net_hint': 'Enter fees and taxes to get your net total (optional).',
                 'perf.select_portfolio': 'Select a portfolio to see its performance.',
+                // Trade Republic CSV import
+                'tr.drop': 'Drop your Trade Republic CSV here',
+                'tr.hint': 'or tap to choose the file · parsed on your device, never uploaded',
+                'tr.parsing': 'Processing your transactions…',
+                'tr.clear': 'Remove',
+                'tr.err_type': 'The file must be a .csv',
+                'tr.err_empty': 'No transactions found in the file.',
+                'tr.err_parse': 'Could not parse the CSV. Make sure it is the Trade Republic export.',
+                'tr.since_first': 'Since your first purchase',
+                'tr.title': 'Import history (Trade Republic)',
                 // Benchmark
                 'bench.title': 'Benchmark comparison',
                 'bench.hint': 'Your current holdings vs the major indices (base 100).',

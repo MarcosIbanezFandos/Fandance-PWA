@@ -1,5 +1,4 @@
 import React from 'react';
-import { motion } from 'framer-motion';
 import { TrendingUp, Scale, FlaskConical, Newspaper, PieChart, ScanSearch, PlusCircle, LogOut, Briefcase, MoreVertical, Edit2, Copy, Trash2, Settings } from 'lucide-react';
 import { NavLink, useNavigate, useLocation } from 'react-router-dom';
 import { useGlobal } from '../context/GlobalContext';
@@ -15,27 +14,22 @@ export const Sidebar = ({ portfolios, activePortfolio, setActivePortfolio, onCre
     if (location.pathname !== '/') navigate('/');
   };
 
+  // Plain CSS active state (no shared-layout animation): renders reliably on
+  // every browser, including iOS Safari inside the transformed sidebar.
   const MenuLink = ({ to, label, icon: Icon }) => (
     <NavLink
       to={to}
+      end={to === '/'}
+      title={label}
       onClick={() => setIsOpen(false)}
       className={({ isActive }) =>
-        `w-full flex items-center gap-4 p-4 md:p-3 lg:p-4 md:justify-center lg:justify-start rounded-2xl transition-all relative group ${isActive ? 'text-white' : 'text-slate-400 hover:text-white hover:bg-slate-800/60'}`
+        `w-full flex items-center gap-4 p-4 md:p-3 lg:p-4 md:justify-center lg:justify-start rounded-2xl transition-colors relative ${isActive
+          ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-900/40'
+          : 'text-slate-200 hover:text-white hover:bg-slate-800'}`
       }
-    >  {({ isActive }) => (
-        <>
-          {isActive && (
-            <motion.div
-              layoutId="activeTabBg"
-              className="absolute inset-0 bg-indigo-600 rounded-2xl shadow-lg shadow-indigo-900/50 z-0"
-              initial={false}
-              transition={{ type: "spring", stiffness: 500, damping: 30 }}
-            />
-          )}
-          <Icon size={20} className="relative z-10" />
-          <span className="font-bold text-sm relative z-10 md:hidden lg:block truncate">{label}</span>
-        </>
-      )}
+    >
+      <Icon size={20} className="shrink-0" />
+      <span className="font-bold text-sm md:hidden lg:block truncate">{label}</span>
     </NavLink>
   );
 
@@ -58,7 +52,7 @@ export const Sidebar = ({ portfolios, activePortfolio, setActivePortfolio, onCre
 
           <div className="my-6 h-px bg-slate-800/50 mx-2"></div>
 
-          <button onClick={onCreatePortfolio} className="w-full flex items-center gap-4 p-4 md:p-3 lg:p-4 md:justify-center lg:justify-start rounded-2xl text-indigo-400 hover:bg-indigo-900/20 transition-all border border-dashed border-indigo-900/50 hover:border-indigo-500">
+          <button onClick={onCreatePortfolio} title={t('sidebar.new_portfolio')} className="w-full flex items-center gap-4 p-4 md:p-3 lg:p-4 md:justify-center lg:justify-start rounded-2xl text-indigo-300 hover:text-indigo-200 hover:bg-indigo-900/30 transition-colors border border-dashed border-indigo-700/60 hover:border-indigo-500">
             <PlusCircle size={20} className="shrink-0" />
             <span className="font-bold text-sm md:hidden lg:block truncate">{t('sidebar.new_portfolio')}</span>
           </button>
@@ -81,7 +75,7 @@ export const Sidebar = ({ portfolios, activePortfolio, setActivePortfolio, onCre
       </div>
 
       <div className="p-4 md:p-3 lg:p-4 border-t border-slate-800 bg-slate-900/50 backdrop-blur-sm">
-        <button onClick={onLogout} className="w-full flex items-center gap-4 p-3 md:p-2 lg:p-3 md:justify-center lg:justify-start text-rose-400 hover:bg-rose-900/20 rounded-xl transition-all group">
+        <button onClick={onLogout} title={t('sidebar.logout')} className="w-full flex items-center gap-4 p-3 md:p-2 lg:p-3 md:justify-center lg:justify-start text-rose-300 hover:text-rose-200 hover:bg-rose-900/25 rounded-xl transition-colors group">
           <LogOut size={20} className="group-hover:-translate-x-1 transition-transform shrink-0" />
           <span className="font-bold text-xs md:hidden lg:block truncate">{t('sidebar.logout')}</span>
         </button>
