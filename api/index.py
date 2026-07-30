@@ -586,18 +586,36 @@ def _etf_lookthrough(ticker, name):
     holdings, sectors, coverage = [], {}, 0.0
     try:
         fd = yf.Ticker(ticker).funds_data
-        th = getattr(fd, 'top_holdings', None)
-        if th is not None and not th.empty:
-            for sym, row in th.iterrows():
-                w = safe_float(row.get('Holding Percent'))
+
+        # 1) Try equity_holdings first — this gives HUNDREDS of positions
+        eh = getattr(fd, 'equity_holdings', None)
+        if eh is not None and hasattr(eh, 'iterrows') and not eh.empty:
+            for sym, row in eh.iterrows():
+                w = safe_float(row.get('Holding Percent') or row.get('% Assets') or row.get('Portfolio_%'))
                 if w <= 0:
                     continue
                 coverage += w
                 country, currency = _loc_from_symbol(sym)
                 holdings.append({
-                    "symbol": str(sym), "name": str(row.get('Name') or sym),
+                    "symbol": str(sym), "name": str(row.get('Name') or row.get('Symbol') or sym),
                     "weight": round(w, 6), "country": country, "currency": currency
                 })
+
+        # 2) Fallback to top_holdings if equity_holdings was empty
+        if not holdings:
+            th = getattr(fd, 'top_holdings', None)
+            if th is not None and not th.empty:
+                for sym, row in th.iterrows():
+                    w = safe_float(row.get('Holding Percent'))
+                    if w <= 0:
+                        continue
+                    coverage += w
+                    country, currency = _loc_from_symbol(sym)
+                    holdings.append({
+                        "symbol": str(sym), "name": str(row.get('Name') or sym),
+                        "weight": round(w, 6), "country": country, "currency": currency
+                    })
+
         sw = getattr(fd, 'sector_weightings', None) or {}
         for s, w in sw.items():
             sectors[str(s)] = round(safe_float(w), 6)
