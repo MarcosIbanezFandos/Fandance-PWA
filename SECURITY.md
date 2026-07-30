@@ -132,16 +132,27 @@ Todo lo que llega de fuera es hostil hasta que se demuestre lo contrario.
 ## 4. Rate limiting
 
 Sin límites, un bucle de peticiones agota la cuota de Vercel, la de yfinance y la
-factura. Los endpoints que llaman a APIs externas o hacen cálculo pesado
-(`/api/simulations/run`, `/api/portfolio/history_chart`, `/api/portfolio/benchmark`,
-`/api/assets/search`) son los primeros objetivos.
+factura.
 
-- Límite **por usuario autenticado**, con la IP solo como respaldo para lo público.
-- Orientación: ~60 req/min para lecturas normales, ~5-10 req/min para lo pesado.
-- Devolver `429` con cabecera `Retry-After`.
-- En serverless el estado no se comparte entre instancias: usar un contador
-  externo (Upstash Redis, o una tabla en Supabase) — un `dict` en memoria no sirve.
-- Añadir también un límite de tamaño de body.
+El contador vive en Postgres (`supabase/rate_limits.sql`), **no en memoria**: en
+serverless cada petición puede caer en una instancia distinta, así que un `dict`
+de proceso no limitaría nada. Hay que ejecutar ese SQL una vez en el proyecto de
+Supabase; si no está, el limitador deja pasar y avisa en los logs.
+
+Presupuestos actuales, siempre **por usuario autenticado**:
+
+| Bucket | Límite | Para qué |
+|---|---|---|
+| `Standard` | 120/min | lecturas y escrituras normales en la base de datos |
+| `External` | 30/min | todo lo que llama a yfinance o a Google News |
+| `Heavy` | 10/min | `/api/simulations/run` |
+| `Seed` | 3/hora | `/api/portfolios/seed_defaults` |
+
+- **Todo endpoint nuevo declara su bucket**: `user_id: str = External`, no
+  `Depends(current_user_id)` a pelo.
+- Si llama a un servicio externo o hace cálculo pesado, es `External` o `Heavy`.
+- Se devuelve `429` con cabecera `Retry-After`.
+- Pendiente: límite de tamaño de body.
 
 ---
 
