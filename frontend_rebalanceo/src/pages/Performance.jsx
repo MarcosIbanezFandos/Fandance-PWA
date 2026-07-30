@@ -164,7 +164,12 @@ export const Performance = ({ portfolios, activePortfolioId }) => {
                 <>
                     {/* HERO: value + gain */}
                     <motion.div variants={fadeInUp}>
-                        <GlassCard className="text-center py-10">
+                        <GlassCard className="text-center py-10 relative">
+                            <div className="absolute top-4 right-4">
+                                <button onClick={() => document.getElementById('csv-upload-input')?.click()} className="flex items-center gap-2 px-3 py-1.5 bg-slate-800/50 hover:bg-slate-700/50 text-slate-300 rounded-lg text-xs font-bold transition-all border border-slate-700">
+                                    <Receipt size={14} /> Importar TR
+                                </button>
+                            </div>
                             <div className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">{t('perf.portfolio_value')}</div>
                             <div className="text-5xl font-black text-slate-900 dark:text-white tracking-tight">{formatNumber(metrics.currentValue, 2)} €</div>
                             {hasData && (
@@ -180,6 +185,39 @@ export const Performance = ({ portfolios, activePortfolioId }) => {
                             )}
                         </GlassCard>
                     </motion.div>
+
+                    <div className="hidden"><TRCsvParser currentValue={metrics.currentValue} onParsed={setCsvMetrics} /></div>
+
+                    {csvMetrics && (
+                        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mt-6">
+                            <GlassCard className="bg-[#1b2333] border-slate-800 p-5 rounded-2xl flex flex-col justify-center">
+                                <div className="text-[11px] text-slate-400 mb-1">Invertido</div>
+                                <div className="text-xl font-bold text-white">{formatNumber(csvMetrics.invested, 2)} €</div>
+                            </GlassCard>
+                            <GlassCard className="bg-[#1b2333] border-slate-800 p-5 rounded-2xl flex flex-col justify-center">
+                                <div className="text-[11px] text-slate-400 mb-1">TIR</div>
+                                <div className={`text-xl font-bold ${csvMetrics.tir >= 0 ? 'text-emerald-500' : 'text-rose-500'}`}>
+                                    {csvMetrics.tir !== null ? `${formatNumber(csvMetrics.tir, 2)} %` : 'N/A'}
+                                </div>
+                            </GlassCard>
+                            <GlassCard className="bg-[#1b2333] border-slate-800 p-5 rounded-2xl flex flex-col justify-center">
+                                <div className="text-[11px] text-slate-400 mb-1">Ganancias realizadas</div>
+                                <div className={`text-xl font-bold ${csvMetrics.realizedGross >= 0 ? 'text-emerald-500' : 'text-rose-500'}`}>
+                                    {formatNumber(csvMetrics.realizedGross, 2)} €
+                                </div>
+                                <div className={`text-[10px] mt-1 px-1.5 py-0.5 inline-block rounded w-max ${csvMetrics.realizedGross >= 0 ? 'bg-emerald-900/30 text-emerald-400' : 'bg-rose-900/30 text-rose-400'}`}>
+                                    {csvMetrics.realizedGross >= 0 ? '↑' : '↓'} {csvMetrics.invested > 0 ? formatNumber((csvMetrics.realizedGross / csvMetrics.invested) * 100, 2) : 0} %
+                                </div>
+                            </GlassCard>
+                            <GlassCard className="bg-[#1b2333] border-slate-800 p-5 rounded-2xl flex flex-col justify-center">
+                                <div className="text-[11px] text-slate-400 mb-1">Dividendos</div>
+                                <div className="text-xl font-bold text-slate-300">{formatNumber(csvMetrics.dividends, 2)} €</div>
+                                <div className="text-[10px] mt-1 px-1.5 py-0.5 inline-block rounded w-max bg-slate-800 text-slate-400 border border-slate-700">
+                                    {csvMetrics.invested > 0 ? formatNumber((csvMetrics.dividends / csvMetrics.invested) * 100, 2) : 0} %
+                                </div>
+                            </GlassCard>
+                        </div>
+                    )}
 
                     {!hasData ? (
                         <div className="text-center text-slate-400 font-bold py-10 px-6 bg-white dark:bg-slate-900 rounded-[2rem] border border-slate-100 dark:border-slate-800">{t('perf.no_data')}</div>
@@ -220,112 +258,8 @@ export const Performance = ({ portfolios, activePortfolioId }) => {
                                 </div>
                             </GlassCard>
 
-                            <TRCsvParser currentValue={metrics.currentValue} onParsed={setCsvMetrics} />
-
-                            {csvMetrics ? (
-                                <GlassCard className="bg-[#0b101e] border-slate-800 text-slate-300">
-                                    <div className="flex items-center justify-between mb-6">
-                                        <div>
-                                            <h3 className="text-[14px] font-bold text-white">Rentabilidad</h3>
-                                            <p className="text-xs text-slate-400 mt-1">Calculado desde archivo CSV</p>
-                                        </div>
-                                        <button onClick={() => setCsvMetrics(null)} className="text-xs font-bold text-rose-500 hover:text-rose-400">Borrar</button>
-                                    </div>
-                                    
-                                    <div className="space-y-2 text-[13px] font-medium">
-                                        <Row label="Valor del portafolio" value={`${formatNumber(metrics.currentValue, 2)} €`} />
-                                        <Row label="Invertido" value={`${formatNumber(csvMetrics.invested, 2)} €`} />
-                                        <Row label="Flujo de caja" value={`${formatNumber(csvMetrics.cashFlow, 2)} €`} />
-                                    </div>
-
-                                    <div className="h-px bg-slate-800/50 my-5" />
-                                    
-                                    <div className="space-y-3 text-[13px]">
-                                        <div className="flex justify-between items-center">
-                                            <span className="text-slate-400">TIR</span>
-                                            <Badge value={csvMetrics.tir} suffix="%" />
-                                        </div>
-                                        <div className="flex justify-between items-center">
-                                            <span className="text-slate-400">TTWROR</span>
-                                            <Badge text="N/A" gray />
-                                        </div>
-                                    </div>
-
-                                    <div className="h-px bg-slate-800/50 my-5" />
-
-                                    <div className="space-y-3 text-[13px]">
-                                        <div className="flex justify-between items-center">
-                                            <span className="text-slate-400">Ganancias de precio</span>
-                                            <div className="flex items-center gap-3">
-                                                <span className={csvMetrics.priceGains >= 0 ? 'text-emerald-500' : 'text-rose-500'}>{formatNumber(csvMetrics.priceGains, 2)} €</span>
-                                                <Badge value={csvMetrics.invested > 0 ? (csvMetrics.priceGains / csvMetrics.invested) * 100 : 0} suffix="%" />
-                                            </div>
-                                        </div>
-                                        <div className="flex justify-between items-center">
-                                            <span className="text-slate-400">Realizado (Bruto)</span>
-                                            <div className="flex items-center gap-3">
-                                                <span className={csvMetrics.realizedGross >= 0 ? 'text-emerald-500' : 'text-rose-500'}>{formatNumber(csvMetrics.realizedGross, 2)} €</span>
-                                                <Badge value={csvMetrics.invested > 0 ? (csvMetrics.realizedGross / csvMetrics.invested) * 100 : 0} suffix="%" />
-                                            </div>
-                                        </div>
-                                        <div className="flex justify-between items-center">
-                                            <span className="text-slate-400">Dividendos (Brutos)</span>
-                                            <div className="flex items-center gap-3">
-                                                <span>{formatNumber(csvMetrics.dividends, 2)} €</span>
-                                                <Badge value={csvMetrics.invested > 0 ? (csvMetrics.dividends / csvMetrics.invested) * 100 : 0} suffix="%" gray={csvMetrics.dividends === 0} />
-                                            </div>
-                                        </div>
-                                        <div className="flex justify-between items-center">
-                                            <span className="text-slate-400">Intereses (Brutos)</span>
-                                            <div className="flex items-center gap-3">
-                                                <span className={csvMetrics.interest >= 0 ? 'text-emerald-500' : 'text-rose-500'}>{formatNumber(csvMetrics.interest, 2)} €</span>
-                                                <Badge value={csvMetrics.invested > 0 ? (csvMetrics.interest / csvMetrics.invested) * 100 : 0} suffix="%" gray={csvMetrics.interest === 0} />
-                                            </div>
-                                        </div>
-                                    </div>
-
-                                    <div className="h-px bg-slate-800/50 my-5" />
-
-                                    <div className="space-y-3 text-[13px]">
-                                        <Row label={<span className="font-bold text-white text-sm">Total</span>} value={`${formatNumber(csvMetrics.totalGross, 2)} €`} tone={csvMetrics.totalGross >= 0 ? 'up' : 'down'} className="font-bold text-sm" />
-                                        <Row label="Impuestos" value={`${formatNumber(csvMetrics.taxes, 2)} €`} />
-                                        <Row label="Comisiones" value={`${formatNumber(csvMetrics.fees, 2)} €`} />
-                                    </div>
-
-                                    <div className="h-px bg-slate-800/50 my-5" />
-
-                                    <div className="flex items-center justify-between font-bold text-[15px]">
-                                        <span className="text-white">Total neto</span>
-                                        <span className={csvMetrics.netTotal >= 0 ? 'text-emerald-500' : 'text-rose-500'}>{formatNumber(csvMetrics.netTotal, 2)} €</span>
-                                    </div>
-                                </GlassCard>
-                            ) : (
-                                <GlassCard>
-                                    <div className="flex items-center gap-2 mb-5">
-                                        <Receipt size={15} className="text-slate-400" />
-                                        <h3 className="text-xs font-black text-slate-400 uppercase tracking-widest">{t('perf.net_total')}</h3>
-                                    </div>
-                                    <div className="space-y-1 text-sm">
-                                        <Row label={t('perf.portfolio_value')} value={`${formatNumber(metrics.currentValue, 2)} €`} />
-                                        <Row label={t('perf.invested')} value={`${formatNumber(metrics.invested, 2)} €`} muted />
-                                        <Row label={t('perf.gain')} value={`${up ? '+' : ''}${formatNumber(metrics.gain, 2)} €`} tone={up ? 'up' : 'down'} />
-                                        <div className="h-px bg-slate-100 dark:bg-slate-800 my-2" />
-                                        <EditRow label={t('perf.fees')} value={fees} onChange={setFees} />
-                                        <EditRow label={t('perf.taxes')} value={taxes} onChange={setTaxes} />
-                                        <div className="h-px bg-slate-200 dark:bg-slate-700 my-2" />
-                                        <div className="flex items-center justify-between py-2">
-                                            <span className="font-black text-slate-700 dark:text-slate-200 uppercase text-xs tracking-widest">{t('perf.net_total')}</span>
-                                            <span className={`text-xl font-black ${metrics.netResult >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-500 dark:text-rose-400'}`}>
-                                                {metrics.netResult >= 0 ? '+' : ''}{formatNumber(metrics.netResult, 2)} €
-                                            </span>
-                                        </div>
-                                    </div>
-                                    <p className="text-[11px] font-medium text-slate-400 mt-3">{t('perf.net_hint')}</p>
-                                </GlassCard>
-                            )}
                         </>
                     )}
-
                     {/* Benchmark comparison + profit-since-purchase (independent of contribution history) */}
                     <BenchmarkCompare holdings={items.map(i => ({ ticker: i.asset?.ticker, units: i.units_held }))} period={period} />
                     <CostBasis items={items} pid={pid} />

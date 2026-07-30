@@ -34,23 +34,14 @@ export const TRCsvParser = ({ currentValue, onParsed }) => {
     };
 
     return (
-        <GlassCard className="mb-8">
-            <div className="flex flex-col md:flex-row items-center justify-between gap-4">
-                <div>
-                    <h3 className="text-sm font-black text-slate-700 dark:text-slate-200 uppercase tracking-tight mb-1">Importar Trade Republic</h3>
-                    <p className="text-xs font-bold text-slate-400">Sube tu histórico de transacciones (.csv) para calcular métricas exactas.</p>
-                </div>
-                <div className="shrink-0 flex items-center gap-3">
-                    {fileName && !error && <div className="text-xs font-bold text-emerald-500 flex items-center gap-1"><CheckCircle2 size={14} /> {fileName}</div>}
-                    {error && <div className="text-xs font-bold text-rose-500">{error}</div>}
-                    
-                    <button onClick={() => fileInputRef.current?.click()} className="flex items-center gap-2 px-4 py-2 bg-slate-900 dark:bg-indigo-600 text-white rounded-xl text-xs font-black uppercase tracking-widest hover:bg-slate-800 dark:hover:bg-indigo-500 transition-colors shadow-md">
-                        <Upload size={14} /> Subir CSV
-                    </button>
-                    <input type="file" accept=".csv" ref={fileInputRef} onChange={handleUpload} className="hidden" />
-                </div>
-            </div>
-        </GlassCard>
+        <input 
+            type="file" 
+            id="csv-upload-input"
+            accept=".csv" 
+            ref={fileInputRef} 
+            onChange={handleUpload} 
+            className="hidden" 
+        />
     );
 };
 
