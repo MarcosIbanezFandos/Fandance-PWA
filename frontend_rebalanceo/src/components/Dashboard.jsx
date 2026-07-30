@@ -63,45 +63,45 @@ export const Dashboard = ({
 
     return (
         <motion.div initial="hidden" animate="visible" variants={staggerContainer} className="space-y-8">
-            {/* 1. KPI GRID */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-                <GlassCard>
-                    <div className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">{t('kpi.total_value')}</div>
-                    <div className="text-3xl font-black text-slate-800 dark:text-slate-100"><CountUp value={totalValue} suffix=" €" /></div>
-                    <div className="mt-2 text-[10px] font-black uppercase text-slate-400">{t('kpi.current_capital')}</div>
-                    <div className="absolute top-6 right-6 p-3 bg-slate-50 dark:bg-slate-800 rounded-xl text-indigo-600 dark:text-indigo-400"><Wallet /></div>
+            {/* 1. KPI GRID — 2 columns on phones, 4 on desktop */}
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-6">
+                <GlassCard className="!p-4 md:!p-6">
+                    <div className="text-[9px] md:text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1 pr-8">{t('kpi.total_value')}</div>
+                    <div className="text-xl md:text-3xl font-black text-slate-800 dark:text-slate-100 tabular-nums"><CountUp value={totalValue} suffix=" €" /></div>
+                    <div className="mt-1 md:mt-2 text-[9px] md:text-[10px] font-black uppercase text-slate-400 truncate">{t('kpi.current_capital')}</div>
+                    <div className="absolute top-3 right-3 md:top-6 md:right-6 p-2 md:p-3 bg-slate-50 dark:bg-slate-800 rounded-lg md:rounded-xl text-indigo-600 dark:text-indigo-400"><Wallet size={18} /></div>
                 </GlassCard>
 
-                <GlassCard>
-                    <div className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">{t('kpi.risk')}</div>
-                    <div className={`text-3xl font-black ${getRiskColor(riskProfile)}`}>{riskProfile}/10</div>
-                    <div className="text-xs font-bold text-slate-400 mt-1">{riskProfile >= 8 ? t('kpi.aggressive') : riskProfile <= 4 ? t('kpi.conservative') : t('kpi.moderate')}</div>
-                    <div className={`absolute top-6 right-6 p-3 rounded-xl ${riskProfile >= 8 ? 'bg-rose-50 dark:bg-rose-900/30 text-rose-600 dark:text-rose-400' : 'bg-slate-50 dark:bg-slate-800 text-slate-600 dark:text-slate-300'}`}><Activity /></div>
+                <GlassCard className="!p-4 md:!p-6">
+                    <div className="text-[9px] md:text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1 pr-8">{t('kpi.risk')}</div>
+                    <div className={`text-xl md:text-3xl font-black tabular-nums ${getRiskColor(riskProfile)}`}>{riskProfile}/10</div>
+                    <div className="text-[9px] md:text-xs font-bold text-slate-400 mt-1 truncate">{riskProfile >= 8 ? t('kpi.aggressive') : riskProfile <= 4 ? t('kpi.conservative') : t('kpi.moderate')}</div>
+                    <div className={`absolute top-3 right-3 md:top-6 md:right-6 p-2 md:p-3 rounded-lg md:rounded-xl ${riskProfile >= 8 ? 'bg-rose-50 dark:bg-rose-900/30 text-rose-600 dark:text-rose-400' : 'bg-slate-50 dark:bg-slate-800 text-slate-600 dark:text-slate-300'}`}><Activity size={18} /></div>
                 </GlassCard>
 
-                <GlassCard className="flex flex-col justify-between">
+                <GlassCard className="!p-4 md:!p-6 flex flex-col justify-between">
                     <div>
-                        <div className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">{t('kpi.contribution')}</div>
+                        <div className="text-[9px] md:text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1 pr-8">{t('kpi.contribution')}</div>
                         <div className="flex items-center">
                             <input
                                 inputMode="decimal"
-                                className="text-3xl font-black text-slate-800 dark:text-slate-100 w-32 bg-transparent outline-none"
+                                className="text-xl md:text-3xl font-black text-slate-800 dark:text-slate-100 w-16 md:w-32 bg-transparent outline-none tabular-nums"
                                 value={contribution}
                                 onChange={e => setContribution(e.target.value)}
                                 onFocus={e => e.target.select()}
                             />
-                            <span className="text-xl text-slate-400 font-bold">€</span>
+                            <span className="text-base md:text-xl text-slate-400 font-bold">€</span>
                         </div>
-                        <div className="mt-2 text-[10px] font-black uppercase text-slate-400">EUR / mes</div>
+                        <div className="mt-1 md:mt-2 text-[9px] md:text-[10px] font-black uppercase text-slate-400">EUR / mes</div>
                     </div>
-                    <div className="absolute top-6 right-6 p-3 bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 rounded-xl"><Plus /></div>
+                    <div className="absolute top-3 right-3 md:top-6 md:right-6 p-2 md:p-3 bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 rounded-lg md:rounded-xl"><Plus size={18} /></div>
                 </GlassCard>
 
-                <GlassCard>
-                    <div className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">{t('kpi.composition')}</div>
-                    <div className="text-3xl font-black text-slate-800 dark:text-slate-100">{portfolioItems.length}</div>
-                    <div className="text-[10px] font-bold text-slate-400 mt-1 uppercase truncate">{assetSummary}</div>
-                    <div className="absolute top-6 right-6 p-3 bg-emerald-50 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400 rounded-xl"><ListFilter /></div>
+                <GlassCard className="!p-4 md:!p-6">
+                    <div className="text-[9px] md:text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1 pr-8">{t('kpi.composition')}</div>
+                    <div className="text-xl md:text-3xl font-black text-slate-800 dark:text-slate-100 tabular-nums">{portfolioItems.length}</div>
+                    <div className="text-[9px] md:text-[10px] font-bold text-slate-400 mt-1 uppercase truncate">{assetSummary}</div>
+                    <div className="absolute top-3 right-3 md:top-6 md:right-6 p-2 md:p-3 bg-emerald-50 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400 rounded-lg md:rounded-xl"><ListFilter size={18} /></div>
                 </GlassCard>
             </div>
 
@@ -159,8 +159,70 @@ export const Dashboard = ({
                             <span className="font-black text-indigo-600 dark:text-indigo-400 text-base">{formatNumber(investTotal)} €</span>
                         </div>
 
-                        {/* TABLE */}
-                        <div className="overflow-x-auto">
+                        {/* MOBILE: card list (no horizontal scrolling) */}
+                        <div className="md:hidden divide-y divide-slate-100 dark:divide-slate-800">
+                            {portfolioItems.map(item => {
+                                const isBuy = item.action === 'BUY';
+                                const isSell = item.action === 'SELL';
+                                const dotM = TYPE_DOT[item.asset?.type] || TYPE_DOT.Other;
+                                return (
+                                    <div key={item.id} className="p-4">
+                                        <div className="flex items-start justify-between gap-3 mb-3">
+                                            <div className="flex items-center gap-2 min-w-0">
+                                                <span className={`w-2 h-2 rounded-full shrink-0 ${dotM}`} />
+                                                <div className="min-w-0">
+                                                    <div className="font-bold text-sm text-slate-800 dark:text-slate-100 truncate">{item.asset?.name || item.asset?.ticker}</div>
+                                                    <div className="text-[10px] font-bold text-indigo-400">{item.asset?.ticker} · {formatNumber(item.current_price, 2)}€</div>
+                                                </div>
+                                            </div>
+                                            <div className="text-right shrink-0">
+                                                <div className={`text-sm font-black tabular-nums ${isBuy ? 'text-emerald-600 dark:text-emerald-400' : isSell ? 'text-rose-500 dark:text-rose-400' : 'text-slate-400'}`}>
+                                                    {isSell ? '−' : isBuy ? '+' : ''}{formatNumber(Math.abs(safeFloat(item.allocation)))}€
+                                                </div>
+                                                <div className="text-[10px] font-bold text-slate-400">{formatUnits(Math.abs(safeFloat(item.unitsToTrade)))} uds</div>
+                                            </div>
+                                        </div>
+
+                                        {/* current vs target bar */}
+                                        <div className="flex items-center gap-2 mb-3">
+                                            <span className={`text-[11px] font-black tabular-nums w-11 ${driftColor(item)}`}>{formatNumber(item.currentWeight, 1)}%</span>
+                                            <div className="flex-1 h-1.5 bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden">
+                                                <div className={`h-full rounded-full ${driftColor(item).replace('text-', 'bg-')}`} style={{ width: `${Math.min(100, safeFloat(item.currentWeight))}%` }} />
+                                            </div>
+                                            <span className="text-[10px] font-bold text-slate-400 tabular-nums">→ {formatNumber(item.targetWeight, 1)}%</span>
+                                        </div>
+
+                                        <div className="flex items-center gap-2">
+                                            <label className="flex-1">
+                                                <span className="block text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1">{t('th.units')}</span>
+                                                <input inputMode="decimal" className="w-full bg-slate-100 dark:bg-slate-800 dark:text-slate-100 rounded-lg p-2 text-center text-xs font-bold outline-none focus:ring-2 ring-indigo-500" value={item.units_held} onChange={e => handleUpdate(item.id, 'units_held', e.target.value)} onFocus={e => e.target.select()} />
+                                            </label>
+                                            <label className="flex-1">
+                                                <span className="block text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1">{t('th.value')} €</span>
+                                                <input inputMode="decimal" className="w-full bg-white dark:bg-slate-800 dark:text-slate-100 border border-slate-200 dark:border-slate-700 rounded-lg p-2 text-center text-xs font-bold outline-none focus:ring-2 ring-emerald-500" value={item.value} onChange={e => handleUpdate(item.id, 'value', e.target.value)} onFocus={e => e.target.select()} />
+                                            </label>
+                                            <label className="w-16">
+                                                <span className="block text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1">{t('th.target')} %</span>
+                                                <input inputMode="decimal" className="w-full bg-slate-100 dark:bg-slate-800 dark:text-slate-100 rounded-lg p-2 text-center text-xs font-bold outline-none focus:ring-2 ring-indigo-500" value={item.target_weight} onChange={e => handleUpdate(item.id, 'target_weight', e.target.value)} onFocus={e => e.target.select()} />
+                                            </label>
+                                            <button onClick={() => deleteItem(item.id)} className="mt-4 p-2 text-slate-300 dark:text-slate-600 active:text-rose-500 shrink-0"><Trash2 size={16} /></button>
+                                        </div>
+                                    </div>
+                                );
+                            })}
+                            {portfolioItems.length > 0 && (
+                                <div className="p-4 flex items-center justify-between bg-slate-50/60 dark:bg-slate-800/30">
+                                    <span className="text-[10px] font-black text-slate-500 dark:text-slate-300 uppercase tracking-widest">{t('th.totals')}</span>
+                                    <div className="flex items-center gap-4">
+                                        <span className="text-xs font-black text-slate-700 dark:text-slate-200 tabular-nums">{formatNumber(totalValue)}€</span>
+                                        <span className="text-xs font-black text-indigo-600 dark:text-indigo-400 tabular-nums">{formatNumber(investTotal)}€</span>
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+
+                        {/* DESKTOP TABLE */}
+                        <div className="hidden md:block overflow-x-auto">
                             <table className="w-full text-left min-w-[600px]">
                                 <thead className="bg-slate-50/80 dark:bg-slate-800/40 text-[10px] font-black text-slate-400 uppercase tracking-widest border-b border-slate-100 dark:border-slate-800">
                                     <tr>
@@ -268,9 +330,9 @@ export const Dashboard = ({
                 {/* BOTTOM: distribution + history */}
                 <div className="grid grid-cols-1 xl:grid-cols-12 gap-8">
                     <motion.div variants={fadeInUp} className="xl:col-span-5">
-                        <GlassCard className="relative h-full min-h-[22rem]">
-                            <div className="absolute top-6 left-6 text-[10px] font-black text-slate-400 uppercase tracking-widest z-10">{t('dash.distribution')}</div>
-                            <div className="w-full h-[320px] flex items-center justify-center -mt-6">
+                        <GlassCard className="relative h-full">
+                            <div className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{t('dash.distribution')}</div>
+                            <div className="w-full h-[160px] md:h-[175px] flex items-center justify-center mt-3">
                                 {chartData.length > 0 ? (
                                     <div className="relative w-full h-full">
                                         <ResponsiveContainer width="100%" height="100%">
@@ -278,8 +340,8 @@ export const Dashboard = ({
                                                 <Pie 
                                                     data={chartData} 
                                                     cx="50%" cy="100%" 
-                                                    startAngle={180} endAngle={0} 
-                                                    innerRadius={100} outerRadius={140} 
+                                                    startAngle={180} endAngle={0}
+                                                    innerRadius={104} outerRadius={140}
                                                     paddingAngle={2} dataKey="value" stroke="none" cornerRadius={4}
                                                 >
                                                     {chartData.map((e, i) => <Cell key={i} fill={e.fill} />)}
@@ -292,22 +354,31 @@ export const Dashboard = ({
                                                 />
                                             </PieChart>
                                         </ResponsiveContainer>
-                                        <div className="absolute bottom-8 left-0 w-full text-center pointer-events-none">
-                                            <div className="text-3xl font-black text-slate-900 dark:text-white tracking-tight">{formatNumber(metrics.currentValue, 2)} €</div>
-                                            <div className="mt-1 flex items-center justify-center gap-2">
-                                                <span className={`text-sm font-bold ${up ? 'text-emerald-500' : 'text-rose-500'}`}>
-                                                    {up ? '+' : ''}{formatNumber(metrics.gain, 2)} €
-                                                </span>
-                                                <span className={`px-2 py-0.5 rounded text-xs font-bold border ${up ? 'bg-emerald-900/30 text-emerald-400 border-emerald-900/50' : 'bg-rose-900/30 text-rose-400 border-rose-900/50'}`}>
-                                                    {up ? '↑' : '↓'} {formatNumber(metrics.gainPct, 2)}%
-                                                </span>
-                                            </div>
+                                        <div className="absolute bottom-1 left-0 w-full text-center pointer-events-none px-4">
+                                            <div className="text-[9px] font-black text-slate-400 uppercase tracking-widest">{t('kpi.total_value')}</div>
+                                            <div className="text-2xl font-black text-slate-900 dark:text-white tracking-tight tabular-nums">{formatNumber(totalValue)} €</div>
+                                            <div className="text-[9px] font-bold text-slate-400 uppercase truncate">{assetSummary}</div>
                                         </div>
                                     </div>
                                 ) : (
                                     <div className="text-xs font-bold text-slate-400 text-center py-10">{t('dash.empty')}</div>
                                 )}
                             </div>
+
+                            {/* Legend: which slice is which */}
+                            {chartData.length > 0 && (
+                                <div className="mt-2 flex flex-wrap gap-x-4 gap-y-2 justify-center">
+                                    {chartData.map((c, i) => (
+                                        <div key={i} className="flex items-center gap-1.5 min-w-0">
+                                            <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: c.fill }} />
+                                            <span className="text-[11px] font-bold text-slate-600 dark:text-slate-300 truncate max-w-[110px]">{c.name}</span>
+                                            <span className="text-[11px] font-black text-slate-400 tabular-nums">
+                                                {totalValue > 0 ? formatNumber((safeFloat(c.value) / totalValue) * 100, 1) : 0}%
+                                            </span>
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
                         </GlassCard>
                     </motion.div>
 
