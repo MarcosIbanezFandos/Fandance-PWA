@@ -86,7 +86,7 @@ export const buildXray = (positions, filterTicker = null) => {
             addCompany(key, h.name || h.symbol, h.symbol, val, p.ticker);
             const country = h.country || 'Other';
             const currency = h.currency || 'USD';
-            if (!/diversified|Emerging|Global/i.test(country)) {
+            if (!/diversified|Emerging|Global|Europe|North America|Asia|Latin|Africa|Pacific/i.test(country)) {
                 countries[country] = (countries[country] || 0) + val;
             }
             currencies[currency] = (currencies[currency] || 0) + val;
@@ -107,7 +107,7 @@ export const buildXray = (positions, filterTicker = null) => {
                     addCompany(key, h.name || h.symbol, h.symbol, extra, p.ticker);
                     const country = h.country || 'Other';
                     const currency = h.currency || 'USD';
-                    if (!/diversified|Emerging|Global/i.test(country)) {
+                    if (!/diversified|Emerging|Global|Europe|North America|Asia|Latin|Africa|Pacific/i.test(country)) {
                         countries[country] = (countries[country] || 0) + extra;
                     }
                     currencies[currency] = (currencies[currency] || 0) + extra;
@@ -118,7 +118,7 @@ export const buildXray = (positions, filterTicker = null) => {
                 // No holdings at all — attribute to the ETF's region
                 const region = p.region || 'Global (diversified)';
                 const cur = p.currency || 'USD';
-                if (!/diversified|Emerging|Global/i.test(region)) {
+                if (!/diversified|Emerging|Global|Europe|North America|Asia|Latin|Africa|Pacific/i.test(region)) {
                     countries[region] = (countries[region] || 0) + rem;
                 }
                 currencies[cur] = (currencies[cur] || 0) + rem;
@@ -129,7 +129,7 @@ export const buildXray = (positions, filterTicker = null) => {
             // Position with no holdings at all (shouldn't happen for stocks)
             const region = p.region || 'Global (diversified)';
             const cur = p.currency || 'USD';
-            if (!/diversified|Emerging|Global/i.test(region)) {
+            if (!/diversified|Emerging|Global|Europe|North America|Asia|Latin|Africa|Pacific/i.test(region)) {
                 countries[region] = (countries[region] || 0) + rem;
             }
             currencies[cur] = (currencies[cur] || 0) + rem;

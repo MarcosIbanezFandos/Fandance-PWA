@@ -268,23 +268,42 @@ export const Dashboard = ({
                 {/* BOTTOM: distribution + history */}
                 <div className="grid grid-cols-1 xl:grid-cols-12 gap-8">
                     <motion.div variants={fadeInUp} className="xl:col-span-5">
-                        <GlassCard className="relative h-full min-h-[19rem]">
-                            <h3 className="absolute top-6 left-6 text-xs font-black text-slate-400 uppercase tracking-widest z-10">{t('dash.distribution')}</h3>
-                            <div className="w-full h-72 flex items-center justify-center mt-4">
+                        <GlassCard className="relative h-full min-h-[22rem]">
+                            <div className="absolute top-6 left-6 text-[10px] font-black text-slate-400 uppercase tracking-widest z-10">{t('dash.distribution')}</div>
+                            <div className="w-full h-[320px] flex items-center justify-center -mt-6">
                                 {chartData.length > 0 ? (
-                                    <ResponsiveContainer width="100%" height="100%">
-                                        <PieChart>
-                                            <Pie data={chartData} cx="50%" cy="100%" startAngle={180} endAngle={0} innerRadius={80} outerRadius={110} paddingAngle={2} dataKey="value" cornerRadius={6}>
-                                                {chartData.map((e, i) => <Cell key={i} fill={e.fill} stroke="none" />)}
-                                            </Pie>
-                                            <Tooltip
-                                                contentStyle={{ borderRadius: '16px', border: 'none', boxShadow: '0 10px 30px -5px rgba(0,0,0,0.2)', fontWeight: 'bold', background: '#0f172a', color: '#fff' }}
-                                                itemStyle={{ color: '#fff', fontSize: '13px' }}
-                                                labelStyle={{ display: 'none' }}
-                                                formatter={(val, name) => [`${formatNumber(val)} €`, name]}
-                                            />
-                                        </PieChart>
-                                    </ResponsiveContainer>
+                                    <div className="relative w-full h-full">
+                                        <ResponsiveContainer width="100%" height="100%">
+                                            <PieChart>
+                                                <Pie 
+                                                    data={chartData} 
+                                                    cx="50%" cy="100%" 
+                                                    startAngle={180} endAngle={0} 
+                                                    innerRadius={100} outerRadius={140} 
+                                                    paddingAngle={2} dataKey="value" stroke="none" cornerRadius={4}
+                                                >
+                                                    {chartData.map((e, i) => <Cell key={i} fill={e.fill} />)}
+                                                </Pie>
+                                                <Tooltip
+                                                    contentStyle={{ borderRadius: '16px', border: 'none', boxShadow: '0 10px 30px -5px rgba(0,0,0,0.2)', fontWeight: 'bold', background: '#0f172a', color: '#fff' }}
+                                                    itemStyle={{ color: '#fff', fontSize: '13px' }}
+                                                    labelStyle={{ display: 'none' }}
+                                                    formatter={(val, name) => [`${formatNumber(val)} €`, name]}
+                                                />
+                                            </PieChart>
+                                        </ResponsiveContainer>
+                                        <div className="absolute bottom-8 left-0 w-full text-center pointer-events-none">
+                                            <div className="text-3xl font-black text-slate-900 dark:text-white tracking-tight">{formatNumber(metrics.currentValue, 2)} €</div>
+                                            <div className="mt-1 flex items-center justify-center gap-2">
+                                                <span className={`text-sm font-bold ${up ? 'text-emerald-500' : 'text-rose-500'}`}>
+                                                    {up ? '+' : ''}{formatNumber(metrics.gain, 2)} €
+                                                </span>
+                                                <span className={`px-2 py-0.5 rounded text-xs font-bold border ${up ? 'bg-emerald-900/30 text-emerald-400 border-emerald-900/50' : 'bg-rose-900/30 text-rose-400 border-rose-900/50'}`}>
+                                                    {up ? '↑' : '↓'} {formatNumber(metrics.gainPct, 2)}%
+                                                </span>
+                                            </div>
+                                        </div>
+                                    </div>
                                 ) : (
                                     <div className="text-xs font-bold text-slate-400 text-center py-10">{t('dash.empty')}</div>
                                 )}

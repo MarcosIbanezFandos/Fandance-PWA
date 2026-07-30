@@ -20,14 +20,14 @@ export const Sidebar = ({ portfolios, activePortfolio, setActivePortfolio, onCre
       to={to}
       onClick={() => setIsOpen(false)}
       className={({ isActive }) =>
-        `w-full flex items-center gap-4 p-4 md:p-3 lg:p-4 md:justify-center lg:justify-start rounded-2xl transition-all relative group ${isActive ? 'text-white' : 'text-slate-300 hover:text-white hover:bg-slate-800/60'}`
+        `w-full flex items-center gap-4 p-4 md:p-3 lg:p-4 md:justify-center lg:justify-start rounded-2xl transition-all relative group ${isActive ? 'text-white' : 'text-slate-400 hover:text-white hover:bg-slate-800/60'}`
       }
     >  {({ isActive }) => (
         <>
           {isActive && (
             <motion.div
               layoutId="activeTabBg"
-              className="absolute inset-0 bg-indigo-600 rounded-2xl shadow-lg shadow-indigo-900/50 -z-10"
+              className="absolute inset-0 bg-indigo-600 rounded-2xl shadow-lg shadow-indigo-900/50 z-0"
               initial={false}
               transition={{ type: "spring", stiffness: 500, damping: 30 }}
             />
