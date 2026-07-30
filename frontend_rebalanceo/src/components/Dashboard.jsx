@@ -1,6 +1,7 @@
 import React from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Wallet, Activity, ListFilter, Plus, Search, Loader2, ArrowUpRight, ArrowDownRight, Trash2, Calendar, RotateCcw, PlusCircle, History as HistoryIcon, Repeat, Coins, AlertTriangle, CheckCircle2 } from 'lucide-react';
+import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer } from 'recharts';
 import { GlassCard, CountUp, BounceButton, fadeInUp, staggerContainer } from './UI';
 import { safeFloat, formatNumber, formatUnits } from '../utils';
 import { useGlobal } from '../context/GlobalContext';
@@ -267,32 +268,24 @@ export const Dashboard = ({
                 {/* BOTTOM: distribution + history */}
                 <div className="grid grid-cols-1 xl:grid-cols-12 gap-8">
                     <motion.div variants={fadeInUp} className="xl:col-span-5">
-                        <GlassCard className="h-full min-h-[19rem] flex flex-col">
-                            <h3 className="text-xs font-black text-slate-400 uppercase tracking-widest mb-6">{t('dash.allocation')}</h3>
-                            <div className="flex-1 space-y-4 max-h-96 overflow-y-auto custom-scrollbar pr-2">
-                                {portfolioItems.map(item => {
-                                    const now = safeFloat(item.currentWeight);
-                                    const tgt = safeFloat(item.targetWeight);
-                                    const typeColor = TYPE_DOT[item.asset?.type || 'Other'] || TYPE_DOT['Other'];
-                                    return (
-                                        <div key={item.id}>
-                                            <div className="flex justify-between items-end mb-1.5">
-                                                <div className="min-w-0 mr-4">
-                                                    <div className="text-xs font-bold text-slate-800 dark:text-slate-100 truncate">{item.asset?.name || item.asset?.ticker}</div>
-                                                    <div className="text-[10px] font-bold text-slate-400">{item.asset?.ticker}</div>
-                                                </div>
-                                                <div className="text-right shrink-0">
-                                                    <div className="text-xs font-black text-slate-700 dark:text-slate-200">{formatNumber(now, 1)}%</div>
-                                                    <div className={`text-[9px] font-black uppercase ${driftColor(item)}`}>TGT: {formatNumber(tgt, 1)}%</div>
-                                                </div>
-                                            </div>
-                                            <div className="h-1.5 rounded-full bg-slate-100 dark:bg-slate-800 overflow-hidden relative">
-                                                <div className={`absolute top-0 left-0 bottom-0 ${typeColor} rounded-full`} style={{ width: `${Math.min(100, now)}%` }} />
-                                            </div>
-                                        </div>
-                                    );
-                                })}
-                                {portfolioItems.length === 0 && (
+                        <GlassCard className="relative h-full min-h-[19rem]">
+                            <h3 className="absolute top-6 left-6 text-xs font-black text-slate-400 uppercase tracking-widest z-10">{t('dash.distribution')}</h3>
+                            <div className="w-full h-72 flex items-center justify-center mt-4">
+                                {chartData.length > 0 ? (
+                                    <ResponsiveContainer width="100%" height="100%">
+                                        <PieChart>
+                                            <Pie data={chartData} cx="50%" cy="100%" startAngle={180} endAngle={0} innerRadius={80} outerRadius={110} paddingAngle={2} dataKey="value" cornerRadius={6}>
+                                                {chartData.map((e, i) => <Cell key={i} fill={e.fill} stroke="none" />)}
+                                            </Pie>
+                                            <Tooltip
+                                                contentStyle={{ borderRadius: '16px', border: 'none', boxShadow: '0 10px 30px -5px rgba(0,0,0,0.2)', fontWeight: 'bold', background: '#0f172a', color: '#fff' }}
+                                                itemStyle={{ color: '#fff', fontSize: '13px' }}
+                                                labelStyle={{ display: 'none' }}
+                                                formatter={(val, name) => [`${formatNumber(val)} €`, name]}
+                                            />
+                                        </PieChart>
+                                    </ResponsiveContainer>
+                                ) : (
                                     <div className="text-xs font-bold text-slate-400 text-center py-10">{t('dash.empty')}</div>
                                 )}
                             </div>

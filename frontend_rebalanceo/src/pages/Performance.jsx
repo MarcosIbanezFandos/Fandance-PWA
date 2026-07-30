@@ -7,6 +7,7 @@ import { GlassCard, staggerContainer, fadeInUp } from '../components/UI';
 import { Dropdown } from '../components/Dropdown';
 import { BenchmarkCompare } from '../components/BenchmarkCompare';
 import { CostBasis } from '../components/CostBasis';
+import { TRCsvParser } from '../components/TRCsvParser';
 import { useGlobal } from '../context/GlobalContext';
 import { safeFloat, formatNumber, xirr } from '../utils';
 
@@ -43,6 +44,7 @@ export const Performance = ({ portfolios, activePortfolioId }) => {
     const [loading, setLoading] = useState(false);
     const [fees, setFees] = useState('0');
     const [taxes, setTaxes] = useState('0');
+    const [csvMetrics, setCsvMetrics] = useState(null);
 
     // Pick a default portfolio
     useEffect(() => {
@@ -52,15 +54,24 @@ export const Performance = ({ portfolios, activePortfolioId }) => {
         }
     }, [portfolios, activePortfolioId]);
 
-    // Load fees/taxes overrides per portfolio
     useEffect(() => {
         if (!pid) return;
         setFees(localStorage.getItem(`perf_fees_${pid}`) ?? '0');
         setTaxes(localStorage.getItem(`perf_taxes_${pid}`) ?? '0');
+        const savedCsv = localStorage.getItem(`perf_csv_${pid}`);
+        if (savedCsv) {
+            try { setCsvMetrics(JSON.parse(savedCsv)); } catch (e) { }
+        } else { setCsvMetrics(null); }
     }, [pid]);
 
     useEffect(() => { if (pid) localStorage.setItem(`perf_fees_${pid}`, fees); }, [fees, pid]);
     useEffect(() => { if (pid) localStorage.setItem(`perf_taxes_${pid}`, taxes); }, [taxes, pid]);
+    useEffect(() => { 
+        if (pid) {
+            if (csvMetrics) localStorage.setItem(`perf_csv_${pid}`, JSON.stringify(csvMetrics));
+            else localStorage.removeItem(`perf_csv_${pid}`);
+        }
+    }, [csvMetrics, pid]);
 
     useEffect(() => {
         if (!pid) return;
@@ -209,29 +220,109 @@ export const Performance = ({ portfolios, activePortfolioId }) => {
                                 </div>
                             </GlassCard>
 
-                            {/* Net total breakdown (Trade Republic style) */}
-                            <GlassCard>
-                                <div className="flex items-center gap-2 mb-5">
-                                    <Receipt size={15} className="text-slate-400" />
-                                    <h3 className="text-xs font-black text-slate-400 uppercase tracking-widest">{t('perf.net_total')}</h3>
-                                </div>
-                                <div className="space-y-1 text-sm">
-                                    <Row label={t('perf.portfolio_value')} value={`${formatNumber(metrics.currentValue, 2)} €`} />
-                                    <Row label={t('perf.invested')} value={`${formatNumber(metrics.invested, 2)} €`} muted />
-                                    <Row label={t('perf.gain')} value={`${up ? '+' : ''}${formatNumber(metrics.gain, 2)} €`} tone={up ? 'up' : 'down'} />
-                                    <div className="h-px bg-slate-100 dark:bg-slate-800 my-2" />
-                                    <EditRow label={t('perf.fees')} value={fees} onChange={setFees} />
-                                    <EditRow label={t('perf.taxes')} value={taxes} onChange={setTaxes} />
-                                    <div className="h-px bg-slate-200 dark:bg-slate-700 my-2" />
-                                    <div className="flex items-center justify-between py-2">
-                                        <span className="font-black text-slate-700 dark:text-slate-200 uppercase text-xs tracking-widest">{t('perf.net_total')}</span>
-                                        <span className={`text-xl font-black ${metrics.netResult >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-500 dark:text-rose-400'}`}>
-                                            {metrics.netResult >= 0 ? '+' : ''}{formatNumber(metrics.netResult, 2)} €
-                                        </span>
+                            <TRCsvParser currentValue={metrics.currentValue} onParsed={setCsvMetrics} />
+
+                            {csvMetrics ? (
+                                <GlassCard className="bg-[#0b101e] border-slate-800 text-slate-300">
+                                    <div className="flex items-center justify-between mb-6">
+                                        <div>
+                                            <h3 className="text-[14px] font-bold text-white">Rentabilidad</h3>
+                                            <p className="text-xs text-slate-400 mt-1">Calculado desde archivo CSV</p>
+                                        </div>
+                                        <button onClick={() => setCsvMetrics(null)} className="text-xs font-bold text-rose-500 hover:text-rose-400">Borrar</button>
                                     </div>
-                                </div>
-                                <p className="text-[11px] font-medium text-slate-400 mt-3">{t('perf.net_hint')}</p>
-                            </GlassCard>
+                                    
+                                    <div className="space-y-2 text-[13px] font-medium">
+                                        <Row label="Valor del portafolio" value={`${formatNumber(metrics.currentValue, 2)} €`} />
+                                        <Row label="Invertido" value={`${formatNumber(csvMetrics.invested, 2)} €`} />
+                                        <Row label="Flujo de caja" value={`${formatNumber(csvMetrics.cashFlow, 2)} €`} />
+                                    </div>
+
+                                    <div className="h-px bg-slate-800/50 my-5" />
+                                    
+                                    <div className="space-y-3 text-[13px]">
+                                        <div className="flex justify-between items-center">
+                                            <span className="text-slate-400">TIR</span>
+                                            <Badge value={csvMetrics.tir} suffix="%" />
+                                        </div>
+                                        <div className="flex justify-between items-center">
+                                            <span className="text-slate-400">TTWROR</span>
+                                            <Badge text="N/A" gray />
+                                        </div>
+                                    </div>
+
+                                    <div className="h-px bg-slate-800/50 my-5" />
+
+                                    <div className="space-y-3 text-[13px]">
+                                        <div className="flex justify-between items-center">
+                                            <span className="text-slate-400">Ganancias de precio</span>
+                                            <div className="flex items-center gap-3">
+                                                <span className={csvMetrics.priceGains >= 0 ? 'text-emerald-500' : 'text-rose-500'}>{formatNumber(csvMetrics.priceGains, 2)} €</span>
+                                                <Badge value={csvMetrics.invested > 0 ? (csvMetrics.priceGains / csvMetrics.invested) * 100 : 0} suffix="%" />
+                                            </div>
+                                        </div>
+                                        <div className="flex justify-between items-center">
+                                            <span className="text-slate-400">Realizado (Bruto)</span>
+                                            <div className="flex items-center gap-3">
+                                                <span className={csvMetrics.realizedGross >= 0 ? 'text-emerald-500' : 'text-rose-500'}>{formatNumber(csvMetrics.realizedGross, 2)} €</span>
+                                                <Badge value={csvMetrics.invested > 0 ? (csvMetrics.realizedGross / csvMetrics.invested) * 100 : 0} suffix="%" />
+                                            </div>
+                                        </div>
+                                        <div className="flex justify-between items-center">
+                                            <span className="text-slate-400">Dividendos (Brutos)</span>
+                                            <div className="flex items-center gap-3">
+                                                <span>{formatNumber(csvMetrics.dividends, 2)} €</span>
+                                                <Badge value={csvMetrics.invested > 0 ? (csvMetrics.dividends / csvMetrics.invested) * 100 : 0} suffix="%" gray={csvMetrics.dividends === 0} />
+                                            </div>
+                                        </div>
+                                        <div className="flex justify-between items-center">
+                                            <span className="text-slate-400">Intereses (Brutos)</span>
+                                            <div className="flex items-center gap-3">
+                                                <span className={csvMetrics.interest >= 0 ? 'text-emerald-500' : 'text-rose-500'}>{formatNumber(csvMetrics.interest, 2)} €</span>
+                                                <Badge value={csvMetrics.invested > 0 ? (csvMetrics.interest / csvMetrics.invested) * 100 : 0} suffix="%" gray={csvMetrics.interest === 0} />
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <div className="h-px bg-slate-800/50 my-5" />
+
+                                    <div className="space-y-3 text-[13px]">
+                                        <Row label={<span className="font-bold text-white text-sm">Total</span>} value={`${formatNumber(csvMetrics.totalGross, 2)} €`} tone={csvMetrics.totalGross >= 0 ? 'up' : 'down'} className="font-bold text-sm" />
+                                        <Row label="Impuestos" value={`${formatNumber(csvMetrics.taxes, 2)} €`} />
+                                        <Row label="Comisiones" value={`${formatNumber(csvMetrics.fees, 2)} €`} />
+                                    </div>
+
+                                    <div className="h-px bg-slate-800/50 my-5" />
+
+                                    <div className="flex items-center justify-between font-bold text-[15px]">
+                                        <span className="text-white">Total neto</span>
+                                        <span className={csvMetrics.netTotal >= 0 ? 'text-emerald-500' : 'text-rose-500'}>{formatNumber(csvMetrics.netTotal, 2)} €</span>
+                                    </div>
+                                </GlassCard>
+                            ) : (
+                                <GlassCard>
+                                    <div className="flex items-center gap-2 mb-5">
+                                        <Receipt size={15} className="text-slate-400" />
+                                        <h3 className="text-xs font-black text-slate-400 uppercase tracking-widest">{t('perf.net_total')}</h3>
+                                    </div>
+                                    <div className="space-y-1 text-sm">
+                                        <Row label={t('perf.portfolio_value')} value={`${formatNumber(metrics.currentValue, 2)} €`} />
+                                        <Row label={t('perf.invested')} value={`${formatNumber(metrics.invested, 2)} €`} muted />
+                                        <Row label={t('perf.gain')} value={`${up ? '+' : ''}${formatNumber(metrics.gain, 2)} €`} tone={up ? 'up' : 'down'} />
+                                        <div className="h-px bg-slate-100 dark:bg-slate-800 my-2" />
+                                        <EditRow label={t('perf.fees')} value={fees} onChange={setFees} />
+                                        <EditRow label={t('perf.taxes')} value={taxes} onChange={setTaxes} />
+                                        <div className="h-px bg-slate-200 dark:bg-slate-700 my-2" />
+                                        <div className="flex items-center justify-between py-2">
+                                            <span className="font-black text-slate-700 dark:text-slate-200 uppercase text-xs tracking-widest">{t('perf.net_total')}</span>
+                                            <span className={`text-xl font-black ${metrics.netResult >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-500 dark:text-rose-400'}`}>
+                                                {metrics.netResult >= 0 ? '+' : ''}{formatNumber(metrics.netResult, 2)} €
+                                            </span>
+                                        </div>
+                                    </div>
+                                    <p className="text-[11px] font-medium text-slate-400 mt-3">{t('perf.net_hint')}</p>
+                                </GlassCard>
+                            )}
                         </>
                     )}
 
@@ -244,15 +335,27 @@ export const Performance = ({ portfolios, activePortfolioId }) => {
     );
 };
 
-const Row = ({ label, value, tone = 'default', muted = false }) => {
-    const cls = tone === 'up' ? 'text-emerald-600 dark:text-emerald-400'
-        : tone === 'down' ? 'text-rose-500 dark:text-rose-400'
-            : muted ? 'text-slate-400' : 'text-slate-700 dark:text-slate-200';
+const Row = ({ label, value, tone = 'default', muted = false, className = '' }) => {
+    const cls = tone === 'up' ? 'text-emerald-500'
+        : tone === 'down' ? 'text-rose-500'
+            : muted ? 'text-slate-400' : 'text-slate-300';
     return (
-        <div className="flex items-center justify-between py-1.5">
-            <span className="font-bold text-slate-500 dark:text-slate-400">{label}</span>
-            <span className={`font-black ${cls}`}>{value}</span>
+        <div className={`flex items-center justify-between py-1.5 ${className}`}>
+            <span className="text-slate-400">{label}</span>
+            <span className={cls}>{value}</span>
         </div>
+    );
+};
+
+const Badge = ({ value, text, suffix = '', gray = false }) => {
+    if (gray || text === 'N/A') {
+        return <span className="px-2 py-0.5 rounded text-xs font-bold bg-slate-800 text-slate-400 border border-slate-700">{text || `${formatNumber(value)}${suffix}`}</span>;
+    }
+    const up = value >= 0;
+    return (
+        <span className={`px-2 py-0.5 rounded text-xs font-bold border ${up ? 'bg-emerald-900/30 text-emerald-400 border-emerald-900/50' : 'bg-rose-900/30 text-rose-400 border-rose-900/50'}`}>
+            {up ? '↑' : '↓'} {Math.abs(value).toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}{suffix}
+        </span>
     );
 };
 
