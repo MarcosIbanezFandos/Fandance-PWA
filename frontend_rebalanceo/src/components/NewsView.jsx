@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import axios from 'axios';
+import api from '../api'
 import { Loader2, ExternalLink, Calendar, TrendingUp } from 'lucide-react';
 import { GlassCard, staggerContainer } from './UI';
 import { motion } from 'framer-motion';
@@ -18,7 +18,7 @@ export const NewsView = ({ portfolios, activePortfolioId }) => {
     const fetchNews = async () => {
         setLoading(true);
         try {
-            const res = await axios.get(`${import.meta.env.VITE_API_URL}/portfolio/${activePortfolioId}?t=${Date.now()}`);
+            const res = await api.get(`${import.meta.env.VITE_API_URL}/portfolio/${activePortfolioId}?t=${Date.now()}`);
             const items = res.data || [];
 
             if (items.length === 0) {
@@ -32,7 +32,7 @@ export const NewsView = ({ portfolios, activePortfolioId }) => {
             items.forEach(i => { if (i.asset?.ticker) mapping[i.asset.ticker] = i.asset.name || i.asset.ticker; });
             setTickerToName(mapping);
 
-            const newsRes = await axios.post(`${import.meta.env.VITE_API_URL}/portfolio/news`, { assets: assetsPayload });
+            const newsRes = await api.post(`${import.meta.env.VITE_API_URL}/portfolio/news`, { assets: assetsPayload });
             setNewsData(newsRes.data);
         } catch (e) {
             console.error("News Error:", e);

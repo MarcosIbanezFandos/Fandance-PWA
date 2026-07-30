@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import axios from 'axios';
+import api from '../api'
 import { Loader2, Scale } from 'lucide-react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import { GlassCard } from './UI';
@@ -34,7 +34,7 @@ export const BenchmarkCompare = ({ holdings, period }) => {
         const run = async () => {
             setLoading(true);
             try {
-                const res = await axios.post(`${import.meta.env.VITE_API_URL}/portfolio/benchmark`,
+                const res = await api.post(`${import.meta.env.VITE_API_URL}/portfolio/benchmark`,
                     { holdings: list, benchmarks: selected, period }, { timeout: 60000 });
                 if (!cancelled) setData(res.data);
             } catch (e) { if (!cancelled) setData(null); }

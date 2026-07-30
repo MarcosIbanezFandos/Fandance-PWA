@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import axios from 'axios';
+import api from '../api'
 import { motion } from 'framer-motion';
 import { Loader2, TrendingUp, TrendingDown, Wallet, PiggyBank, Percent, Receipt } from 'lucide-react';
 import { AreaChart, Area, ResponsiveContainer, YAxis, XAxis, Tooltip } from 'recharts';
@@ -79,8 +79,8 @@ export const Performance = ({ portfolios, activePortfolioId }) => {
             setLoading(true);
             try {
                 const [itemsRes, histRes] = await Promise.all([
-                    axios.get(`${import.meta.env.VITE_API_URL}/portfolio/${pid}?t=${Date.now()}`),
-                    axios.get(`${import.meta.env.VITE_API_URL}/portfolio/history/${pid}?t=${Date.now()}`),
+                    api.get(`${import.meta.env.VITE_API_URL}/portfolio/${pid}?t=${Date.now()}`),
+                    api.get(`${import.meta.env.VITE_API_URL}/portfolio/history/${pid}?t=${Date.now()}`),
                 ]);
                 setItems(itemsRes.data || []);
                 setHistory(histRes.data || []);
@@ -95,7 +95,7 @@ export const Performance = ({ portfolios, activePortfolioId }) => {
         if (!pid) return;
         const load = async () => {
             try {
-                const res = await axios.post(`${import.meta.env.VITE_API_URL}/portfolio/history_chart`, { portfolio_id: pid, period });
+                const res = await api.post(`${import.meta.env.VITE_API_URL}/portfolio/history_chart`, { portfolio_id: pid, period });
                 const hist = (res.data?.history || []).map(p => ({
                     value: safeFloat(p.value),
                     date: new Date(p.date).toLocaleDateString('es-ES', { month: 'short', day: 'numeric' }),

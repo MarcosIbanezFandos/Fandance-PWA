@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import axios from 'axios';
+import api from '../api'
 import { motion } from 'framer-motion';
 import { Loader2, Search, Globe2, Coins, PieChart, Layers, Building2, Map, ChevronDown } from 'lucide-react';
 import { GlassCard } from '../components/UI';
@@ -71,14 +71,14 @@ export const Xray = ({ portfolios, activePortfolioId }) => {
             setFilter('all');
             setVisibleCount(PAGE_SIZE);
             try {
-                const itemsRes = await axios.get(`${import.meta.env.VITE_API_URL}/portfolio/${pid}?t=${Date.now()}`);
+                const itemsRes = await api.get(`${import.meta.env.VITE_API_URL}/portfolio/${pid}?t=${Date.now()}`);
                 const items = (itemsRes.data || []).filter(i => i.asset?.ticker && safeFloat(i.value) > 0);
                 if (items.length === 0) { setPositions([]); setLoading(false); return; }
                 const payload = items.map(i => ({
                     ticker: i.asset.ticker, name: i.asset.name || i.asset.ticker,
                     type: i.asset.type || 'Stock', value: safeFloat(i.value), sector: i.asset.sector
                 }));
-                const res = await axios.post(`${import.meta.env.VITE_API_URL}/portfolio/xray`, { positions: payload }, { timeout: 60000 });
+                const res = await api.post(`${import.meta.env.VITE_API_URL}/portfolio/xray`, { positions: payload }, { timeout: 60000 });
                 setPositions(res.data?.positions || []);
             } catch (e) { setPositions([]); }
             finally { setLoading(false); }
