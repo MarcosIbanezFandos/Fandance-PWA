@@ -37,16 +37,26 @@ export const formatUnits = (units) => {
 };
 
 /**
- * Aggregate a portfolio X-ray from per-position look-through data
- * (as returned by POST /api/portfolio/xray).
+ * Aggregate a portfolio X-ray from per-position look-through data.
  *
- * positions: [{ ticker, name, type, value, coverage, holdings:[{symbol,name,weight,country,currency}],
- *               sectors:{name:weight}, region, currency }]
- * filterTicker: null = whole portfolio; a ticker = drill into that single position.
- *
- * Returns { total, companies, countries, currencies, sectors } where each list is
- * sorted desc with { key, name, symbol, value, pct, sources[], other }.
+ * Returns { total, companies, countries, currencies, sectors, regions }.
  */
+
+const COUNTRY_TO_REGION = {
+    'United States': 'North America', 'Canada': 'North America', 'Mexico': 'Latin America',
+    'United Kingdom': 'Europe', 'France': 'Europe', 'Germany': 'Europe', 'Netherlands': 'Europe',
+    'Switzerland': 'Europe', 'Spain': 'Europe', 'Italy': 'Europe', 'Belgium': 'Europe',
+    'Portugal': 'Europe', 'Austria': 'Europe', 'Ireland': 'Europe', 'Finland': 'Europe',
+    'Sweden': 'Europe', 'Norway': 'Europe', 'Denmark': 'Europe',
+    'Europe (diversified)': 'Europe',
+    'Japan': 'Asia-Pacific', 'Australia': 'Asia-Pacific', 'Hong Kong': 'Asia-Pacific',
+    'Singapore': 'Asia-Pacific', 'Taiwan': 'Asia-Pacific', 'South Korea': 'Asia-Pacific',
+    'Asia-Pacific (diversified)': 'Asia-Pacific',
+    'China': 'Emerging Markets', 'India': 'Emerging Markets', 'Brazil': 'Emerging Markets',
+    'South Africa': 'Emerging Markets', 'Emerging Markets': 'Emerging Markets',
+    'Global (diversified)': 'Global', 'Global small cap (diversified)': 'Global',
+};
+
 export const buildXray = (positions, filterTicker = null) => {
     const list = (positions || []).filter(p => !filterTicker || p.ticker === filterTicker);
     const total = list.reduce((s, p) => s + safeFloat(p.value), 0);
@@ -55,9 +65,10 @@ export const buildXray = (positions, filterTicker = null) => {
     const countries = {};
     const currencies = {};
     const sectors = {};
+    const regions = {};
 
-    const addCompany = (key, name, symbol, val, sourceTicker, other = false) => {
-        const c = companies.get(key) || { key, name, symbol, value: 0, sources: new Set(), other };
+    const addCompany = (key, name, symbol, val, sourceTicker) => {
+        const c = companies.get(key) || { key, name, symbol, value: 0, sources: new Set(), other: false };
         c.value += val;
         if (sourceTicker) c.sources.add(sourceTicker);
         companies.set(key, c);
@@ -77,19 +88,48 @@ export const buildXray = (positions, filterTicker = null) => {
             const currency = h.currency || 'USD';
             countries[country] = (countries[country] || 0) + val;
             currencies[currency] = (currencies[currency] || 0) + val;
+            const region = COUNTRY_TO_REGION[country] || 'Other';
+            regions[region] = (regions[region] || 0) + val;
         }
 
-        // Remainder of a fund that isn't in the top holdings.
+        // Redistribute remainder proportionally across known holdings
+        // instead of creating an "Otros de X" bucket
         const rem = value - covered;
-        if (rem > 0.5) {
-            addCompany('__other_' + p.ticker, `Otros de ${p.name}`, null, rem, p.ticker, true);
+        if (rem > 0.5 && (p.holdings || []).length > 0) {
+            const holdingTotal = (p.holdings || []).reduce((s, h) => s + safeFloat(h.weight), 0);
+            if (holdingTotal > 0) {
+                for (const h of (p.holdings || [])) {
+                    const fraction = safeFloat(h.weight) / holdingTotal;
+                    const extra = rem * fraction;
+                    const key = (h.symbol || h.name || '').toUpperCase();
+                    addCompany(key, h.name || h.symbol, h.symbol, extra, p.ticker);
+                    const country = h.country || 'Other';
+                    const currency = h.currency || 'USD';
+                    countries[country] = (countries[country] || 0) + extra;
+                    currencies[currency] = (currencies[currency] || 0) + extra;
+                    const region = COUNTRY_TO_REGION[country] || 'Other';
+                    regions[region] = (regions[region] || 0) + extra;
+                }
+            } else {
+                // No holdings at all — attribute to the ETF's region
+                const region = p.region || 'Global (diversified)';
+                const cur = p.currency || 'USD';
+                countries[region] = (countries[region] || 0) + rem;
+                currencies[cur] = (currencies[cur] || 0) + rem;
+                const reg = COUNTRY_TO_REGION[region] || 'Other';
+                regions[reg] = (regions[reg] || 0) + rem;
+            }
+        } else if (rem > 0.5) {
+            // Position with no holdings at all (shouldn't happen for stocks)
             const region = p.region || 'Global (diversified)';
             const cur = p.currency || 'USD';
             countries[region] = (countries[region] || 0) + rem;
             currencies[cur] = (currencies[cur] || 0) + rem;
+            const reg = COUNTRY_TO_REGION[region] || 'Other';
+            regions[reg] = (regions[reg] || 0) + rem;
         }
 
-        // Sectors (fractions of the position value).
+        // Sectors
         let secCovered = 0;
         for (const [s, w] of Object.entries(p.sectors || {})) {
             const val = value * safeFloat(w);
@@ -113,6 +153,7 @@ export const buildXray = (positions, filterTicker = null) => {
         countries: toSorted(countries),
         currencies: toSorted(currencies),
         sectors: toSorted(sectors),
+        regions: toSorted(regions),
     };
 };
 

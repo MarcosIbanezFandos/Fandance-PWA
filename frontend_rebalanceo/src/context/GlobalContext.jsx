@@ -224,7 +224,25 @@ export const GlobalProvider = ({ children }) => {
                 'sim.calculate': 'Calcular Proyección',
                 'sim.investment': 'Inversión Total',
                 'sim.gross': 'Valor Bruto',
-                'sim.net': 'Neto tras Impuestos'
+                'sim.net': 'Neto tras Impuestos',
+                // Bottom Nav (mobile)
+                'nav.rebalance': 'Cartera',
+                'nav.xray': 'X-Ray',
+                'nav.analysis': 'Análisis',
+                'nav.news': 'Noticias',
+                'nav.more': 'Más',
+                'nav.performance': 'Rentabilidad',
+                'nav.simulations': 'Simulaciones',
+                'nav.settings': 'Ajustes',
+                'nav.logout': 'Cerrar Sesión',
+                'nav.portfolio': 'Cartera activa',
+                // X-Ray regions
+                'xray.regions': 'Regiones',
+                'xray.showing': 'Mostrando',
+                'xray.of': 'de',
+                'xray.load_more': 'Cargar más',
+                // Dashboard allocation
+                'dash.allocation': 'Asignación actual'
             },
             en: {
                 // Sidebar
@@ -412,7 +430,25 @@ export const GlobalProvider = ({ children }) => {
                 'sim.calculate': 'Run Projection',
                 'sim.investment': 'Total Invested',
                 'sim.gross': 'Gross Value',
-                'sim.net': 'Net after Tax'
+                'sim.net': 'Net after Tax',
+                // Bottom Nav (mobile)
+                'nav.rebalance': 'Portfolio',
+                'nav.xray': 'X-Ray',
+                'nav.analysis': 'Analysis',
+                'nav.news': 'News',
+                'nav.more': 'More',
+                'nav.performance': 'Performance',
+                'nav.simulations': 'Projections',
+                'nav.settings': 'Settings',
+                'nav.logout': 'Log Out',
+                'nav.portfolio': 'Active portfolio',
+                // X-Ray regions
+                'xray.regions': 'Regions',
+                'xray.showing': 'Showing',
+                'xray.of': 'of',
+                'xray.load_more': 'Load more',
+                // Dashboard allocation
+                'dash.allocation': 'Current allocation'
             }
         };
         return translations[language][key] || key;

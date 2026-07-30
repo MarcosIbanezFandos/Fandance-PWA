@@ -1,14 +1,13 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { Sidebar } from '../components/Sidebar';
+import { BottomNav } from '../components/BottomNav';
 import { Outlet, useLocation } from 'react-router-dom';
-import { Menu } from 'lucide-react';
 import { useGlobal } from '../context/GlobalContext';
 
 export const MainLayout = (props) => {
     const { session } = props;
     const location = useLocation();
     const { t } = useGlobal();
-    const [sidebarOpen, setSidebarOpen] = useState(false);
 
     const getHeaderTitle = () => {
         switch (location.pathname) {
@@ -25,25 +24,16 @@ export const MainLayout = (props) => {
 
     return (
         <div className="min-h-screen bg-[#f8fafc] dark:bg-slate-950 text-slate-900 dark:text-slate-100 font-sans flex overflow-hidden transition-colors duration-300">
-            {sidebarOpen && (
-                <div 
-                    className="fixed inset-0 bg-slate-900/50 z-40 lg:hidden backdrop-blur-sm"
-                    onClick={() => setSidebarOpen(false)}
-                />
-            )}
-            
-            <Sidebar {...props} isOpen={sidebarOpen} setIsOpen={setSidebarOpen} />
-            
-            <main className="flex-1 w-full md:ml-20 lg:ml-72 px-4 md:px-8 lg:px-12 pt-[calc(1rem+env(safe-area-inset-top))] pb-[calc(1rem+env(safe-area-inset-bottom))] md:py-8 lg:py-12 transition-all min-w-0 overflow-y-auto h-screen">
-                <header className="flex justify-between items-center mb-6 lg:mb-10">
+            {/* Desktop sidebar — completely hidden on mobile */}
+            <div className="hidden md:block">
+                <Sidebar {...props} isOpen={false} setIsOpen={() => {}} />
+            </div>
+
+            {/* Main content */}
+            <main className="flex-1 w-full md:ml-20 lg:ml-72 px-4 md:px-8 lg:px-12 pt-[calc(0.75rem+env(safe-area-inset-top))] pb-[calc(5rem+env(safe-area-inset-bottom))] md:pb-8 md:pt-8 lg:py-12 transition-all min-w-0 overflow-y-auto h-screen">
+                <header className="flex justify-between items-center mb-4 md:mb-6 lg:mb-10">
                     <div className="flex items-center gap-3 overflow-hidden">
-                        <button 
-                            className="md:hidden p-2 -ml-2 text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-800 rounded-lg shrink-0 transition-colors"
-                            onClick={() => setSidebarOpen(true)}
-                        >
-                            <Menu size={24} />
-                        </button>
-                        <h1 className="text-xl md:text-3xl lg:text-4xl font-black uppercase tracking-tighter text-slate-900 dark:text-white truncate">
+                        <h1 className="text-lg md:text-3xl lg:text-4xl font-black uppercase tracking-tighter text-slate-900 dark:text-white truncate">
                             {getHeaderTitle()}
                         </h1>
                     </div>
@@ -54,6 +44,14 @@ export const MainLayout = (props) => {
                 </header>
                 <Outlet />
             </main>
+
+            {/* Mobile bottom navigation */}
+            <BottomNav
+                onLogout={props.onLogout}
+                portfolios={props.portfolios}
+                activePortfolio={props.activePortfolio}
+                setActivePortfolio={props.setActivePortfolio}
+            />
         </div>
     );
 };
