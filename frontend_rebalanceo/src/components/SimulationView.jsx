@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import axios from 'axios';
+import api from '../api'
 import { Loader2, ShieldCheck, HelpCircle, FlaskConical, TrendingUp, TrendingDown, Shuffle } from 'lucide-react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import { GlassCard, BounceButton, fadeInUp, staggerContainer } from './UI';
@@ -29,7 +29,7 @@ export const SimulationView = ({ portfolios = [] }) => {
         if (selectedPorts.length === 0) return alert(t('sim.select_alert'));
         setLoading(true);
         try {
-            const res = await axios.post(`${import.meta.env.VITE_API_URL}/simulations/run`, {
+            const res = await api.post(`${import.meta.env.VITE_API_URL}/simulations/run`, {
                 portfolio_ids: selectedPorts,
                 years, initial_capital: 0, monthly_contribution: monthlyContrib,
                 contribution_mode: contribMode, growth_rate: growthRate,
