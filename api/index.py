@@ -189,7 +189,7 @@ Name = Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max
 Ticker = Annotated[str, StringConstraints(strip_whitespace=True, to_upper=True, min_length=1, max_length=15, pattern=r"^[A-Za-z0-9.\-^=]+$")]
 Uuid = Annotated[str, StringConstraints(strip_whitespace=True, max_length=64)]
 
-Period = Literal["1d", "5d", "1mo", "3mo", "6mo", "1y", "2y", "5y", "10y", "max"]
+Period = Literal["1d", "5d", "1mo", "3mo", "6mo", "ytd", "1y", "2y", "5y", "10y", "max"]
 
 
 class CreatePortfolioInput(BaseModel):
