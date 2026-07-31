@@ -199,6 +199,195 @@ export const xirr = (cashflows) => {
 };
 
 /**
+ * Compute portfolio-level metrics for a given period, matching Parqet's definitions.
+ *
+ * @param {Array} transactions – parsed TR transactions with { date, type, category,
+ *   symbol, shares, price, amount, fee, tax }.
+ * @param {number} currentValue – current portfolio value (live).
+ * @param {string} periodId – one of 'today','1w','1m','3m','ytd','1y','max'.
+ *
+ * Returns an object with invested, cashFlow, tir, ttwror, priceGains, realizedGross,
+ * dividends, interest, totalGross, taxes, fees, netTotal, firstPurchase.
+ */
+export const computeMetricsForPeriod = (transactions, currentValue, periodId) => {
+    const all = Array.isArray(transactions) ? transactions : [];
+    if (all.length === 0) return null;
+
+    const now = new Date();
+    let periodStart;
+    switch (periodId) {
+        case 'today': periodStart = new Date(now.getFullYear(), now.getMonth(), now.getDate()); break;
+        case '1w': periodStart = new Date(now.getTime() - 7 * 86400000); break;
+        case '1m': periodStart = new Date(now.getFullYear(), now.getMonth() - 1, now.getDate()); break;
+        case '3m': periodStart = new Date(now.getFullYear(), now.getMonth() - 3, now.getDate()); break;
+        case 'ytd': periodStart = new Date(now.getFullYear(), 0, 1); break;
+        case '1y': periodStart = new Date(now.getFullYear() - 1, now.getMonth(), now.getDate()); break;
+        case 'max': default: periodStart = new Date(0); break;
+    }
+
+    // Sort everything by date
+    const sorted = [...all].sort((a, b) => a.date - b.date);
+    const tradingAll = sorted.filter(t => t.category === 'TRADING');
+    const tradingBefore = tradingAll.filter(t => t.date < periodStart);
+    const tradingInPeriod = tradingAll.filter(t => t.date >= periodStart);
+    const cashInPeriod = sorted.filter(t => t.category === 'CASH' && t.date >= periodStart);
+
+    // 1. Build position state at the start of the period (cost basis tracking)
+    const posAtStart = {};
+    for (const t of tradingBefore) {
+        const sym = t.symbol;
+        if (!posAtStart[sym]) posAtStart[sym] = { shares: 0, totalCost: 0 };
+        const shares = Math.abs(t.shares);
+        const amount = Math.abs(t.amount);
+
+        if (t.type === 'BUY') {
+            posAtStart[sym].shares += shares;
+            posAtStart[sym].totalCost += amount;
+        } else if (t.type === 'SELL') {
+            const avg = posAtStart[sym].shares > 0 ? posAtStart[sym].totalCost / posAtStart[sym].shares : 0;
+            const cost = shares * avg;
+            posAtStart[sym].shares -= shares;
+            posAtStart[sym].totalCost -= cost;
+            if (posAtStart[sym].shares <= 1e-7) { posAtStart[sym].shares = 0; posAtStart[sym].totalCost = 0; }
+        }
+    }
+    const costBasisAtStart = Object.values(posAtStart).reduce((s, p) => s + p.totalCost, 0);
+
+    // 2. Process trades in the period (continue from posAtStart)
+    const posCurrent = {};
+    for (const [sym, p] of Object.entries(posAtStart)) {
+        posCurrent[sym] = { shares: p.shares, totalCost: p.totalCost };
+    }
+
+    let realizedGross = 0;
+    let periodFees = 0;
+    let periodTaxes = 0;
+    let periodDividends = 0;
+    let periodInterest = 0;
+    let firstBuy = null;
+
+    // XIRR flows for the period: portfolio value at period start is an outflow
+    const irrFlows = [];
+
+    // If we had positions at start, the opening value acts as an initial investment
+    // We'll use costBasisAtStart (or ideally market value at start, but we don't have it)
+    // For XIRR, we track actual cash flows (buys = outflow, sells/divs/interest = inflow)
+
+    for (const t of tradingInPeriod) {
+        const sym = t.symbol;
+        if (!posCurrent[sym]) posCurrent[sym] = { shares: 0, totalCost: 0 };
+        const shares = Math.abs(t.shares);
+        const amount = Math.abs(t.amount);
+        const fee = Math.abs(t.fee);
+        const tax = Math.abs(t.tax);
+
+        periodFees += fee;
+        periodTaxes += tax;
+
+        if (t.type === 'BUY') {
+            posCurrent[sym].shares += shares;
+            posCurrent[sym].totalCost += amount;
+            irrFlows.push({ date: t.date, amount: -amount }); // cash outflow
+            if (!firstBuy || t.date < firstBuy) firstBuy = t.date;
+        } else if (t.type === 'SELL') {
+            const avg = posCurrent[sym].shares > 0 ? posCurrent[sym].totalCost / posCurrent[sym].shares : 0;
+            const cost = shares * avg;
+            realizedGross += amount - cost;
+            posCurrent[sym].shares -= shares;
+            posCurrent[sym].totalCost -= cost;
+            if (posCurrent[sym].shares <= 1e-7) { posCurrent[sym].shares = 0; posCurrent[sym].totalCost = 0; }
+            irrFlows.push({ date: t.date, amount: amount }); // cash inflow
+        }
+    }
+
+    // Process dividends and interest
+    for (const t of cashInPeriod) {
+        const type = (t.type || '').toUpperCase();
+        const amount = Math.abs(t.amount);
+        if (type.includes('DIVIDEND')) {
+            periodDividends += amount;
+            irrFlows.push({ date: t.date, amount: amount });
+        } else if (type.includes('INTEREST')) {
+            periodInterest += amount;
+            irrFlows.push({ date: t.date, amount: amount });
+        }
+    }
+
+    // 3. Compute derived metrics
+    const costBasisNow = Object.values(posCurrent).reduce((s, p) => s + p.totalCost, 0);
+
+    // "Invertido" = change in cost basis during the period
+    const invested = costBasisNow - costBasisAtStart;
+
+    // "Ganancias de precio" = current market value - total cost basis of open positions
+    const priceGains = currentValue - costBasisNow;
+
+    // "Flujo de caja" = net cash flow related to the portfolio
+    // Parqet: cash that went into/out of the portfolio = transfers used for investments
+    // We approximate as: sells - buys + dividends + interest (net from portfolio perspective)
+    const cashFlowInvest = tradingInPeriod.reduce((s, t) => {
+        if (t.type === 'BUY') return s - Math.abs(t.amount);
+        if (t.type === 'SELL') return s + Math.abs(t.amount);
+        return s;
+    }, 0);
+    const cashFlow = -cashFlowInvest; // From user perspective: positive = money put in
+
+    // "Total bruto"
+    const totalGross = priceGains + realizedGross + periodDividends + periodInterest;
+
+    // TIR (XIRR) — only if we have meaningful flows
+    let tir = null;
+    if (irrFlows.length > 0 || costBasisAtStart > 0) {
+        const flows = [];
+        // Opening cost basis as initial investment
+        if (costBasisAtStart > 0 && periodId !== 'max') {
+            flows.push({ date: periodStart, amount: -costBasisAtStart });
+        }
+        flows.push(...irrFlows);
+        if (currentValue > 0) {
+            flows.push({ date: now, amount: currentValue });
+        }
+        flows.sort((a, b) => a.date - b.date);
+        const rate = xirr(flows);
+        if (rate !== null) tir = rate * 100;
+    }
+
+    return {
+        invested: roundTo(invested, 2),
+        cashFlow: roundTo(cashFlow, 2),
+        tir,
+        priceGains: roundTo(priceGains, 2),
+        priceGainsPct: costBasisNow > 0 ? roundTo((priceGains / costBasisNow) * 100, 2) : 0,
+        realizedGross: roundTo(realizedGross, 2),
+        realizedPct: invested !== 0 ? roundTo((realizedGross / Math.abs(invested)) * 100, 2) : 0,
+        dividends: roundTo(periodDividends, 2),
+        dividendPct: invested !== 0 ? roundTo((periodDividends / Math.abs(invested)) * 100, 2) : 0,
+        interest: roundTo(periodInterest, 2),
+        interestPct: invested !== 0 ? roundTo((periodInterest / Math.abs(invested)) * 100, 2) : 0,
+        totalGross: roundTo(totalGross, 2),
+        taxes: roundTo(periodTaxes, 2),
+        fees: roundTo(periodFees, 2),
+        netTotal: roundTo(totalGross - periodTaxes - periodFees, 2),
+        firstPurchase: firstBuy,
+        portfolioValue: roundTo(currentValue, 2),
+        costBasis: roundTo(costBasisNow, 2),
+    };
+};
+
+/**
+ * Time-Weighted Rate of Return (TTWROR) from a value series.
+ * evolution: [{ date, value }] — portfolio values over time.
+ * Returns a percentage (e.g. 10.17 for 10.17%).
+ */
+export const ttwror = (evolution) => {
+    const pts = (evolution || []).filter(p => p && p.value > 0);
+    if (pts.length < 2) return null;
+    const startVal = pts[0].value;
+    const endVal = pts[pts.length - 1].value;
+    return roundTo(((endVal / startVal) - 1) * 100, 2);
+};
+
+/**
  * Build a monthly rebalancing plan for a list of portfolio items.
  *
  * mode = 'contribute'  → only BUY. Distributes the whole monthly contribution

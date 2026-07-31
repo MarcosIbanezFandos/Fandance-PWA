@@ -138,12 +138,14 @@ export function processTRCSV(data, currentValue) {
 
     const assets = {};
     const irrFlows = [];
+    const transactions = []; // Individual parsed transactions for period filtering
 
     (data || []).forEach((row) => {
         const type = String(pick(row, ['type', 'transaction_type', 'tipo']) || '').toUpperCase();
         if (!type) return;
         rows++;
 
+        const category = String(pick(row, ['category', 'categoría', 'categoria']) || '').toUpperCase();
         const rawAmount = num(pick(row, ['amount', 'importe', 'value']));
         const amount = Math.abs(rawAmount);
         const shares = num(pick(row, ['shares', 'quantity', 'cantidad', 'units']));
@@ -155,29 +157,43 @@ export function processTRCSV(data, currentValue) {
         const date = rawDate ? new Date(rawDate) : new Date();
         const validDate = !isNaN(date);
 
-        totalFee += fee;
-        totalTax += tax;
+        // Store parsed transaction for period-based filtering
+        transactions.push({
+            date: validDate ? date : new Date(),
+            type,
+            category,
+            symbol,
+            shares: Math.abs(shares),
+            price,
+            amount: rawAmount,
+            fee: Math.abs(fee),
+            tax: Math.abs(tax),
+        });
+
+        totalFee += Math.abs(fee);
+        totalTax += Math.abs(tax);
 
         if (type.includes('DIVIDEND')) {
-            totalDividends += (amount + fee + tax);
+            totalDividends += (amount + Math.abs(fee) + Math.abs(tax));
             if (validDate) irrFlows.push({ date, amount: rawAmount });
         } else if (type.includes('INTEREST')) {
-            totalInterest += (amount + fee + tax);
+            totalInterest += (amount + Math.abs(fee) + Math.abs(tax));
             if (validDate) irrFlows.push({ date, amount: rawAmount });
         } else if (type === 'BUY' || type.includes('SAVINGS_PLAN') || type.includes('COMPRA')) {
             if (!assets[symbol]) assets[symbol] = { shares: 0, totalCost: 0 };
-            assets[symbol].shares += shares;
-            assets[symbol].totalCost += shares * price;
+            assets[symbol].shares += Math.abs(shares);
+            assets[symbol].totalCost += Math.abs(shares) * price;
             if (validDate) {
                 irrFlows.push({ date, amount: rawAmount });
                 if (!firstBuy || date < firstBuy) firstBuy = date;
             }
         } else if (type === 'SELL' || type.includes('VENTA')) {
             if (!assets[symbol]) assets[symbol] = { shares: 0, totalCost: 0 };
+            const absShares = Math.abs(shares);
             const avgCost = assets[symbol].shares > 0 ? (assets[symbol].totalCost / assets[symbol].shares) : 0;
-            const costOfSold = shares * avgCost;
-            realizedGross += (shares * price) - costOfSold;
-            assets[symbol].shares -= shares;
+            const costOfSold = absShares * avgCost;
+            realizedGross += (absShares * price) - costOfSold;
+            assets[symbol].shares -= absShares;
             assets[symbol].totalCost -= costOfSold;
             if (assets[symbol].shares <= 0.000001) { assets[symbol].shares = 0; assets[symbol].totalCost = 0; }
             if (validDate) irrFlows.push({ date, amount: rawAmount });
@@ -212,5 +228,6 @@ export function processTRCSV(data, currentValue) {
         fees: totalFee,
         netTotal: totalGross - totalTax - totalFee,
         firstPurchase: firstBuy ? firstBuy.toISOString() : null,
+        transactions,
     };
 }
