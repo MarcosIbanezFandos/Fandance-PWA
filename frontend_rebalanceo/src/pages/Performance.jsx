@@ -6,7 +6,6 @@ import { AreaChart, Area, ResponsiveContainer, YAxis, XAxis, Tooltip } from 'rec
 import { GlassCard, staggerContainer, fadeInUp } from '../components/UI';
 import { Dropdown } from '../components/Dropdown';
 import { BenchmarkCompare } from '../components/BenchmarkCompare';
-import { CostBasis } from '../components/CostBasis';
 import { TRCsvParser } from '../components/TRCsvParser';
 import { useGlobal } from '../context/GlobalContext';
 import { safeFloat, formatNumber, xirr, computeMetricsForPeriod, ttwror } from '../utils';
@@ -396,9 +395,8 @@ export const Performance = ({ portfolios, activePortfolioId }) => {
                         </GlassCard>
                     )}
 
-                    {/* Benchmark comparison + cost basis */}
+                    {/* Benchmark comparison */}
                     <BenchmarkCompare holdings={items.map(i => ({ ticker: i.asset?.ticker, units: i.units_held }))} period={CHART_PERIODS[period] || 'max'} />
-                    <CostBasis items={items} pid={pid} />
                 </>
             )}
         </motion.div>
