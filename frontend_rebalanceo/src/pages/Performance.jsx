@@ -74,7 +74,15 @@ export const Performance = ({ portfolios, activePortfolioId }) => {
         if (!pid) return;
         const savedCsv = localStorage.getItem(`perf_csv_${pid}`);
         if (savedCsv) {
-            try { setCsvMetrics(JSON.parse(savedCsv)); } catch (e) { }
+            try { 
+                const parsed = JSON.parse(savedCsv);
+                if (parsed && parsed.transactions) {
+                    setCsvMetrics(parsed); 
+                } else {
+                    setCsvMetrics(null);
+                    localStorage.removeItem(`perf_csv_${pid}`);
+                }
+            } catch (e) { }
         } else { setCsvMetrics(null); }
     }, [pid]);
 
