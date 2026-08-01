@@ -274,15 +274,122 @@ def get_asset_metadata(ticker: str):
     except:
         return { "name": ticker, "type": "Stock", "sector": "Unknown", "country": "Unknown", "currency": "USD", "real_ticker": clean_ticker }
 
+# --- DIVISAS ---
+# Yahoo cotiza cada activo en SU divisa: AAPL en dólares, SAP.DE en euros,
+# NESN.SW en francos. La app suma todo y lo pinta con un "€" detrás, así que sin
+# convertir estaba sumando dólares con euros: el valor total, los pesos reales,
+# el plan de rebalanceo y las proyecciones salían mal en cuanto la cartera
+# mezclaba divisas (que es el caso por defecto: las carteras semilla llevan
+# AAPL, NVDA, URTH y GLD en USD junto a BTC-EUR).
+_FX_CACHE = {}        # divisa -> (timestamp, EUR por unidad)
+_FX_TTL = 60 * 60     # 1h
+_CURRENCY_CACHE = {}  # ticker -> divisa
+
+
+def _fx_to_eur(currency: str) -> float:
+    """Cuántos euros vale 1 unidad de `currency`. 1.0 si no hay dato."""
+    cur = (currency or "EUR").upper()
+    if cur in ("EUR", ""):
+        return 1.0
+    now = _time.time()
+    hit = _FX_CACHE.get(cur)
+    if hit and now - hit[0] < _FX_TTL:
+        return hit[1]
+    rate = 0.0
+    try:
+        rate = safe_float(yf.Ticker(f"{cur}EUR=X").fast_info.last_price)
+    except Exception:
+        rate = 0.0
+    # Sin tipo de cambio preferimos el valor nativo a un número inventado.
+    rate = rate if rate > 0 else 1.0
+    _FX_CACHE[cur] = (now, rate)
+    return rate
+
+
+def _naive_index(s):
+    try:
+        s.index = s.index.tz_localize(None)
+    except (TypeError, AttributeError):
+        try:
+            s.index = s.index.tz_convert(None)
+        except Exception:
+            pass
+    return s
+
+
+def _to_eur_frame(df, period: str, interval: str):
+    """Pasa a EUR cada columna de precios según la divisa de su ticker.
+
+    Usa el histórico del par de divisas alineado por fecha (no el tipo de hoy):
+    convertir una serie de 10 años con el cambio actual falsearía la evolución.
+    """
+    if df is None or df.empty:
+        return df
+    out = df.copy()
+    curs = {tk: _ticker_currency(tk) for tk in df.columns}
+    for cur in {c for c in curs.values() if c and c.upper() not in ("EUR", "")}:
+        serie = None
+        try:
+            fx = yf.download(f"{cur.upper()}EUR=X", period=period, interval=interval, progress=False)["Close"]
+            if isinstance(fx, pd.DataFrame):
+                fx = fx.iloc[:, 0]
+            fx = _naive_index(fx)
+            if not fx.dropna().empty:
+                serie = fx.reindex(df.index.union(fx.index)).ffill().bfill().reindex(df.index)
+        except Exception as e:
+            print(f"FX {cur} err: {e}")
+        if serie is None or serie.dropna().empty:
+            serie = _fx_to_eur(cur)  # sin histórico: tipo actual, mejor que nada
+        for tk, c in curs.items():
+            if c and c.upper() == cur.upper():
+                out[tk] = df[tk] * serie
+    return out
+
+
+def _ticker_currency(ticker: str) -> str:
+    """Divisa de cotización. Se deduce del símbolo cuando se puede; solo se
+    pregunta a Yahoo si no hay forma de saberlo (una llamada por ticker)."""
+    if not ticker:
+        return "EUR"
+    tk = str(ticker).strip().upper()
+    if tk in _CURRENCY_CACHE:
+        return _CURRENCY_CACHE[tk]
+
+    cur = None
+    if "-" in tk:                       # pares cripto: BTC-EUR, ETH-USD
+        quote = tk.rsplit("-", 1)[-1]
+        if len(quote) == 3 and quote.isalpha():
+            cur = quote
+    if cur is None and "." in tk:       # sufijo de mercado: SAP.DE, NESN.SW
+        suf = tk.rsplit(".", 1)[-1]
+        if suf in _SUFFIX:
+            cur = _SUFFIX[suf][1]
+    if cur is None:
+        try:
+            cur = (yf.Ticker(ticker).fast_info.get("currency") or "").upper() or None
+        except Exception:
+            cur = None
+    cur = (cur or "USD").upper()        # sin sufijo y sin dato: Yahoo cotiza en USD
+    _CURRENCY_CACHE[tk] = cur
+    return cur
+
+
 def fetch_live_price(ticker: str):
+    """Precio actual del activo, siempre EN EUROS."""
     if not ticker: return 0.0
     try:
         t = yf.Ticker(ticker)
-        price = t.fast_info.last_price
+        fi = t.fast_info
+        price = fi.last_price
+        try:
+            currency = (fi.get("currency") or "EUR").upper()
+        except Exception:
+            currency = "EUR"
+        _CURRENCY_CACHE[ticker] = currency
         if price is None:
             hist = t.history(period="1d")
             if not hist.empty: price = hist["Close"].iloc[-1]
-        return safe_float(price)
+        return safe_float(safe_float(price) * _fx_to_eur(currency))
     except: return 0.0
 
 def calculate_rsi(ticker: str):
@@ -615,6 +722,8 @@ def get_chart_data(data: HistoryInput, user_id: str = External):
             df.columns = [list(tickers_map.keys())[0]]
 
         df.index = df.index.tz_localize(None)
+        # A EUR antes de sumar: si no, la serie mezcla dólares con euros.
+        df = _to_eur_frame(df, data.period, interval)
         df = df.ffill().bfill().fillna(0)
 
         total_series = pd.Series(0.0, index=df.index)
@@ -1038,6 +1147,11 @@ def portfolio_benchmark(data: BenchmarkInput, user_id: str = External):
         elif len(all_tickers) == 1:
             df.columns = [all_tickers[0]]
         df.index = df.index.tz_localize(None)
+        # Todo a EUR: la cartera se suma en euros, y comparar su rentabilidad
+        # con un índice en dólares mezclaría la deriva del cambio en un solo
+        # lado. Para quien invierte en euros, el S&P 500 rinde lo que rinde
+        # en euros.
+        df = _to_eur_frame(df, data.period, interval)
         # Keep the unfilled prices around: filling turns a missing history into a
         # flat line, and a flat line quietly fakes a beta/correlation out of thin
         # air. The chart uses the filled frame, the relative metrics use `raw`.

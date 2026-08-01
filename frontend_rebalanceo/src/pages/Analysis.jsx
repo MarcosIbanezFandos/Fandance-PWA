@@ -6,6 +6,7 @@ import { GlassCard, staggerContainer } from '../components/UI';
 import { Dropdown } from '../components/Dropdown';
 import { motion } from 'framer-motion';
 import { useGlobal } from '../context/GlobalContext';
+import { formatSeriesDates } from '../utils';
 
 export const Analysis = ({ portfolios }) => {
     const { t } = useGlobal();
@@ -37,14 +38,7 @@ export const Analysis = ({ portfolios }) => {
                     portfolio_id: pid, period: p, ticker
                 }).catch(() => null);
 
-                const data = (r?.data?.history || []).map(point => {
-                    const d = new Date(point.date);
-                    return {
-                        value: point.value,
-                        date: d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
-                        fullDate: d.toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })
-                    };
-                });
+                const data = formatSeriesDates(r?.data?.history, { timeOnlyAxis: p === '1d' });
 
                 return {
                     ticker,
@@ -133,8 +127,8 @@ export const Analysis = ({ portfolios }) => {
                                             contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)', padding: '8px' }}
                                             labelStyle={{ fontSize: '10px', color: '#94a3b8', fontWeight: 'bold', marginBottom: '2px' }}
                                             itemStyle={{ fontSize: '12px', color: '#1e293b', fontWeight: '900', padding: 0 }}
-                                            formatter={(value) => [`${value.toFixed(2)} €`, '']}
-                                            labelFormatter={(label, payload) => payload[0]?.payload?.fullDate || label}
+                                            formatter={(value) => [`${value.toFixed(2)} €`, t('analysis.position_value')]}
+                                            labelFormatter={(label, payload) => payload[0]?.payload?.full || label}
                                         />
                                         <Area
                                             type="monotone"
