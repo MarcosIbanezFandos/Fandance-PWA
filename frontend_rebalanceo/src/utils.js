@@ -44,17 +44,32 @@ export const formatUnits = (units) => {
 
 const COUNTRY_TO_REGION = {
     'United States': 'North America', 'Canada': 'North America', 'Mexico': 'Latin America',
+    'Brazil': 'Latin America',
     'United Kingdom': 'Europe', 'France': 'Europe', 'Germany': 'Europe', 'Netherlands': 'Europe',
     'Switzerland': 'Europe', 'Spain': 'Europe', 'Italy': 'Europe', 'Belgium': 'Europe',
     'Portugal': 'Europe', 'Austria': 'Europe', 'Ireland': 'Europe', 'Finland': 'Europe',
-    'Sweden': 'Europe', 'Norway': 'Europe', 'Denmark': 'Europe',
+    'Sweden': 'Europe', 'Norway': 'Europe', 'Denmark': 'Europe', 'Poland': 'Europe',
     'Europe (diversified)': 'Europe',
     'Japan': 'Asia-Pacific', 'Australia': 'Asia-Pacific', 'Hong Kong': 'Asia-Pacific',
     'Singapore': 'Asia-Pacific', 'Taiwan': 'Asia-Pacific', 'South Korea': 'Asia-Pacific',
-    'Asia-Pacific (diversified)': 'Asia-Pacific',
-    'China': 'Emerging Markets', 'India': 'Emerging Markets', 'Brazil': 'Emerging Markets',
-    'South Africa': 'Emerging Markets', 'Emerging Markets': 'Emerging Markets',
+    'New Zealand': 'Asia-Pacific', 'Asia-Pacific (diversified)': 'Asia-Pacific',
+    'China': 'Emerging Markets', 'India': 'Emerging Markets',
+    'South Africa': 'Emerging Markets', 'Saudi Arabia': 'Emerging Markets',
+    'Israel': 'Emerging Markets', 'Emerging Markets': 'Emerging Markets',
     'Global (diversified)': 'Global', 'Global small cap (diversified)': 'Global',
+};
+
+const COUNTRY_TO_CURRENCY = {
+    'United States': 'USD', 'Canada': 'CAD', 'Mexico': 'MXN', 'Brazil': 'BRL',
+    'United Kingdom': 'GBP', 'Switzerland': 'CHF', 'Sweden': 'SEK', 'Norway': 'NOK',
+    'Denmark': 'DKK', 'Poland': 'PLN',
+    'France': 'EUR', 'Germany': 'EUR', 'Netherlands': 'EUR', 'Spain': 'EUR',
+    'Italy': 'EUR', 'Belgium': 'EUR', 'Portugal': 'EUR', 'Austria': 'EUR',
+    'Ireland': 'EUR', 'Finland': 'EUR', 'Europe (diversified)': 'EUR',
+    'Japan': 'JPY', 'Australia': 'AUD', 'Hong Kong': 'HKD', 'Singapore': 'SGD',
+    'Taiwan': 'TWD', 'South Korea': 'KRW', 'New Zealand': 'NZD',
+    'China': 'CNY', 'India': 'INR', 'South Africa': 'ZAR', 'Saudi Arabia': 'SAR',
+    'Israel': 'ILS',
 };
 
 export const buildXray = (positions, filterTicker = null) => {
@@ -66,6 +81,7 @@ export const buildXray = (positions, filterTicker = null) => {
     const currencies = {};
     const sectors = {};
     const regions = {};
+    let estimatedGeo = 0;
 
     const addCompany = (key, name, symbol, val, sourceTicker) => {
         const c = companies.get(key) || { key, name, symbol, value: 0, sources: new Set(), other: false };
@@ -74,24 +90,56 @@ export const buildXray = (positions, filterTicker = null) => {
         companies.set(key, c);
     };
 
+    // Un país entra siempre en el desglose, aunque la etiqueta sea regional:
+    // descartarlo hacía desaparecer su valor del gráfico sin dejar rastro.
+    const addGeo = (country, currency, val) => {
+        if (val <= 0) return;
+        const c = country || 'Other';
+        countries[c] = (countries[c] || 0) + val;
+        currencies[currency || COUNTRY_TO_CURRENCY[c] || 'USD'] = (currencies[currency || COUNTRY_TO_CURRENCY[c] || 'USD'] || 0) + val;
+        const region = COUNTRY_TO_REGION[c] || 'Other';
+        regions[region] = (regions[region] || 0) + val;
+    };
+
     for (const p of list) {
         const value = safeFloat(p.value);
-        let covered = 0;
 
+        // --- Geografía ---
+        // El backend manda los pesos por país del fondo entero. No se derivan
+        // del top 10 a propósito: Yahoo solo devuelve 10 posiciones (~20-35%
+        // del fondo) y son casi todas megacaps de EE. UU., así que extrapolar
+        // desde ahí convertía cualquier ETF global en "100% Estados Unidos".
+        const geoWeights = p.countries && Object.keys(p.countries).length ? p.countries : null;
+        if (geoWeights) {
+            if (p.countries_estimated) estimatedGeo += value;
+            const wTotal = Object.values(geoWeights).reduce((s, w) => s + safeFloat(w), 0) || 1;
+            for (const [country, w] of Object.entries(geoWeights)) {
+                addGeo(country, null, value * (safeFloat(w) / wTotal));
+            }
+        } else {
+            // Respuesta antigua sin pesos por país: repartir por las posiciones
+            // conocidas y mandar el resto a la región del fondo.
+            let geoCovered = 0;
+            for (const h of (p.holdings || [])) {
+                const val = value * safeFloat(h.weight);
+                if (val <= 0) continue;
+                geoCovered += val;
+                addGeo(h.country, h.currency, val);
+            }
+            if (value - geoCovered > 0.5) {
+                addGeo(p.region || 'Global (diversified)', p.currency, value - geoCovered);
+                estimatedGeo += value - geoCovered;
+            }
+        }
+
+        // --- Empresas ---
+        let covered = 0;
         for (const h of (p.holdings || [])) {
             const val = value * safeFloat(h.weight);
             if (val <= 0) continue;
             covered += val;
             const key = (h.symbol || h.name || '').toUpperCase();
             addCompany(key, h.name || h.symbol, h.symbol, val, p.ticker);
-            const country = h.country || 'Other';
-            const currency = h.currency || 'USD';
-            if (!/diversified|Emerging|Global|Europe|North America|Asia|Latin|Africa|Pacific/i.test(country)) {
-                countries[country] = (countries[country] || 0) + val;
-            }
-            currencies[currency] = (currencies[currency] || 0) + val;
-            const region = COUNTRY_TO_REGION[country] || 'Other';
-            regions[region] = (regions[region] || 0) + val;
         }
 
         // Redistribute remainder proportionally across known holdings
@@ -101,40 +149,11 @@ export const buildXray = (positions, filterTicker = null) => {
             const holdingTotal = (p.holdings || []).reduce((s, h) => s + safeFloat(h.weight), 0);
             if (holdingTotal > 0) {
                 for (const h of (p.holdings || [])) {
-                    const fraction = safeFloat(h.weight) / holdingTotal;
-                    const extra = rem * fraction;
+                    const extra = rem * (safeFloat(h.weight) / holdingTotal);
                     const key = (h.symbol || h.name || '').toUpperCase();
                     addCompany(key, h.name || h.symbol, h.symbol, extra, p.ticker);
-                    const country = h.country || 'Other';
-                    const currency = h.currency || 'USD';
-                    if (!/diversified|Emerging|Global|Europe|North America|Asia|Latin|Africa|Pacific/i.test(country)) {
-                        countries[country] = (countries[country] || 0) + extra;
-                    }
-                    currencies[currency] = (currencies[currency] || 0) + extra;
-                    const region = COUNTRY_TO_REGION[country] || 'Other';
-                    regions[region] = (regions[region] || 0) + extra;
                 }
-            } else {
-                // No holdings at all — attribute to the ETF's region
-                const region = p.region || 'Global (diversified)';
-                const cur = p.currency || 'USD';
-                if (!/diversified|Emerging|Global|Europe|North America|Asia|Latin|Africa|Pacific/i.test(region)) {
-                    countries[region] = (countries[region] || 0) + rem;
-                }
-                currencies[cur] = (currencies[cur] || 0) + rem;
-                const reg = COUNTRY_TO_REGION[region] || 'Other';
-                regions[reg] = (regions[reg] || 0) + rem;
             }
-        } else if (rem > 0.5) {
-            // Position with no holdings at all (shouldn't happen for stocks)
-            const region = p.region || 'Global (diversified)';
-            const cur = p.currency || 'USD';
-            if (!/diversified|Emerging|Global|Europe|North America|Asia|Latin|Africa|Pacific/i.test(region)) {
-                countries[region] = (countries[region] || 0) + rem;
-            }
-            currencies[cur] = (currencies[cur] || 0) + rem;
-            const reg = COUNTRY_TO_REGION[region] || 'Other';
-            regions[reg] = (regions[reg] || 0) + rem;
         }
 
         // Sectors
@@ -162,6 +181,9 @@ export const buildXray = (positions, filterTicker = null) => {
         currencies: toSorted(currencies),
         sectors: toSorted(sectors),
         regions: toSorted(regions),
+        // Parte de la cartera cuya geografía sale de los pesos del índice y no
+        // de posiciones reales; la vista lo advierte en lugar de fingir dato duro.
+        estimatedGeoPct: total > 0 ? (estimatedGeo / total) * 100 : 0,
     };
 };
 
