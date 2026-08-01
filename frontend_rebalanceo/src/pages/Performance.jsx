@@ -8,7 +8,7 @@ import { Dropdown } from '../components/Dropdown';
 import { BenchmarkCompare } from '../components/BenchmarkCompare';
 import { TRCsvParser } from '../components/TRCsvParser';
 import { useGlobal } from '../context/GlobalContext';
-import { safeFloat, formatNumber, xirr, computeMetricsForPeriod, ttwror } from '../utils';
+import { safeFloat, formatNumber, xirr, computeMetricsForPeriod, ttwror, formatSeriesDates } from '../utils';
 
 /* ───── Period definitions ───── */
 // Chart periods map to yfinance API periods (kept for chart requests)
@@ -117,12 +117,7 @@ export const Performance = ({ portfolios, activePortfolioId }) => {
             try {
                 const chartPeriod = CHART_PERIODS[period] || 'max';
                 const res = await api.post(`${import.meta.env.VITE_API_URL}/portfolio/history_chart`, { portfolio_id: pid, period: chartPeriod });
-                const hist = (res.data?.history || []).map(p => ({
-                    value: safeFloat(p.value),
-                    date: new Date(p.date).toLocaleDateString('es-ES', { month: 'short', day: 'numeric' }),
-                    full: new Date(p.date).toLocaleDateString('es-ES', { year: 'numeric', month: 'long', day: 'numeric' }),
-                }));
-                setEvolution(hist);
+                setEvolution(formatSeriesDates(res.data?.history, { timeOnlyAxis: period === 'today' }));
             } catch (e) { setEvolution([]); }
         };
         load();
@@ -164,6 +159,12 @@ export const Performance = ({ portfolios, activePortfolioId }) => {
 
     const hasCsv = !!periodMetrics;
     const up = hasCsv ? (periodMetrics.totalGross >= 0) : (legacyMetrics.gain >= 0);
+
+    // El color del gráfico sale del propio gráfico. Antes lo decidía la ganancia
+    // total de la cartera, así que un mes en rojo podía pintarse en verde.
+    const chartUp = evolution.length > 1
+        ? evolution[evolution.length - 1].value >= evolution[0].value
+        : up;
 
     // Period start date for display
     const periodStartLabel = useMemo(() => {
@@ -372,7 +373,10 @@ export const Performance = ({ portfolios, activePortfolioId }) => {
 
                             {/* Detailed breakdown — Parqet-style list */}
                             <GlassCard>
+                                {/* La plusvalía latente es desde la compra, no del periodo: se
+                                    dice en el propio dato en vez de dejar que se lea como del periodo. */}
                                 <StatRow label={t('perf.price_gains')} borderBottom
+                                    tooltip={period !== 'max' ? t('perf.price_gains_hint') : undefined}
                                     value={<span className={periodMetrics.priceGains >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-500 dark:text-rose-400'}>{formatNumber(periodMetrics.priceGains, 2)} €</span>}
                                     badge={<Badge value={periodMetrics.priceGainsPct} />}
                                 />
@@ -450,8 +454,8 @@ export const Performance = ({ portfolios, activePortfolioId }) => {
                                     <AreaChart data={evolution} margin={{ top: 5, right: 5, left: 5, bottom: 0 }}>
                                         <defs>
                                             <linearGradient id="perfGrad" x1="0" y1="0" x2="0" y2="1">
-                                                <stop offset="5%" stopColor={up ? '#10b981' : '#f43f5e'} stopOpacity={0.25} />
-                                                <stop offset="95%" stopColor={up ? '#10b981' : '#f43f5e'} stopOpacity={0} />
+                                                <stop offset="5%" stopColor={chartUp ? '#10b981' : '#f43f5e'} stopOpacity={0.25} />
+                                                <stop offset="95%" stopColor={chartUp ? '#10b981' : '#f43f5e'} stopOpacity={0} />
                                             </linearGradient>
                                         </defs>
                                         <XAxis dataKey="date" tick={{ fontSize: 10, fill: '#94a3b8' }} minTickGap={40} axisLine={false} tickLine={false} />
@@ -463,7 +467,7 @@ export const Performance = ({ portfolios, activePortfolioId }) => {
                                             formatter={(v) => [`${formatNumber(v, 2)} €`, '']}
                                             labelFormatter={(label, p) => p[0]?.payload?.full || label}
                                         />
-                                        <Area type="monotone" dataKey="value" stroke={up ? '#10b981' : '#f43f5e'} strokeWidth={2.5} fill="url(#perfGrad)" />
+                                        <Area type="monotone" dataKey="value" stroke={chartUp ? '#10b981' : '#f43f5e'} strokeWidth={2.5} fill="url(#perfGrad)" />
                                     </AreaChart>
                                 </ResponsiveContainer>
                             </div>
