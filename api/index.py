@@ -750,17 +750,87 @@ def _loc_from_symbol(symbol):
     suf = parts[-1] if len(parts) > 1 else ''
     return _SUFFIX.get(suf.upper(), ('United States' if suf == '' else 'Other', 'USD'))
 
-def _etf_region(name, ticker):
+# Índice de referencia -> (etiqueta de región, divisa, pesos por país).
+#
+# Yahoo solo da las 10 primeras posiciones de cada fondo (un 20-35% del total),
+# y ese top 10 son casi siempre megacaps estadounidenses. Repartir el 65-80%
+# restante entre esas 10 empresas convertía cualquier ETF global en "100%
+# Estados Unidos" y hacía desaparecer del mapa a Alemania, Francia o Japón.
+#
+# Para la geografía usamos por tanto los pesos por país del índice que replica
+# el fondo, no una extrapolación de su top 10. Son cifras APROXIMADAS (cierre
+# de 2025) y la app las etiqueta como estimación; se normalizan a 1.0 al
+# usarlas, así que no hace falta que sumen exactamente 100.
+_INDEX_PROFILES = {
+    'us': ('United States', 'USD', {'United States': 100}),
+    'japan': ('Japan', 'JPY', {'Japan': 100}),
+    'china': ('China', 'CNY', {'China': 100}),
+    'world': ('Global (diversified)', 'USD', {
+        'United States': 71.0, 'Japan': 5.5, 'United Kingdom': 3.7, 'Canada': 3.2,
+        'France': 2.6, 'Switzerland': 2.5, 'Germany': 2.4, 'Australia': 1.9,
+        'Netherlands': 1.4, 'Sweden': 0.9, 'Denmark': 0.8, 'Italy': 0.8, 'Spain': 0.7,
+        'Hong Kong': 0.5, 'Singapore': 0.4, 'Finland': 0.2, 'Belgium': 0.2,
+        'Norway': 0.2, 'Ireland': 0.2, 'Israel': 0.2, 'Other': 0.7,
+    }),
+    'acwi': ('Global (diversified)', 'USD', {
+        'United States': 64.0, 'Japan': 5.0, 'United Kingdom': 3.3, 'China': 3.2,
+        'Canada': 2.9, 'Taiwan': 2.4, 'France': 2.3, 'Switzerland': 2.2, 'Germany': 2.2,
+        'India': 2.2, 'Australia': 1.7, 'South Korea': 1.3, 'Netherlands': 1.2,
+        'Sweden': 0.8, 'Italy': 0.7, 'Brazil': 0.6, 'Denmark': 0.6, 'Spain': 0.6,
+        'Other': 2.8,
+    }),
+    'europe': ('Europe (diversified)', 'EUR', {
+        'United Kingdom': 22.0, 'France': 16.0, 'Switzerland': 15.0, 'Germany': 14.0,
+        'Netherlands': 7.0, 'Sweden': 5.0, 'Denmark': 4.5, 'Italy': 4.5, 'Spain': 4.5,
+        'Finland': 1.5, 'Belgium': 1.3, 'Norway': 1.2, 'Ireland': 1.0, 'Austria': 0.7,
+        'Portugal': 0.4, 'Other': 1.4,
+    }),
+    'eurozone': ('Europe (diversified)', 'EUR', {
+        'France': 34.0, 'Germany': 29.0, 'Netherlands': 14.0, 'Spain': 9.0, 'Italy': 8.0,
+        'Belgium': 2.5, 'Finland': 2.0, 'Ireland': 1.0, 'Austria': 0.5,
+    }),
+    'em': ('Emerging Markets', 'USD', {
+        'China': 28.0, 'Taiwan': 20.0, 'India': 17.0, 'South Korea': 11.0, 'Brazil': 4.0,
+        'Saudi Arabia': 3.5, 'South Africa': 3.0, 'Mexico': 2.0, 'Other': 11.5,
+    }),
+    'global_small': ('Global small cap (diversified)', 'USD', {
+        'United States': 58.0, 'Japan': 10.0, 'United Kingdom': 5.0, 'Canada': 4.0,
+        'Australia': 3.0, 'Germany': 2.5, 'Sweden': 2.5, 'Switzerland': 2.0,
+        'France': 2.0, 'Italy': 1.5, 'Other': 9.5,
+    }),
+    'asia_pac': ('Asia-Pacific (diversified)', 'USD', {
+        'Japan': 40.0, 'Australia': 18.0, 'South Korea': 13.0, 'Taiwan': 12.0,
+        'Hong Kong': 9.0, 'Singapore': 6.0, 'New Zealand': 2.0,
+    }),
+}
+
+
+def _index_key(name, ticker):
+    """Clasifica un fondo por el índice que replica, a partir de su nombre."""
     n = f"{name} {ticker}".lower()
-    if 'japan' in n or 'jpn' in n: return ('Japan', 'JPY')
-    if 'emerg' in n or 'emrg' in n: return ('Emerging Markets', 'USD')
-    if 'europ' in n or 'euro stoxx' in n or 'eurozone' in n: return ('Europe (diversified)', 'EUR')
-    if 'small cap' in n or 'smallcap' in n: return ('Global small cap (diversified)', 'USD')
-    if 'world' in n or 'global' in n or 'all-world' in n or 'all world' in n or 'msci acwi' in n: return ('Global (diversified)', 'USD')
-    if 'u.s' in n or ' us ' in f" {n} " or 's&p' in n or '500' in n or 'nasdaq' in n or 'north america' in n: return ('United States', 'USD')
-    if 'china' in n: return ('China', 'CNY')
-    if 'pacific' in n or 'asia' in n: return ('Asia-Pacific (diversified)', 'USD')
-    return ('Global (diversified)', 'USD')
+    if 'japan' in n or 'jpn' in n: return 'japan'
+    if 'emerg' in n or 'emrg' in n: return 'em'
+    if 'eurozone' in n or 'euro stoxx' in n or 'emu' in n: return 'eurozone'
+    if 'europ' in n: return 'europe'
+    if 'small cap' in n or 'smallcap' in n: return 'global_small'
+    if 'acwi' in n or 'all-world' in n or 'all world' in n: return 'acwi'
+    if 'world' in n or 'global' in n: return 'world'
+    if 'u.s' in n or ' us ' in f" {n} " or 's&p' in n or '500' in n or 'nasdaq' in n or 'north america' in n: return 'us'
+    if 'china' in n: return 'china'
+    if 'pacific' in n or 'asia' in n: return 'asia_pac'
+    return 'world'
+
+
+def _etf_region(name, ticker):
+    region, currency, _ = _INDEX_PROFILES[_index_key(name, ticker)]
+    return (region, currency)
+
+
+def _etf_countries(name, ticker):
+    """Pesos por país del fondo, normalizados a 1.0."""
+    _, _, weights = _INDEX_PROFILES[_index_key(name, ticker)]
+    total = sum(weights.values()) or 1
+    return {c: round(w / total, 6) for c, w in weights.items()}
 
 _XRAY_CACHE = {}  # ticker -> (timestamp, payload)
 _XRAY_TTL = 60 * 60 * 12  # 12h
@@ -815,7 +885,9 @@ def _etf_lookthrough(ticker, name):
     payload = {
         "holdings": holdings, "sectors": sectors,
         "coverage": round(min(1.0, coverage), 6),
-        "region": region, "currency": region_currency
+        "region": region, "currency": region_currency,
+        # Geografía del fondo entero, independiente del top 10 (ver _INDEX_PROFILES).
+        "countries": _etf_countries(name, ticker), "countries_estimated": True,
     }
     _XRAY_CACHE[key] = (now, payload)
     return payload
@@ -835,7 +907,8 @@ def portfolio_xray(data: XrayInput, user_id: str = External):
             out.append({
                 "ticker": ticker, "name": name, "type": ptype, "value": value,
                 "coverage": lt["coverage"], "holdings": lt["holdings"],
-                "sectors": lt["sectors"], "region": lt["region"], "currency": lt["currency"]
+                "sectors": lt["sectors"], "region": lt["region"], "currency": lt["currency"],
+                "countries": lt["countries"], "countries_estimated": True,
             })
         else:
             # single asset (stock / crypto / other) counts fully as itself
@@ -846,6 +919,7 @@ def portfolio_xray(data: XrayInput, user_id: str = External):
                 "ticker": ticker, "name": name, "type": ptype, "value": value,
                 "coverage": 1.0,
                 "holdings": [{"symbol": ticker, "name": name, "weight": 1.0, "country": country, "currency": currency}],
+                "countries": {country: 1.0}, "countries_estimated": False,
                 "sectors": ({sector: 1.0} if sector and str(sector).lower() not in ("general", "unknown", "") else {}),
                 "region": country, "currency": currency
             })
