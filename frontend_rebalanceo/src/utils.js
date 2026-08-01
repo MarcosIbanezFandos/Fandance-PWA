@@ -37,6 +37,61 @@ export const formatUnits = (units) => {
 };
 
 /**
+ * How much the user puts in each month over the horizon, with an optional
+ * annual raise (IPC) spread across the year:
+ *
+ *     amount(m) = monthly * (1 + annualGrowthPct/100) ** ((m - 1) / 12)
+ *
+ * Month 1 is the base amount and every 12th month lands exactly on one full
+ * annual raise, so "Mes 13" is the base + one IPC. This mirrors the projection
+ * endpoint on purpose — a calendar that disagrees with the chart is worse than
+ * no calendar.
+ *
+ * Display density adapts to the horizon so the strip never gets unreadable:
+ *   < 12 months -> every month        ("Mes 1", "Mes 2", …)
+ *   12–60       -> every 6 months     ("Mes 1", "Mes 7", "Mes 13", …)
+ *   > 60        -> one per year       ("Año 1" / mes 1, "Año 2" / mes 13, …)
+ *
+ * Returns { rows: [{ month, year, amount }], total, months, step, lastMonth,
+ *           lastAmount, monthlyGrowthPct }, where `amount` is rounded for
+ * display and `total` sums the unrounded amounts of *every* month, not just
+ * the shown ones. `lastAmount` is always the real final month, which in yearly
+ * mode is not the last row (rows there are one per year, by year start).
+ */
+export const buildContributionSchedule = ({ monthly, annualGrowthPct = 0, months }) => {
+    const base = safeFloat(monthly);
+    const n = Math.max(0, Math.floor(safeFloat(months)));
+    // A rate below -100% would make the base negative and the 12th root NaN.
+    const annualFactor = Math.max(0, 1 + safeFloat(annualGrowthPct) / 100);
+    const empty = { rows: [], total: 0, months: n, step: 1, lastMonth: 0, lastAmount: 0, monthlyGrowthPct: 0 };
+    if (base <= 0 || n <= 0) return empty;
+
+    const monthlyFactor = Math.pow(annualFactor, 1 / 12);
+    const amountAt = (m) => base * Math.pow(monthlyFactor, m - 1);
+
+    let total = 0;
+    for (let m = 1; m <= n; m++) total += amountAt(m);
+
+    const step = n < 12 ? 1 : n <= 60 ? 6 : 12;
+    const sampled = [];
+    for (let m = 1; m <= n; m += step) sampled.push(m);
+    // Close the strip on the horizon itself when the cadence overshoots it —
+    // except in yearly mode, where one row per year is the whole point and an
+    // extra row would repeat the last year's label.
+    if (step !== 12 && sampled[sampled.length - 1] !== n) sampled.push(n);
+
+    return {
+        rows: sampled.map(m => ({ month: m, year: Math.floor((m - 1) / 12) + 1, amount: Math.round(amountAt(m)) })),
+        total: Math.round(total),
+        months: n,
+        step,
+        lastMonth: n,
+        lastAmount: Math.round(amountAt(n)),
+        monthlyGrowthPct: (monthlyFactor - 1) * 100,
+    };
+};
+
+/**
  * Aggregate a portfolio X-ray from per-position look-through data.
  *
  * Returns { total, companies, countries, currencies, sectors, regions }.

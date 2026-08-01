@@ -704,10 +704,19 @@ def run_sim(data: SimulationInput, user_id: str = Heavy):
         invested = current_val
         monthly_contrib = data.monthly_contribution
 
+        # La subida por IPC se reparte mes a mes en vez de saltar de golpe una
+        # vez al año: el mes 13 acumula exactamente una subida anual completa.
+        # Es el mismo modelo que dibuja el calendario de aportaciones en la app
+        # (buildContributionSchedule), y así los dos nunca se contradicen.
+        # max(0, ...) evita que un -150% genere una raíz duodécima de negativo.
+        growth_factor = 1.0
+        if data.contribution_mode == 'growing':
+            growth_factor = max(0.0, 1 + (data.growth_rate / 100)) ** (1 / 12)
+
         for m in range(data.years * 12 + 1):
             if m > 0:
-                if data.contribution_mode == 'growing' and m % 12 == 0:
-                    monthly_contrib *= (1 + (data.growth_rate / 100))
+                if m > 1:
+                    monthly_contrib *= growth_factor
                 pct_change = monthly_rate
                 if data.sim_type == 'montecarlo':
                     pct_change += np.random.normal(0, monthly_vol)
