@@ -37,6 +37,39 @@ export const formatUnits = (units) => {
 };
 
 /**
+ * Label a price/value series for charting, at the resolution the data actually has.
+ *
+ * Short periods come back as 15-minute or hourly candles. Labelling those with
+ * the date alone left the axis repeating "1 ago" and made the tooltip identical
+ * at 10:00 and at 17:30 — the reason this lives in one place now is that both
+ * the Performance and the Analysis charts were formatting dates on their own.
+ *
+ * `timeOnlyAxis` is for single-day charts, where the date adds nothing.
+ * Returns [{ value, date (axis label), full (tooltip label) }].
+ */
+export const formatSeriesDates = (points, { timeOnlyAxis = false } = {}) => {
+    const raw = (points || [])
+        .map(p => ({ value: safeFloat(p.value), at: new Date(p.date) }))
+        .filter(p => !isNaN(p.at.getTime()));
+
+    const intraday = raw.some((p, i) => i > 0 && p.at.toDateString() === raw[i - 1].at.toDateString());
+    const axisFmt = intraday
+        ? (timeOnlyAxis
+            ? { hour: '2-digit', minute: '2-digit' }
+            : { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })
+        : { day: 'numeric', month: 'short' };
+    const fullFmt = intraday
+        ? { day: 'numeric', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit' }
+        : { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' };
+
+    return raw.map(p => ({
+        value: p.value,
+        date: p.at.toLocaleString('es-ES', axisFmt),
+        full: p.at.toLocaleString('es-ES', fullFmt),
+    }));
+};
+
+/**
  * How much the user puts in each month over the horizon, with an optional
  * annual raise (IPC) spread across the year:
  *

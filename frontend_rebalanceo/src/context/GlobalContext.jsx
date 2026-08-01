@@ -184,6 +184,7 @@ export const GlobalProvider = ({ children }) => {
                 'perf.select_portfolio': 'Selecciona una cartera para ver su rentabilidad.',
                 'perf.ttwror': 'TTWROR',
                 'perf.ttwror_hint': 'Rentabilidad ponderada por tiempo (time-weighted rate of return).',
+                'perf.price_gains_hint': 'La plusvalía latente se mide desde que compraste, no desde el inicio del periodo: no existe precio histórico de tus posiciones para acotarla al periodo.',
                 'perf.price_gains': 'Ganancias de precio',
                 'perf.realized': 'Realizado (Bruto)',
                 'perf.dividends': 'Dividendos (Brutos)',
@@ -267,6 +268,7 @@ export const GlobalProvider = ({ children }) => {
                 'analysis.title': 'Análisis de Activos',
                 'analysis.loading': 'Cargando datos...',
                 'analysis.no_data': 'No hay datos disponibles.',
+                'analysis.position_value': 'Valor de tu posición',
                 // Settings
                 'settings.appearance': 'Apariencia',
                 'settings.theme': 'Tema Visual',
@@ -448,6 +450,7 @@ export const GlobalProvider = ({ children }) => {
                 'perf.select_portfolio': 'Select a portfolio to see its performance.',
                 'perf.ttwror': 'TTWROR',
                 'perf.ttwror_hint': 'Time-weighted rate of return.',
+                'perf.price_gains_hint': 'Unrealised gains are measured since you bought, not from the start of the period: there is no historical price of your positions to scope them to the period.',
                 'perf.price_gains': 'Price gains',
                 'perf.realized': 'Realized (Gross)',
                 'perf.dividends': 'Dividends (Gross)',
@@ -531,6 +534,7 @@ export const GlobalProvider = ({ children }) => {
                 'analysis.title': 'Asset Analysis',
                 'analysis.loading': 'Loading data...',
                 'analysis.no_data': 'No data available.',
+                'analysis.position_value': 'Your position value',
                 // Settings
                 'settings.appearance': 'Appearance',
                 'settings.theme': 'Visual Theme',
