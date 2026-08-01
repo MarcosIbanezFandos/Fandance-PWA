@@ -859,7 +859,12 @@ BENCHMARK_LABELS = {
     "EEM": "Emerging Markets",
 }
 
-def _series_stats(s, bench_returns=None):
+def _series_stats(s):
+    """Absolute metrics of one value series: return, CAGR, volatility, max drawdown.
+
+    Beta and correlation are NOT here on purpose: they only mean something
+    against a reference, so they live in _relative_metrics().
+    """
     s = s.dropna()
     if len(s) < 2:
         return {"return_pct": 0, "cagr": 0, "volatility": 0, "max_drawdown": 0}
@@ -870,16 +875,58 @@ def _series_stats(s, bench_returns=None):
     vol = safe_float(daily.std() * (252 ** 0.5) * 100)
     cummax = s.cummax()
     max_dd = safe_float(((s - cummax) / cummax).min() * 100)
-    out = {"return_pct": round(safe_float(ret), 2), "cagr": round(safe_float(cagr), 2),
-           "volatility": round(vol, 2), "max_drawdown": round(max_dd, 2)}
-    if bench_returns is not None:
-        aligned = pd.concat([daily.rename("p"), bench_returns.rename("b")], axis=1).dropna()
-        if len(aligned) > 2 and aligned["b"].var() > 0:
-            beta = aligned["p"].cov(aligned["b"]) / aligned["b"].var()
-            corr = aligned["p"].corr(aligned["b"])
-            out["beta"] = round(safe_float(beta), 2)
-            out["correlation"] = round(safe_float(corr), 2)
-    return out
+    return {"return_pct": round(safe_float(ret), 2), "cagr": round(safe_float(cagr), 2),
+            "volatility": round(vol, 2), "max_drawdown": round(max_dd, 2)}
+
+
+# Overlapping observations needed before beta/correlation are worth showing.
+# Below this the numbers are noise, so we say "not enough data" instead.
+MIN_RELATIVE_POINTS = 10
+
+
+def _relative_metrics(port_returns, bench_returns):
+    """Beta and correlation of the portfolio against ONE benchmark.
+
+    Returns {"status", "beta", "correlation", "points"} where status is:
+      - "ok"                : at least one of the two metrics is available
+      - "insufficient_data" : the two series don't overlap on enough dates
+      - "not_computable"    : the maths breaks down (flat benchmark → division
+                              by zero, flat portfolio → undefined correlation)
+
+    Each metric is None when that particular one is undefined, so the client can
+    show a message per cell. NaN/Infinity never leave this function.
+    """
+    empty = {"status": "insufficient_data", "beta": None, "correlation": None, "points": 0}
+    if port_returns is None or bench_returns is None:
+        return empty
+
+    # Aligning on the date index is what handles series of different lengths:
+    # only dates present (and finite) in both survive.
+    aligned = pd.concat([port_returns.rename("p"), bench_returns.rename("b")], axis=1)
+    aligned = aligned.replace([np.inf, -np.inf], np.nan).dropna()
+    n = int(len(aligned))
+    if n < MIN_RELATIVE_POINTS:
+        return {**empty, "points": n}
+
+    bench_var = safe_float(aligned["b"].var())
+    port_std = safe_float(aligned["p"].std())
+
+    beta = None
+    if bench_var > 1e-12:
+        raw = safe_float(aligned["p"].cov(aligned["b"])) / bench_var
+        if math.isfinite(raw):
+            beta = round(raw, 2)
+
+    corr = None
+    # Pearson is 0/0 when either side is flat, so both need to actually move.
+    if bench_var > 1e-12 and port_std > 1e-12:
+        raw = aligned["p"].corr(aligned["b"])
+        raw = float(raw) if raw is not None else float("nan")
+        if math.isfinite(raw):
+            corr = round(max(-1.0, min(1.0, raw)), 2)
+
+    status = "ok" if (beta is not None or corr is not None) else "not_computable"
+    return {"status": status, "beta": beta, "correlation": corr, "points": n}
 
 @app.post("/api/portfolio/benchmark")
 def portfolio_benchmark(data: BenchmarkInput, user_id: str = External):
@@ -896,7 +943,7 @@ def portfolio_benchmark(data: BenchmarkInput, user_id: str = External):
         benches = [b for b in (data.benchmarks or []) if b][:6]
         all_tickers = list(set(list(holdings.keys()) + benches))
         if not all_tickers:
-            return {"series": [], "stats": {}, "labels": {}}
+            return {"series": [], "stats": {}, "labels": {}, "relative": {}}
 
         interval = "1d"
         if data.period in ["1d", "5d"]:
@@ -908,6 +955,10 @@ def portfolio_benchmark(data: BenchmarkInput, user_id: str = External):
         elif len(all_tickers) == 1:
             df.columns = [all_tickers[0]]
         df.index = df.index.tz_localize(None)
+        # Keep the unfilled prices around: filling turns a missing history into a
+        # flat line, and a flat line quietly fakes a beta/correlation out of thin
+        # air. The chart uses the filled frame, the relative metrics use `raw`.
+        raw = df.copy()
         df = df.ffill().bfill()
 
         # Portfolio value series from current holdings.
@@ -930,27 +981,34 @@ def portfolio_benchmark(data: BenchmarkInput, user_id: str = External):
                     cols[b] = (s / s.iloc[0]) * 100
 
         if not cols:
-            return {"series": [], "stats": {}, "labels": {}}
+            return {"series": [], "stats": {}, "labels": {}, "relative": {}}
 
         combined = pd.concat(cols.values(), axis=1, keys=cols.keys()).dropna()
         series = [{"date": d.isoformat(), **{k: round(safe_float(combined.loc[d, k]), 2) for k in cols}} for d in combined.index]
 
-        # Stats (portfolio beta/correlation computed vs first selected benchmark).
+        # Absolute stats, one row per line on the chart.
         stats = {}
-        primary = benches[0] if benches else None
-        bench_daily = df[primary].pct_change().dropna() if (primary and primary in df.columns) else None
         if "portfolio" in cols:
-            stats["portfolio"] = _series_stats(port, bench_daily)
+            stats["portfolio"] = _series_stats(port)
         for b in benches:
             if b in df.columns:
                 stats[b] = _series_stats(df[b])
 
+        # Relative stats: the portfolio's beta/correlation against EVERY selected
+        # benchmark, so switching reference in the UI costs no extra round-trip.
+        relative = {}
+        if "portfolio" in cols:
+            port_daily = port.pct_change().dropna()
+            for b in benches:
+                bench_daily = raw[b].dropna().pct_change().dropna() if b in raw.columns else None
+                relative[b] = _relative_metrics(port_daily, bench_daily)
+
         labels = {b: BENCHMARK_LABELS.get(b, b) for b in benches}
-        return {"series": series, "stats": stats, "labels": labels,
+        return {"series": series, "stats": stats, "labels": labels, "relative": relative,
                 "start": series[0]["date"] if series else None, "end": series[-1]["date"] if series else None}
     except Exception as e:
         print(f"BENCHMARK ERROR: {e}")
-        return {"series": [], "stats": {}, "labels": {}}
+        return {"series": [], "stats": {}, "labels": {}, "relative": {}}
 
 # --- SEED DEFAULT PORTFOLIOS (for new, non-admin users) ---
 # Mix of asset types so the app is exercised beyond ETFs: stocks, ETFs, a bond
