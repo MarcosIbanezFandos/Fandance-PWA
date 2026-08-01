@@ -266,6 +266,7 @@ export const GlobalProvider = ({ children }) => {
                 'nav.portfolio': 'Cartera activa',
                 // X-Ray regions
                 'xray.regions': 'Regiones',
+                'xray.geo_estimated': 'Los fondos no publican su desglose por país: esa parte se estima con los pesos del índice que replican',
                 'xray.showing': 'Mostrando',
                 'xray.of': 'de',
                 'xray.load_more': 'Cargar más',
@@ -500,6 +501,7 @@ export const GlobalProvider = ({ children }) => {
                 'nav.portfolio': 'Active portfolio',
                 // X-Ray regions
                 'xray.regions': 'Regions',
+                'xray.geo_estimated': 'Funds do not publish a country breakdown: that part is estimated from the weights of the index they track',
                 'xray.showing': 'Showing',
                 'xray.of': 'of',
                 'xray.load_more': 'Load more',
