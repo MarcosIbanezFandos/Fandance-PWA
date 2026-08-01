@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import api from '../api'
 import { motion } from 'framer-motion';
-import { Loader2, TrendingUp, TrendingDown, Wallet, PiggyBank, Percent, Receipt, Info, ArrowUpRight, ArrowDownRight } from 'lucide-react';
+import { Loader2, TrendingUp, TrendingDown, Wallet, PiggyBank, Percent, Receipt, Info, ArrowUpRight, ArrowDownRight, Upload, RefreshCw, CheckCircle2 } from 'lucide-react';
 import { AreaChart, Area, ResponsiveContainer, YAxis, XAxis, Tooltip } from 'recharts';
 import { GlassCard, staggerContainer, fadeInUp } from '../components/UI';
 import { Dropdown } from '../components/Dropdown';
@@ -17,6 +17,7 @@ const PERIODS = [
     { id: 'today', label: 'Hoy' },
     { id: '1w',    label: '1S' },
     { id: '1m',    label: '1M' },
+    { id: '3m',    label: '3M' },
     { id: '1y',    label: '1A' },
     { id: 'ytd',   label: 'YTD' },
     { id: 'max',   label: 'Máx' },
@@ -220,30 +221,98 @@ export const Performance = ({ portfolios, activePortfolioId }) => {
                             {hasCsv && (
                                 <div className={`mt-3 inline-flex items-center gap-2 px-4 py-1.5 rounded-full text-sm font-black ${up ? 'bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600 dark:text-emerald-400' : 'bg-rose-50 dark:bg-rose-900/20 text-rose-500 dark:text-rose-400'}`}>
                                     {up ? <TrendingUp size={16} /> : <TrendingDown size={16} />}
-                                    {up ? '+' : ''}{formatNumber(periodMetrics.totalGross, 2)} € ({up ? '+' : ''}{periodMetrics.priceGainsPct}%)
+                                    {up ? '+' : ''}{formatNumber(periodMetrics.totalGross, 2)} € ({up ? '+' : ''}{periodMetrics.totalGrossPct}%)
                                 </div>
                             )}
                         </GlassCard>
                     </motion.div>
 
-                    {/* Trade Republic CSV import */}
-                    <GlassCard>
-                        <div className="flex items-center gap-2 mb-3">
-                            <Receipt size={15} className="text-slate-400" />
-                            <h3 className="text-xs font-black text-slate-400 uppercase tracking-widest">{t('tr.title')}</h3>
-                        </div>
-                        <TRCsvParser
-                            currentValue={currentValue}
-                            onParsed={setCsvMetrics}
-                            onClear={() => setCsvMetrics(null)}
-                            hasData={!!csvMetrics}
-                        />
-                        {csvMetrics?.firstPurchase && (
-                            <div className="mt-3 text-[11px] font-bold text-slate-400 uppercase tracking-widest text-center">
-                                {t('tr.since_first')}: {new Date(csvMetrics.firstPurchase).toLocaleDateString('es-ES', { day: '2-digit', month: 'short', year: 'numeric' })}
+                    {/* Trade Republic CSV import — COMPACT or FULL */}
+                    {hasCsv ? (
+                        /* ── Compact mode: data imported, show a discrete chip ── */
+                        <motion.div variants={fadeInUp}>
+                            <div className="flex items-center justify-between gap-3 px-5 py-3 bg-white dark:bg-slate-900 rounded-2xl border border-slate-100 dark:border-slate-800 shadow-sm">
+                                <div className="flex items-center gap-3 min-w-0">
+                                    <div className="p-2 bg-emerald-50 dark:bg-emerald-900/20 rounded-xl">
+                                        <CheckCircle2 size={16} className="text-emerald-500" />
+                                    </div>
+                                    <div className="min-w-0">
+                                        <div className="text-xs font-black text-slate-700 dark:text-slate-200">{t('tr.imported_title')}</div>
+                                        <div className="text-[10px] font-bold text-slate-400 truncate">
+                                            {csvMetrics?.firstPurchase
+                                                ? `${t('tr.since_first')}: ${new Date(csvMetrics.firstPurchase).toLocaleDateString('es-ES', { day: '2-digit', month: 'short', year: 'numeric' })}`
+                                                : t('tr.imported_hint')
+                                            }
+                                        </div>
+                                    </div>
+                                </div>
+                                <div className="flex items-center gap-2 shrink-0">
+                                    <label
+                                        htmlFor="csv-upload-input"
+                                        className="inline-flex items-center gap-1.5 px-3 py-2 bg-slate-100 dark:bg-slate-800 hover:bg-indigo-50 dark:hover:bg-indigo-900/20 text-slate-500 hover:text-indigo-600 dark:hover:text-indigo-400 rounded-xl text-[10px] font-black uppercase tracking-wide cursor-pointer transition-all"
+                                    >
+                                        <RefreshCw size={12} /> {t('tr.update')}
+                                    </label>
+                                    <TRCsvParser
+                                        currentValue={currentValue}
+                                        onParsed={setCsvMetrics}
+                                        onClear={() => setCsvMetrics(null)}
+                                        hasData={true}
+                                        compact={true}
+                                    />
+                                </div>
                             </div>
-                        )}
-                    </GlassCard>
+                        </motion.div>
+                    ) : (
+                        /* ── Full onboarding mode: premium upload experience ── */
+                        <motion.div variants={fadeInUp}>
+                            <GlassCard className="!p-0 overflow-hidden">
+                                <div className="relative">
+                                    {/* Gradient background */}
+                                    <div className="absolute inset-0 bg-gradient-to-br from-indigo-50 via-violet-50 to-purple-50 dark:from-indigo-950/40 dark:via-violet-950/30 dark:to-purple-950/20" />
+                                    
+                                    <div className="relative p-6 md:p-8">
+                                        {/* Header */}
+                                        <div className="text-center mb-6">
+                                            <div className="inline-flex items-center gap-2 px-3 py-1.5 bg-indigo-100 dark:bg-indigo-900/30 rounded-full mb-4">
+                                                <Receipt size={13} className="text-indigo-500" />
+                                                <span className="text-[10px] font-black text-indigo-600 dark:text-indigo-400 uppercase tracking-widest">{t('tr.title')}</span>
+                                            </div>
+                                            <h3 className="text-lg font-black text-slate-800 dark:text-white mb-2">{t('tr.onboarding_title')}</h3>
+                                            <p className="text-xs font-medium text-slate-400 max-w-md mx-auto leading-relaxed">{t('tr.onboarding_desc')}</p>
+                                        </div>
+
+                                        {/* Steps */}
+                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-6">
+                                            <div className="flex items-start gap-3 p-4 bg-white/70 dark:bg-slate-800/50 rounded-2xl backdrop-blur-sm border border-white/50 dark:border-slate-700/50">
+                                                <div className="w-7 h-7 shrink-0 bg-indigo-500 rounded-xl flex items-center justify-center text-white text-xs font-black">1</div>
+                                                <div>
+                                                    <div className="text-xs font-black text-slate-700 dark:text-slate-200">{t('tr.step1_title')}</div>
+                                                    <div className="text-[10px] font-medium text-slate-400 mt-0.5">{t('tr.step1_desc')}</div>
+                                                </div>
+                                            </div>
+                                            <div className="flex items-start gap-3 p-4 bg-white/70 dark:bg-slate-800/50 rounded-2xl backdrop-blur-sm border border-white/50 dark:border-slate-700/50">
+                                                <div className="w-7 h-7 shrink-0 bg-indigo-500 rounded-xl flex items-center justify-center text-white text-xs font-black">2</div>
+                                                <div>
+                                                    <div className="text-xs font-black text-slate-700 dark:text-slate-200">{t('tr.step2_title')}</div>
+                                                    <div className="text-[10px] font-medium text-slate-400 mt-0.5">{t('tr.step2_desc')}</div>
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        {/* Upload zone */}
+                                        <TRCsvParser
+                                            currentValue={currentValue}
+                                            onParsed={setCsvMetrics}
+                                            onClear={() => setCsvMetrics(null)}
+                                            hasData={false}
+                                            compact={false}
+                                        />
+                                    </div>
+                                </div>
+                            </GlassCard>
+                        </motion.div>
+                    )}
 
                     {/* ═══ PARQET-STYLE STATS ═══ */}
                     {hasCsv && (
@@ -263,8 +332,13 @@ export const Performance = ({ portfolios, activePortfolioId }) => {
                                     <div className="text-lg font-black text-slate-800 dark:text-white tabular-nums">{formatNumber(periodMetrics.cashFlow, 2)} €</div>
                                 </GlassCard>
                                 <GlassCard className="!p-4">
-                                    <div className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">{t('perf.cost_basis')}</div>
-                                    <div className="text-lg font-black text-slate-800 dark:text-white tabular-nums">{formatNumber(periodMetrics.costBasis, 2)} €</div>
+                                    <div className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">{t('perf.total_gross')}</div>
+                                    <div className={`text-lg font-black tabular-nums ${periodMetrics.totalGross >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-500 dark:text-rose-400'}`}>
+                                        {periodMetrics.totalGross >= 0 ? '+' : ''}{formatNumber(periodMetrics.totalGross, 2)} €
+                                    </div>
+                                    {periodMetrics.totalGrossPct !== 0 && (
+                                        <div className="mt-0.5"><Badge value={periodMetrics.totalGrossPct} /></div>
+                                    )}
                                 </GlassCard>
                             </div>
 
@@ -318,6 +392,7 @@ export const Performance = ({ portfolios, activePortfolioId }) => {
                                 {/* Total gross */}
                                 <StatRow label={t('perf.total_gross')} bold borderTop borderBottom
                                     value={<span className={periodMetrics.totalGross >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-500 dark:text-rose-400'}>{formatNumber(periodMetrics.totalGross, 2)} €</span>}
+                                    badge={<Badge value={periodMetrics.totalGrossPct} />}
                                 />
 
                                 {/* Taxes + fees */}

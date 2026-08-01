@@ -1,6 +1,6 @@
 import React, { useState, useRef, useCallback } from 'react';
 import Papa from 'papaparse';
-import { Upload, CheckCircle2, AlertTriangle, Loader2, X } from 'lucide-react';
+import { Upload, CheckCircle2, AlertTriangle, Loader2, X, FileUp } from 'lucide-react';
 import { useGlobal } from '../context/GlobalContext';
 import { xirr, safeFloat } from '../utils';
 
@@ -13,8 +13,12 @@ import { xirr, safeFloat } from '../utils';
  * you actually started investing.
  *
  * The file is parsed 100% in the browser; nothing is uploaded anywhere.
+ *
+ * Props:
+ *   compact  — when true, renders only the hidden <input> (the parent handles the UI)
+ *   hasData  — whether CSV data has been imported
  */
-export const TRCsvParser = ({ currentValue, onParsed, onClear, hasData }) => {
+export const TRCsvParser = ({ currentValue, onParsed, onClear, hasData, compact = false }) => {
     const { t } = useGlobal();
     const [fileName, setFileName] = useState('');
     const [error, setError] = useState('');
@@ -58,15 +62,29 @@ export const TRCsvParser = ({ currentValue, onParsed, onClear, hasData }) => {
         handleFile(e.dataTransfer?.files?.[0]);
     };
 
-    return (
-        <div>
-            {/* Kept for the header shortcut button that triggers this input by id */}
+    // In compact mode, only render the hidden file input (parent handles UI)
+    if (compact) {
+        return (
             <input
                 type="file"
                 id="csv-upload-input"
                 accept=".csv,.txt,text/csv"
                 ref={inputRef}
-                onChange={(e) => handleFile(e.target.files?.[0])}
+                onChange={(e) => { handleFile(e.target.files?.[0]); e.target.value = ''; }}
+                className="hidden"
+            />
+        );
+    }
+
+    // Full mode — premium upload experience
+    return (
+        <div>
+            <input
+                type="file"
+                id="csv-upload-input"
+                accept=".csv,.txt,text/csv"
+                ref={inputRef}
+                onChange={(e) => { handleFile(e.target.files?.[0]); e.target.value = ''; }}
                 className="hidden"
             />
 
@@ -78,25 +96,27 @@ export const TRCsvParser = ({ currentValue, onParsed, onClear, hasData }) => {
                 role="button"
                 tabIndex={0}
                 onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') inputRef.current?.click(); }}
-                className={`w-full cursor-pointer rounded-2xl border-2 border-dashed p-5 text-center transition-colors ${dragging
-                    ? 'border-indigo-500 bg-indigo-50 dark:bg-indigo-900/20'
-                    : 'border-slate-200 dark:border-slate-700 hover:border-indigo-400 bg-slate-50 dark:bg-slate-800/50'}`}
+                className={`w-full cursor-pointer rounded-2xl border-2 border-dashed p-6 text-center transition-all duration-200 ${dragging
+                    ? 'border-indigo-500 bg-indigo-50/80 dark:bg-indigo-900/30 scale-[1.01]'
+                    : 'border-slate-200 dark:border-slate-700 hover:border-indigo-400 hover:bg-indigo-50/30 dark:hover:bg-indigo-900/10 bg-white/50 dark:bg-slate-800/30'}`}
             >
                 {busy ? (
-                    <div className="flex items-center justify-center gap-2 text-sm font-bold text-slate-500 dark:text-slate-300">
-                        <Loader2 size={16} className="animate-spin text-indigo-500" /> {t('tr.parsing')}
+                    <div className="flex items-center justify-center gap-2 text-sm font-bold text-slate-500 dark:text-slate-300 py-2">
+                        <Loader2 size={18} className="animate-spin text-indigo-500" /> {t('tr.parsing')}
                     </div>
                 ) : (
                     <>
-                        <Upload size={22} className="mx-auto mb-2 text-indigo-500" />
+                        <div className="inline-flex items-center justify-center w-12 h-12 bg-indigo-100 dark:bg-indigo-900/30 rounded-2xl mb-3">
+                            <FileUp size={22} className="text-indigo-500" />
+                        </div>
                         <div className="text-sm font-black text-slate-700 dark:text-slate-200">{t('tr.drop')}</div>
-                        <div className="text-[11px] font-medium text-slate-400 mt-1">{t('tr.hint')}</div>
+                        <div className="text-[11px] font-medium text-slate-400 mt-1.5">{t('tr.hint')}</div>
                     </>
                 )}
             </div>
 
             {fileName && !error && !busy && (
-                <div className="mt-3 flex items-center justify-between gap-3 px-3 py-2 rounded-xl bg-emerald-50 dark:bg-emerald-900/20">
+                <div className="mt-3 flex items-center justify-between gap-3 px-4 py-2.5 rounded-xl bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-100 dark:border-emerald-900/30">
                     <div className="flex items-center gap-2 min-w-0">
                         <CheckCircle2 size={14} className="text-emerald-500 shrink-0" />
                         <span className="text-[11px] font-bold text-emerald-700 dark:text-emerald-300 truncate">{fileName}</span>
@@ -104,7 +124,7 @@ export const TRCsvParser = ({ currentValue, onParsed, onClear, hasData }) => {
                     {hasData && onClear && (
                         <button
                             onClick={(e) => { e.stopPropagation(); setFileName(''); onClear(); }}
-                            className="text-[10px] font-black uppercase tracking-wide text-slate-400 hover:text-rose-500 flex items-center gap-1 shrink-0"
+                            className="text-[10px] font-black uppercase tracking-wide text-slate-400 hover:text-rose-500 flex items-center gap-1 shrink-0 transition-colors"
                         >
                             <X size={12} /> {t('tr.clear')}
                         </button>
@@ -113,7 +133,7 @@ export const TRCsvParser = ({ currentValue, onParsed, onClear, hasData }) => {
             )}
 
             {error && (
-                <div className="mt-3 flex items-center gap-2 px-3 py-2 rounded-xl bg-amber-50 dark:bg-amber-900/20">
+                <div className="mt-3 flex items-center gap-2 px-4 py-2.5 rounded-xl bg-amber-50 dark:bg-amber-900/20 border border-amber-100 dark:border-amber-900/30">
                     <AlertTriangle size={14} className="text-amber-500 shrink-0" />
                     <span className="text-[11px] font-bold text-amber-700 dark:text-amber-300">{error}</span>
                 </div>

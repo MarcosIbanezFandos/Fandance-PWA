@@ -1,78 +1,11 @@
 import React from 'react';
 import { GlassCard, BounceButton } from '../components/UI';
-import { Moon, Sun, Globe, Shield, LogOut, Target, Scale, Sparkles, CheckCircle2, AlertTriangle, RefreshCw } from 'lucide-react';
+import { Moon, Sun, Globe, Shield, LogOut, Target, Scale, Sparkles, CheckCircle2, AlertTriangle } from 'lucide-react';
 import { useGlobal } from '../context/GlobalContext';
 import { Dropdown } from '../components/Dropdown';
 import { safeFloat, formatNumber } from '../utils';
 
-// Parse a loose CSV: each line is "<symbol/ISIN/name> , <units>" (extra columns ok).
-const parseHoldingsCsv = (text) => {
-    const out = [];
-    (text || '').split(/\r?\n/).forEach((line) => {
-        const parts = line.split(/[,;\t]+/).map((s) => s.trim()).filter((s) => s !== '');
-        if (parts.length < 2) return;
-        const isNum = (p) => /^-?\d[\d.,\s]*$/.test(p);
-        let units = null;
-        const keyParts = [];
-        parts.forEach((p) => { if (units === null && isNum(p) && keyParts.length) units = safeFloat(p); else if (isNum(p) && keyParts.length && units === null) units = safeFloat(p); else keyParts.push(p); });
-        // Fallback: last column numeric = units.
-        if (units === null && isNum(parts[parts.length - 1])) { units = safeFloat(parts[parts.length - 1]); keyParts.length = 0; keyParts.push(...parts.slice(0, -1)); }
-        const key = keyParts.join(' ').trim();
-        if (key && units !== null && isFinite(units)) out.push({ key, units });
-    });
-    return out;
-};
 
-const SyncHoldingsCard = ({ portfolioItems, handleUpdate, t }) => {
-    const [text, setText] = React.useState('');
-    const [result, setResult] = React.useState(null);
-    const items = portfolioItems || [];
-
-    const apply = () => {
-        const parsed = parseHoldingsCsv(text);
-        let matched = 0;
-        const unmatched = [];
-        parsed.forEach(({ key, units }) => {
-            const k = key.toLowerCase();
-            const item = items.find((i) => {
-                const tk = (i.asset?.ticker || '').toLowerCase();
-                const nm = (i.asset?.name || '').toLowerCase();
-                const kBase = k.replace(/\.[a-z]+$/, ''); // strip .DE / .MC suffixes
-                return tk === k || tk === kBase || tk.replace(/\.[a-z]+$/, '') === kBase ||
-                    (nm && (nm.includes(k) || k.includes(nm))) ||
-                    (nm && k && nm.split(' ')[0] === k.split(' ')[0]);
-            });
-            if (item) { handleUpdate(item.id, 'units_held', String(units)); matched++; }
-            else unmatched.push(key);
-        });
-        setResult({ matched, unmatched });
-    };
-
-    return (
-        <GlassCard>
-            <h3 className="text-xs font-black text-slate-400 uppercase tracking-widest mb-4 flex items-center gap-2"><RefreshCw size={14} /> {t('csv.title')}</h3>
-            <p className="text-[11px] font-medium text-slate-400 mb-3 leading-relaxed">{t('csv.hint')}</p>
-            <textarea
-                value={text}
-                onChange={(e) => setText(e.target.value)}
-                placeholder={t('csv.placeholder')}
-                rows={4}
-                className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl p-4 text-xs font-mono text-slate-700 dark:text-slate-200 outline-none focus:ring-2 ring-indigo-500 resize-y"
-            />
-            <div className="flex items-center gap-3 mt-3 flex-wrap">
-                <BounceButton onClick={apply} disabled={!text.trim() || items.length === 0} className="px-5 py-2.5 bg-indigo-600 text-white rounded-xl font-bold text-[11px] uppercase tracking-wide flex items-center gap-2 hover:bg-indigo-500 shadow-md shadow-indigo-500/20">
-                    <RefreshCw size={14} /> {t('csv.apply')}
-                </BounceButton>
-                {result && (
-                    <div className="text-[11px] font-bold">
-                        <span className="text-emerald-500">{result.matched} {t('csv.matched')}</span>
-                        {result.unmatched.length > 0 && <span className="text-amber-500"> · {result.unmatched.length} {t('csv.unmatched')}: {result.unmatched.slice(0, 5).join(', ')}</span>}
-                    </div>
-                )}
-            </div>
-        </GlassCard>
-    );
-};
 
 const TargetAllocationCard = ({ activePortfolio, portfolioItems, handleUpdate, onEqualSplit, onNormalize, onApplyDefaults, isAdmin, t }) => {
     const items = portfolioItems || [];
@@ -161,10 +94,6 @@ export const Settings = ({ session, onLogout, activePortfolio, portfolioItems, h
                 isAdmin={isAdmin}
                 t={t}
             />
-
-            {activePortfolio && (portfolioItems || []).length > 0 && (
-                <SyncHoldingsCard portfolioItems={portfolioItems} handleUpdate={handleUpdate} t={t} />
-            )}
 
             <GlassCard>
                 <h3 className="text-xs font-black text-slate-400 uppercase tracking-widest mb-6">{t('settings.appearance')}</h3>
