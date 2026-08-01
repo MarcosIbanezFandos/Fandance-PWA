@@ -39,9 +39,10 @@ const BarList = ({ items, tone = 'country', pretty = (x) => x }) => {
     );
 };
 
-const BreakdownCard = ({ title, icon: Icon, items, tone, pretty }) => (
+const BreakdownCard = ({ title, icon: Icon, items, tone, pretty, note }) => (
     <GlassCard>
-        <h3 className="text-[11px] font-black text-slate-400 uppercase tracking-widest mb-5 flex items-center gap-2"><Icon size={14} /> {title}</h3>
+        <h3 className="text-[11px] font-black text-slate-400 uppercase tracking-widest mb-1 flex items-center gap-2"><Icon size={14} /> {title}</h3>
+        {note ? <p className="text-[10px] font-medium text-slate-400 mb-4">{note}</p> : <div className="mb-4" />}
         <BarList items={items} tone={tone} pretty={pretty} />
     </GlassCard>
 );
@@ -103,6 +104,12 @@ export const Xray = ({ portfolios, activePortfolioId }) => {
 
     const companies = allCompanies.slice(0, visibleCount);
     const hasMore = visibleCount < allCompanies.length;
+
+    // Los fondos no publican su desglose por país en Yahoo: para esa parte se
+    // usan los pesos del índice que replican. Se dice, no se disimula.
+    const geoNote = xray.estimatedGeoPct > 1
+        ? `${t('xray.geo_estimated')} (${formatNumber(xray.estimatedGeoPct, 0)}%).`
+        : null;
 
     const realHoldings = xray.companies.filter(c => !c.other).length;
     const topCountry = xray.countries.find(c => !/diversified|other/i.test(c.name)) || xray.countries[0];
@@ -204,10 +211,10 @@ export const Xray = ({ portfolios, activePortfolioId }) => {
 
                         {/* Breakdowns */}
                         <div className="xl:col-span-5 space-y-6">
-                            <BreakdownCard title={t('xray.regions')} icon={Map} items={xray.regions} tone="region" pretty={(x) => x} />
-                            <BreakdownCard title={t('xray.countries')} icon={Globe2} items={xray.countries} tone="country" pretty={(x) => x} />
+                            <BreakdownCard title={t('xray.regions')} icon={Map} items={xray.regions} tone="region" pretty={(x) => x} note={geoNote} />
+                            <BreakdownCard title={t('xray.countries')} icon={Globe2} items={xray.countries} tone="country" pretty={(x) => x} note={geoNote} />
                             <BreakdownCard title={t('xray.sectors')} icon={PieChart} items={xray.sectors} tone="sector" pretty={prettySector} />
-                            <BreakdownCard title={t('xray.currencies')} icon={Coins} items={xray.currencies} tone="currency" pretty={(x) => x} />
+                            <BreakdownCard title={t('xray.currencies')} icon={Coins} items={xray.currencies} tone="currency" pretty={(x) => x} note={geoNote} />
                         </div>
                     </div>
                 </>
