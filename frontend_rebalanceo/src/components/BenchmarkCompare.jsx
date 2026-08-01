@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import api from '../api'
-import { motion } from 'framer-motion';
+import { AnimatePresence, motion } from 'framer-motion';
 import { Loader2, Scale, Activity, ChevronDown, Check, Info } from 'lucide-react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import { GlassCard } from './UI';
@@ -76,36 +76,38 @@ const InlineSelect = ({ value, options, onChange, label }) => {
                 <ChevronDown size={12} className={`shrink-0 transition-transform ${open ? 'rotate-180' : ''}`} />
             </button>
 
-            {/* No AnimatePresence here on purpose: an exit-animated popup stays
-                in the DOM at opacity 0 and keeps swallowing clicks. */}
-            {open && (
-                <motion.div
-                    role="listbox"
-                    initial={{ opacity: 0, y: -4, scale: 0.98 }}
-                    animate={{ opacity: 1, y: 0, scale: 1 }}
-                    transition={{ duration: 0.12 }}
-                    className="absolute z-[70] left-0 mt-2 w-max min-w-[160px] max-w-[240px] bg-white dark:bg-slate-800 border border-slate-100 dark:border-slate-700 rounded-2xl shadow-2xl overflow-hidden py-1.5"
-                >
-                    {options.map(o => {
-                        const active = o.value === value;
-                        return (
-                            <button
-                                key={o.value}
-                                role="option"
-                                aria-selected={active}
-                                onClick={() => { onChange(o.value); setOpen(false); }}
-                                className={`w-full text-left px-3.5 py-2 flex items-center justify-between gap-3 transition-colors ${active ? 'bg-indigo-50 dark:bg-indigo-900/30' : 'hover:bg-slate-50 dark:hover:bg-slate-700/50'}`}
-                            >
-                                <span className="flex items-center gap-2 min-w-0">
-                                    <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: o.color }} />
-                                    <span className={`text-xs font-bold truncate ${active ? 'text-indigo-600 dark:text-indigo-300' : 'text-slate-700 dark:text-slate-200'}`}>{o.label}</span>
-                                </span>
-                                {active && <Check size={14} className="text-indigo-500 shrink-0" />}
-                            </button>
-                        );
-                    })}
-                </motion.div>
-            )}
+            <AnimatePresence>
+                {open && (
+                    <motion.div
+                        key="benchref-menu"
+                        role="listbox"
+                        initial={{ opacity: 0, y: -4, scale: 0.98 }}
+                        animate={{ opacity: 1, y: 0, scale: 1 }}
+                        exit={{ opacity: 0, y: -4, scale: 0.98 }}
+                        transition={{ duration: 0.12 }}
+                        className="absolute z-[70] left-0 mt-2 w-max min-w-[160px] max-w-[240px] bg-white dark:bg-slate-800 border border-slate-100 dark:border-slate-700 rounded-2xl shadow-2xl overflow-hidden py-1.5"
+                    >
+                        {options.map(o => {
+                            const active = o.value === value;
+                            return (
+                                <button
+                                    key={o.value}
+                                    role="option"
+                                    aria-selected={active}
+                                    onClick={() => { onChange(o.value); setOpen(false); }}
+                                    className={`w-full text-left px-3.5 py-2 flex items-center justify-between gap-3 transition-colors ${active ? 'bg-indigo-50 dark:bg-indigo-900/30' : 'hover:bg-slate-50 dark:hover:bg-slate-700/50'}`}
+                                >
+                                    <span className="flex items-center gap-2 min-w-0">
+                                        <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: o.color }} />
+                                        <span className={`text-xs font-bold truncate ${active ? 'text-indigo-600 dark:text-indigo-300' : 'text-slate-700 dark:text-slate-200'}`}>{o.label}</span>
+                                    </span>
+                                    {active && <Check size={14} className="text-indigo-500 shrink-0" />}
+                                </button>
+                            );
+                        })}
+                    </motion.div>
+                )}
+            </AnimatePresence>
         </span>
     );
 };
