@@ -352,6 +352,11 @@ export const computeMetricsForPeriod = (transactions, currentValue, periodId) =>
         if (rate !== null) tir = rate * 100;
     }
 
+    // Period-relative percentage: use costBasisAtStart as the denominator when available
+    // (for 'max' period, costBasisAtStart is 0 so fall back to costBasisNow)
+    const refBasis = costBasisAtStart > 0 ? costBasisAtStart : costBasisNow;
+    const totalGrossPct = refBasis > 0 ? roundTo((totalGross / refBasis) * 100, 2) : 0;
+
     return {
         invested: roundTo(invested, 2),
         cashFlow: roundTo(cashFlow, 2),
@@ -365,12 +370,14 @@ export const computeMetricsForPeriod = (transactions, currentValue, periodId) =>
         interest: roundTo(periodInterest, 2),
         interestPct: invested !== 0 ? roundTo((periodInterest / Math.abs(invested)) * 100, 2) : 0,
         totalGross: roundTo(totalGross, 2),
+        totalGrossPct,
         taxes: roundTo(periodTaxes, 2),
         fees: roundTo(periodFees, 2),
         netTotal: roundTo(totalGross - periodTaxes - periodFees, 2),
         firstPurchase: firstBuy,
         portfolioValue: roundTo(currentValue, 2),
         costBasis: roundTo(costBasisNow, 2),
+        costBasisAtStart: roundTo(costBasisAtStart, 2),
     };
 };
 
