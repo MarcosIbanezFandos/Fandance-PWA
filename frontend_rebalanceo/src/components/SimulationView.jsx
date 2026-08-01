@@ -5,6 +5,7 @@ import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, Responsi
 import { GlassCard, BounceButton, fadeInUp, staggerContainer } from './UI';
 import { motion } from 'framer-motion';
 import { useGlobal } from '../context/GlobalContext';
+import { ContributionSchedule } from './ContributionSchedule';
 
 export const SimulationView = ({ portfolios = [] }) => {
     const { t } = useGlobal();
@@ -129,6 +130,12 @@ export const SimulationView = ({ portfolios = [] }) => {
                         {loading ? <Loader2 className="animate-spin mx-auto" /> : t('sim.calculate')}
                     </BounceButton>
                 </GlassCard>
+
+                <ContributionSchedule
+                    monthly={monthlyContrib}
+                    annualGrowthPct={contribMode === 'growing' ? growthRate : 0}
+                    months={years * 12}
+                />
             </div>
 
             <motion.div variants={fadeInUp} className="lg:col-span-2 space-y-6">
