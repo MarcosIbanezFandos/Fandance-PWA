@@ -1,54 +1,91 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import api from '../api'
+import api from '../api';
 import { motion } from 'framer-motion';
-import { Loader2, Search, Globe2, Coins, PieChart, Layers, Building2, Map, ChevronDown } from 'lucide-react';
-import { GlassCard } from '../components/UI';
+import {
+    Loader2, Search, Globe2, Coins, PieChart, Layers, Building2, Map,
+    ChevronDown, Info, SearchX, Inbox,
+} from 'lucide-react';
+import { Card, SectionHeader, Button, Badge, StatTile, ProgressBar, EmptyState, Skeleton } from '../components/UI';
 import { Dropdown } from '../components/Dropdown';
 import { useGlobal } from '../context/GlobalContext';
 import { safeFloat, formatNumber, buildXray } from '../utils';
+import { cn } from '../lib/cn';
 
 const prettySector = (s) => {
-    if (!s || s === 'unknown') return 'Other / Unknown';
+    if (!s || s === 'unknown') return '—';
     return s.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
 };
 
-const BAR_TONE = {
-    country: 'bg-indigo-500',
-    currency: 'bg-emerald-500',
-    sector: 'bg-violet-500',
-    region: 'bg-amber-500',
-};
+const PAGE_SIZE = 50;
+const BREAKDOWN_PREVIEW = 8;
 
-const BarList = ({ items, tone = 'country', pretty = (x) => x }) => {
-    return (
-        <div className="space-y-3 max-h-[400px] overflow-y-auto custom-scrollbar pr-1">
-            {items.map((it) => (
-                <div key={it.key}>
-                    <div className="flex items-center justify-between text-xs mb-1.5">
-                        <span className="font-bold text-slate-700 dark:text-slate-200 truncate pr-2">{pretty(it.name)}</span>
-                        <span className="font-black text-slate-500 dark:text-slate-400 shrink-0 tabular-nums">{formatNumber(it.pct, 1)}%</span>
-                    </div>
-                    <div className="h-2 rounded-full bg-slate-100 dark:bg-slate-800 overflow-hidden">
-                        <motion.div initial={{ width: 0 }} animate={{ width: `${Math.min(100, it.pct)}%` }} transition={{ duration: 0.6, ease: 'easeOut' }} className={`h-full rounded-full ${BAR_TONE[tone]}`} />
-                    </div>
-                    <div className="text-[10px] font-bold text-slate-400 mt-0.5">{formatNumber(it.value)} €</div>
+/* ------------------------------------------------------------------ *
+ *  Desglose por dimensión (países, sectores, divisas, regiones)
+ * ------------------------------------------------------------------ */
+const BarList = ({ items, tone = 1, pretty = (x) => x }) => (
+    <ul className="space-y-3.5">
+        {items.map((it) => (
+            <li key={it.key}>
+                <div className="flex items-baseline justify-between gap-3 mb-1.5">
+                    <span className="text-subhead font-semibold text-ink truncate">{pretty(it.name)}</span>
+                    <span className="text-footnote font-bold text-ink-2 shrink-0 tabular-nums">{formatNumber(it.pct, 1)}%</span>
                 </div>
-            ))}
-            {items.length === 0 && <div className="text-xs font-bold text-slate-400 py-2">—</div>}
-        </div>
+                <ProgressBar pct={it.pct} tone={tone} height="h-1.5" />
+                <div className="text-caption2 font-semibold text-ink-3 mt-1 tabular-nums">{formatNumber(it.value)} €</div>
+            </li>
+        ))}
+    </ul>
+);
+
+const BreakdownCard = ({ title, icon: Icon, items, tone, pretty, note, unclassifiedPct }) => {
+    const { t } = useGlobal();
+    const [expanded, setExpanded] = useState(false);
+    const shown = expanded ? items : items.slice(0, BREAKDOWN_PREVIEW);
+    const hidden = items.length - shown.length;
+
+    return (
+        <Card>
+            <SectionHeader
+                icon={Icon}
+                title={title}
+                hint={note}
+                action={<Badge tone="neutral">{items.length}</Badge>}
+            />
+
+            {items.length === 0 ? (
+                <p className="text-footnote font-medium text-ink-3 py-3">—</p>
+            ) : (
+                <>
+                    <div className={cn(expanded && 'max-h-[26rem] overflow-y-auto custom-scrollbar pr-1')}>
+                        <BarList items={shown} tone={tone} pretty={pretty} />
+                    </div>
+
+                    {(hidden > 0 || expanded) && (
+                        <Button
+                            variant="ghost"
+                            size="sm"
+                            className="w-full mt-4"
+                            onClick={() => setExpanded(v => !v)}
+                            iconRight={ChevronDown}
+                        >
+                            {expanded ? t('xray.collapse') : `${t('xray.show_all')} (${hidden})`}
+                        </Button>
+                    )}
+                </>
+            )}
+
+            {unclassifiedPct > 0.5 && (
+                <p className="text-caption2 font-medium text-ink-3 mt-4 pt-3 border-t border-line">
+                    {formatNumber(unclassifiedPct, 1)}% {t('xray.unclassified')}
+                </p>
+            )}
+        </Card>
     );
 };
 
-const BreakdownCard = ({ title, icon: Icon, items, tone, pretty, note }) => (
-    <GlassCard>
-        <h3 className="text-[11px] font-black text-slate-400 uppercase tracking-widest mb-1 flex items-center gap-2"><Icon size={14} /> {title}</h3>
-        {note ? <p className="text-[10px] font-medium text-slate-400 mb-4">{note}</p> : <div className="mb-4" />}
-        <BarList items={items} tone={tone} pretty={pretty} />
-    </GlassCard>
-);
-
-const PAGE_SIZE = 50;
-
+/* ------------------------------------------------------------------ *
+ *  Página
+ * ------------------------------------------------------------------ */
 export const Xray = ({ portfolios, activePortfolioId }) => {
     const { t } = useGlobal();
     const [pid, setPid] = useState('');
@@ -111,110 +148,133 @@ export const Xray = ({ portfolios, activePortfolioId }) => {
         ? `${t('xray.geo_estimated')} (${formatNumber(xray.estimatedGeoPct, 0)}%).`
         : null;
 
-    const realHoldings = xray.companies.filter(c => !c.other).length;
-    const topCountry = xray.countries.find(c => !/diversified|other/i.test(c.name)) || xray.countries[0];
-    const topSector = xray.sectors.find(s => s.key !== 'unknown') || xray.sectors[0];
+    const topCountry = xray.countries[0];
+    const topSector = xray.sectors[0];
+    const hasFunds = positions.some(p => ['ETF', 'Fund'].includes(p.type));
 
     return (
-        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.25 }} className="space-y-6 md:space-y-8">
-            {/* Controls */}
-            <GlassCard className="!p-4 flex flex-col md:flex-row items-stretch md:items-center gap-3 sticky top-0 md:top-4 z-40">
+        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.25 }} className="space-y-5 md:space-y-6">
+            {/* Controles */}
+            <Card className="!p-3 flex flex-col md:flex-row items-stretch md:items-center gap-2.5 sticky top-0 md:top-4 z-40 !bg-surface/85 backdrop-blur-xl">
                 <Dropdown className="w-full md:w-64" value={pid} onChange={setPid} options={portfolioOptions} icon={Building2} placeholder="—" />
                 <div className="md:ml-auto w-full md:w-72">
                     <Dropdown value={filter} onChange={(v) => { setFilter(v); setVisibleCount(PAGE_SIZE); }} options={etfOptions} icon={Layers} align="right" />
                 </div>
-            </GlassCard>
+            </Card>
 
             {!pid ? (
-                <div className="text-center py-16 text-slate-400 font-bold">{t('xray.select_portfolio')}</div>
+                <Card><EmptyState icon={Inbox} title={t('xray.select_portfolio')} /></Card>
             ) : loading ? (
-                <div className="h-64 flex items-center justify-center"><Loader2 className="animate-spin text-indigo-600" size={32} /></div>
+                <div className="space-y-5">
+                    <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+                        {[0, 1, 2, 3].map(i => <Skeleton key={i} className="h-24 rounded-card" />)}
+                    </div>
+                    <div className="grid grid-cols-1 xl:grid-cols-12 gap-5">
+                        <Skeleton className="xl:col-span-7 h-96 rounded-card" />
+                        <Skeleton className="xl:col-span-5 h-96 rounded-card" />
+                    </div>
+                </div>
             ) : positions.length === 0 ? (
-                <div className="text-center py-16 px-6 text-slate-400 font-bold bg-white dark:bg-slate-900 rounded-[2rem] border border-slate-100 dark:border-slate-800">{t('xray.no_data')}</div>
+                <Card><EmptyState icon={Inbox} title={t('xray.no_data')} /></Card>
             ) : (
                 <>
                     {/* KPIs */}
-                    <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
-                        <GlassCard>
-                            <div className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">{t('xray.exposure')}</div>
-                            <div className="text-xl md:text-2xl font-black text-slate-800 dark:text-slate-100">{formatNumber(xray.total)} €</div>
-                        </GlassCard>
-                        <GlassCard>
-                            <div className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">{t('xray.holdings')}</div>
-                            <div className="text-xl md:text-2xl font-black text-slate-800 dark:text-slate-100">{realHoldings}</div>
-                        </GlassCard>
-                        <GlassCard>
-                            <div className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">{t('xray.top_country')}</div>
-                            <div className="text-sm md:text-lg font-black text-slate-800 dark:text-slate-100 truncate">{topCountry ? topCountry.name : '—'}</div>
-                            {topCountry && <div className="text-xs font-bold text-indigo-500">{formatNumber(topCountry.pct, 1)}%</div>}
-                        </GlassCard>
-                        <GlassCard>
-                            <div className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">{t('xray.top_sector')}</div>
-                            <div className="text-sm md:text-lg font-black text-slate-800 dark:text-slate-100 truncate">{topSector ? prettySector(topSector.name) : '—'}</div>
-                            {topSector && <div className="text-xs font-bold text-violet-500">{formatNumber(topSector.pct, 1)}%</div>}
-                        </GlassCard>
+                    <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4">
+                        <StatTile label={t('xray.exposure')} value={`${formatNumber(xray.total)} €`} />
+                        <StatTile label={t('xray.holdings')} value={xray.companies.length} />
+                        <StatTile
+                            label={t('xray.top_country')}
+                            value={topCountry ? topCountry.name : '—'}
+                            sub={topCountry ? `${formatNumber(topCountry.pct, 1)}%` : null}
+                            className="[&_.tabular-nums]:text-body md:[&_.tabular-nums]:text-title3"
+                        />
+                        <StatTile
+                            label={t('xray.top_sector')}
+                            value={topSector ? prettySector(topSector.name) : '—'}
+                            sub={topSector ? `${formatNumber(topSector.pct, 1)}%` : null}
+                            className="[&_.tabular-nums]:text-body md:[&_.tabular-nums]:text-title3"
+                        />
                     </div>
 
-                    <div className="grid grid-cols-1 xl:grid-cols-12 gap-6 md:gap-8">
-                        {/* Companies look-through */}
+                    <div className="grid grid-cols-1 xl:grid-cols-12 gap-5 md:gap-6">
+                        {/* Empresas (look-through) */}
                         <div className="xl:col-span-7">
-                            <GlassCard className="!p-0 overflow-hidden">
-                                <div className="p-4 md:p-5 border-b border-slate-100 dark:border-slate-800">
-                                    <h3 className="text-[11px] font-black text-slate-400 uppercase tracking-widest mb-3 flex items-center gap-2"><Building2 size={14} /> {t('xray.companies')}</h3>
-                                    <div className="flex items-center bg-slate-50 dark:bg-slate-800 rounded-xl px-3 py-2 border border-slate-100 dark:border-slate-700 focus-within:border-indigo-500 focus-within:ring-4 focus-within:ring-indigo-500/10 transition-all">
-                                        <Search size={16} className="text-slate-400 mr-2" />
-                                        <input value={query} onChange={e => { setQuery(e.target.value); setVisibleCount(PAGE_SIZE); }} placeholder={t('xray.search')} className="bg-transparent w-full outline-none text-sm font-bold text-slate-700 dark:text-slate-200 placeholder:text-slate-400" />
+                            <Card className="!p-0 overflow-hidden">
+                                <div className="p-4 md:p-5 border-b border-line">
+                                    <SectionHeader
+                                        icon={Building2}
+                                        title={t('xray.companies')}
+                                        className="mb-3"
+                                        action={<Badge tone="brand">{allCompanies.length}</Badge>}
+                                    />
+                                    <div className="flex items-center gap-2 bg-surface-2 border border-line rounded-control px-3 h-10 transition-all focus-within:border-brand focus-within:ring-4 focus-within:ring-brand/10">
+                                        <Search size={16} className="text-ink-3 shrink-0" />
+                                        <input
+                                            value={query}
+                                            onChange={e => { setQuery(e.target.value); setVisibleCount(PAGE_SIZE); }}
+                                            placeholder={t('xray.search')}
+                                            className="bg-transparent w-full outline-none text-subhead font-medium text-ink placeholder:text-ink-3 placeholder:font-normal"
+                                        />
                                     </div>
                                 </div>
-                                <div className="divide-y divide-slate-50 dark:divide-slate-800">
-                                    {companies.length === 0 ? (
-                                        <div className="p-8 text-center text-xs font-bold text-slate-400">{t('xray.no_match')}</div>
-                                    ) : companies.map((c, idx) => (
-                                        <div key={c.key} className="p-3 md:p-4 px-4 md:px-5 flex items-center gap-3 md:gap-4 hover:bg-slate-50/60 dark:hover:bg-slate-800/40 transition-colors">
-                                            <div className="w-5 md:w-6 text-center text-[10px] md:text-[11px] font-black text-slate-300 dark:text-slate-600 shrink-0">{idx + 1}</div>
-                                            <div className="min-w-0 flex-1">
-                                                <div className="text-xs md:text-sm font-bold truncate text-slate-800 dark:text-slate-100">{c.name}</div>
-                                                <div className="flex items-center gap-1.5 mt-0.5 md:mt-1 flex-wrap">
-                                                    {c.symbol && <span className="text-[9px] md:text-[10px] font-black text-indigo-400">{c.symbol}</span>}
-                                                    {c.sources.map(s => (
-                                                        <span key={s} className="text-[8px] md:text-[9px] font-bold text-slate-400 bg-slate-100 dark:bg-slate-800 px-1 md:px-1.5 py-0.5 rounded">{s === c.symbol ? t('xray.direct') : s}</span>
-                                                    ))}
+
+                                {companies.length === 0 ? (
+                                    <EmptyState icon={SearchX} title={t('xray.no_match')} />
+                                ) : (
+                                    <ul className="divide-y divide-line">
+                                        {companies.map((c, idx) => (
+                                            <li key={c.key} className="px-4 md:px-5 py-3 flex items-center gap-3 md:gap-4 hover:bg-surface-2/60 transition-colors">
+                                                <span className="w-6 text-right text-caption2 font-bold text-ink-3 shrink-0 tabular-nums">{idx + 1}</span>
+                                                <div className="min-w-0 flex-1">
+                                                    <div className="text-subhead font-semibold truncate text-ink">{c.name}</div>
+                                                    <div className="flex items-center gap-1.5 mt-1 flex-wrap">
+                                                        {c.symbol && <span className="text-caption2 font-bold text-brand">{c.symbol}</span>}
+                                                        {c.sources.map(s => (
+                                                            <Badge key={s} tone="neutral">{s === c.symbol ? t('xray.direct') : s}</Badge>
+                                                        ))}
+                                                    </div>
                                                 </div>
-                                            </div>
-                                            <div className="w-20 md:w-28 shrink-0">
-                                                <div className="h-1.5 rounded-full bg-slate-100 dark:bg-slate-800 overflow-hidden mb-1">
-                                                    <div className="h-full rounded-full bg-indigo-500" style={{ width: `${Math.min(100, c.pct)}%` }} />
+                                                <div className="w-16 md:w-24 shrink-0">
+                                                    <ProgressBar pct={c.pct} tone={1} height="h-1.5" />
+                                                    <div className="text-right text-caption2 font-bold text-ink-3 mt-1 tabular-nums">{formatNumber(c.pct, 2)}%</div>
                                                 </div>
-                                                <div className="text-right text-[9px] md:text-[10px] font-black text-slate-400 tabular-nums">{formatNumber(c.pct, 2)}%</div>
-                                            </div>
-                                            <div className="w-16 md:w-20 text-right text-xs md:text-sm font-black text-slate-700 dark:text-slate-200 shrink-0 tabular-nums">{formatNumber(c.value)}€</div>
-                                        </div>
-                                    ))}
-                                </div>
-                                {/* Load more + counter */}
-                                <div className="p-4 border-t border-slate-100 dark:border-slate-800 flex flex-col md:flex-row items-center justify-between gap-2">
-                                    <span className="text-[10px] font-bold text-slate-400">
+                                                <div className="w-16 md:w-20 text-right text-subhead font-bold text-ink shrink-0 tabular-nums">{formatNumber(c.value)}€</div>
+                                            </li>
+                                        ))}
+                                    </ul>
+                                )}
+
+                                <div className="p-4 border-t border-line flex flex-col sm:flex-row items-center justify-between gap-3">
+                                    <span className="text-caption2 font-semibold text-ink-3 tabular-nums">
                                         {t('xray.showing')} {Math.min(visibleCount, allCompanies.length)} {t('xray.of')} {allCompanies.length}
                                     </span>
                                     {hasMore && (
-                                        <button
-                                            onClick={() => setVisibleCount(v => v + PAGE_SIZE)}
-                                            className="flex items-center gap-2 px-4 py-2 bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 rounded-xl text-xs font-black hover:bg-indigo-100 dark:hover:bg-indigo-900/50 transition-colors"
-                                        >
-                                            <ChevronDown size={14} />
+                                        <Button variant="soft" size="sm" iconRight={ChevronDown} onClick={() => setVisibleCount(v => v + PAGE_SIZE)}>
                                             {t('xray.load_more')}
-                                        </button>
+                                        </Button>
                                     )}
                                 </div>
-                            </GlassCard>
+                            </Card>
+
+                            {/* Límite real de la fuente de datos: mejor decirlo que dejar
+                                que el usuario cuente 10 empresas por fondo y no entienda. */}
+                            {hasFunds && (
+                                <div className="mt-4 flex items-start gap-3 p-4 rounded-card bg-warning-soft border border-warning/25">
+                                    <Info size={16} className="text-warning shrink-0 mt-0.5" strokeWidth={2.25} />
+                                    <div className="min-w-0">
+                                        <p className="text-footnote font-bold text-ink mb-1">{t('xray.coverage')}</p>
+                                        <p className="text-footnote font-medium text-ink-2 leading-relaxed">{t('xray.coverage_note')}</p>
+                                    </div>
+                                </div>
+                            )}
                         </div>
 
-                        {/* Breakdowns */}
-                        <div className="xl:col-span-5 space-y-6">
-                            <BreakdownCard title={t('xray.regions')} icon={Map} items={xray.regions} tone="region" pretty={(x) => x} note={geoNote} />
-                            <BreakdownCard title={t('xray.countries')} icon={Globe2} items={xray.countries} tone="country" pretty={(x) => x} note={geoNote} />
-                            <BreakdownCard title={t('xray.sectors')} icon={PieChart} items={xray.sectors} tone="sector" pretty={prettySector} />
-                            <BreakdownCard title={t('xray.currencies')} icon={Coins} items={xray.currencies} tone="currency" pretty={(x) => x} note={geoNote} />
+                        {/* Desgloses */}
+                        <div className="xl:col-span-5 space-y-5">
+                            <BreakdownCard title={t('xray.regions')} icon={Map} items={xray.regions} tone={4} note={geoNote} unclassifiedPct={xray.unclassified?.regions} />
+                            <BreakdownCard title={t('xray.countries')} icon={Globe2} items={xray.countries} tone={1} note={geoNote} unclassifiedPct={xray.unclassified?.countries} />
+                            <BreakdownCard title={t('xray.sectors')} icon={PieChart} items={xray.sectors} tone={3} pretty={prettySector} unclassifiedPct={xray.unclassified?.sectors} />
+                            <BreakdownCard title={t('xray.currencies')} icon={Coins} items={xray.currencies} tone={5} unclassifiedPct={xray.unclassified?.currencies} />
                         </div>
                     </div>
                 </>

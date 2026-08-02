@@ -203,6 +203,13 @@ class DuplicatePortfolioInput(BaseModel):
     portfolio_id: Uuid
     new_name: Name
 
+class ContributionPlanInput(BaseModel):
+    portfolio_id: Uuid
+    # 0 desactiva el plan sin borrar el resto de ajustes.
+    monthly: float = Field(ge=0, le=1e7)
+    annual_growth_pct: float = Field(ge=-100, le=100)
+    start_date: Optional[str] = None
+
 class AddAssetInput(BaseModel):
     portfolio_id: Uuid
     ticker: Ticker
@@ -465,6 +472,28 @@ def update_contribution(
     assert_owns_portfolio(user_id, portfolio_id)
     supabase.table("portfolios").update({"last_contribution": amount}).eq("id", portfolio_id).execute()
     return {"msg": "Updated"}
+
+# --- PLAN DE APORTACIONES ---
+# El plan sólo guarda la *intención* (cuánto y con qué subida anual). Si un mes
+# se ha cumplido o no se deduce de rebalance_history, que ya registra lo
+# aportado de verdad: preguntárselo al usuario sería pedirle un dato que la app
+# ya tiene, y abriría la puerta a que el plan y la realidad se contradigan.
+@app.put("/api/portfolios/contribution_plan")
+def set_contribution_plan(data: ContributionPlanInput, user_id: str = Standard):
+    assert_owns_portfolio(user_id, data.portfolio_id)
+    payload = {
+        "plan_monthly": data.monthly,
+        "plan_growth_pct": data.annual_growth_pct,
+        "plan_start": data.start_date,
+    }
+    try:
+        supabase.table("portfolios").update(payload).eq("id", data.portfolio_id).execute()
+    except Exception as e:
+        # Las columnas llegan por migración (supabase/contribution_plan.sql). Sin
+        # ella el guardado falla, y decirlo es más útil que un 500 opaco.
+        print(f"CONTRIBUTION PLAN ERROR: {e}")
+        raise HTTPException(501, "Falta la migración contribution_plan.sql en la base de datos")
+    return {"msg": "OK", **payload}
 
 @app.get("/api/assets/search")
 def search_assets(
@@ -964,34 +993,24 @@ def _etf_lookthrough(ticker, name):
     try:
         fd = yf.Ticker(ticker).funds_data
 
-        # 1) Try equity_holdings first — this gives HUNDREDS of positions
-        eh = getattr(fd, 'equity_holdings', None)
-        if eh is not None and hasattr(eh, 'iterrows') and not eh.empty:
-            for sym, row in eh.iterrows():
-                w = safe_float(row.get('Holding Percent') or row.get('% Assets') or row.get('Portfolio_%'))
+        # Yahoo sólo publica las 10 mayores posiciones de un fondo (~20-35% del
+        # patrimonio). No hay forma de sacar el resto por aquí: `equity_holdings`
+        # NO es la lista de posiciones, son 6 métricas de valoración
+        # (Price/Earnings, Price/Book…), así que no sirve para esto.
+        # Para un look-through completo haría falta el fichero de posiciones que
+        # publica la gestora o un proveedor de pago.
+        th = getattr(fd, 'top_holdings', None)
+        if th is not None and not th.empty:
+            for sym, row in th.iterrows():
+                w = safe_float(row.get('Holding Percent'))
                 if w <= 0:
                     continue
                 coverage += w
                 country, currency = _loc_from_symbol(sym)
                 holdings.append({
-                    "symbol": str(sym), "name": str(row.get('Name') or row.get('Symbol') or sym),
+                    "symbol": str(sym), "name": str(row.get('Name') or sym),
                     "weight": round(w, 6), "country": country, "currency": currency
                 })
-
-        # 2) Fallback to top_holdings if equity_holdings was empty
-        if not holdings:
-            th = getattr(fd, 'top_holdings', None)
-            if th is not None and not th.empty:
-                for sym, row in th.iterrows():
-                    w = safe_float(row.get('Holding Percent'))
-                    if w <= 0:
-                        continue
-                    coverage += w
-                    country, currency = _loc_from_symbol(sym)
-                    holdings.append({
-                        "symbol": str(sym), "name": str(row.get('Name') or sym),
-                        "weight": round(w, 6), "country": country, "currency": currency
-                    })
 
         sw = getattr(fd, 'sector_weightings', None) or {}
         for s, w in sw.items():
