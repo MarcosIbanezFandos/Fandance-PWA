@@ -2,26 +2,21 @@
 /**
  * Comprobación end-to-end del plan de aportación contra Supabase real.
  *
- * Se ejecuta en TU máquina. Las credenciales se quedan en tu disco y el informe
- * que imprime no contiene ningún secreto: sólo PASS/FAIL y datos derivados.
- * Puedes pegarlo tal cual.
+ * Se ejecuta en TU máquina y pregunta las credenciales por consola: la
+ * contraseña no se escribe en pantalla ni se guarda en ningún fichero. El
+ * informe que imprime no contiene secretos —sólo PASS/FAIL y datos derivados—
+ * así que puedes pegarlo tal cual.
  *
  * La URL de Supabase, la clave anon y la del API se leen solas de
- * frontend_rebalanceo/.env.production (o .env.development). Lo único que hay que
- * escribir es la cuenta con la que iniciar sesión:
+ * frontend_rebalanceo/.env.production (o .env.development).
  *
- *   1) Crea Fandance-PWA/.env.verify  (ya está en .gitignore):
+ *   node scripts/verificar-plan.mjs
  *
- *        TEST_EMAIL=<email de una cuenta de prueba>
- *        TEST_PASSWORD=<su contraseña>
- *
- *      Usa una cuenta de prueba, no la principal: el script escribe un plan y
- *      lo restaura al terminar, pero mejor no tocar datos reales.
- *      Cuando acabes, bórralo:  rm .env.verify
- *
- *   2) node scripts/verificar-plan.mjs
+ * Usa una cuenta de prueba, no la principal: el script escribe un plan y lo
+ * restaura al terminar, pero mejor no tocar datos reales.
  */
 import { readFileSync } from 'node:fs';
+import readline from 'node:readline';
 
 // Se habla con la API REST de Supabase directamente en vez de importar el SDK:
 // así el script no depende de node_modules y se puede ejecutar tal cual.
@@ -39,42 +34,55 @@ const parseEnvFile = (ruta) => {
     return env;
 };
 
-// Un valor de la plantilla no sustituido produce un fallo de DNS con volcado de
-// pila; mejor detectarlo aquí y decir qué falta.
-const esPlaceholder = (v) => !v || /TU-PROYECTO|LA_CLAVE|ejemplo\.com|su-contraseña|<.*>/i.test(v);
-
-function loadEnv() {
+function loadConfig() {
     const front = `${ROOT}frontend_rebalanceo/`;
     const app = { ...parseEnvFile(`${front}.env.development`), ...parseEnvFile(`${front}.env.production`) };
-    const verify = parseEnvFile(`${ROOT}.env.verify`);
-
-    // Un valor de plantilla en .env.verify se ignora en lugar de tapar la
-    // configuración real de la app: si alguien pega el ejemplo tal cual, el
-    // script sigue funcionando en vez de fallar con un DNS inexistente.
-    const pick = (a, b) => (esPlaceholder(a) ? b : a);
-    const env = {
-        SUPABASE_URL: pick(verify.SUPABASE_URL, app.VITE_SUPABASE_URL),
-        SUPABASE_ANON_KEY: pick(verify.SUPABASE_ANON_KEY, app.VITE_SUPABASE_ANON_KEY),
-        API_URL: pick(verify.API_URL, app.VITE_API_URL),
-        TEST_EMAIL: verify.TEST_EMAIL,
-        TEST_PASSWORD: verify.TEST_PASSWORD,
+    // En producción VITE_API_URL es relativo ("/api") porque el front y la
+    // función viven en el mismo dominio. Desde Node no hay origen implícito,
+    // así que se compone con el de la app desplegada (o el que se pase por
+    // la variable APP_ORIGIN, para apuntar a un preview).
+    const origen = (process.env.APP_ORIGIN || 'https://fandance-pwa.vercel.app').replace(/\/$/, '');
+    const apiRaw = app.VITE_API_URL || '/api';
+    const cfg = {
+        SUPABASE_URL: app.VITE_SUPABASE_URL,
+        SUPABASE_ANON_KEY: app.VITE_SUPABASE_ANON_KEY,
+        API_URL: /^https?:\/\//.test(apiRaw) ? apiRaw : `${origen}${apiRaw.startsWith('/') ? '' : '/'}${apiRaw}`,
     };
-
-    const malas = Object.entries(env).filter(([, v]) => esPlaceholder(v)).map(([k]) => k);
-    if (malas.length) {
-        console.error('\nNo puedo arrancar. Revisa estas variables:\n');
-        for (const k of malas) {
-            const donde = ['TEST_EMAIL', 'TEST_PASSWORD'].includes(k)
-                ? 'escríbela en Fandance-PWA/.env.verify'
-                : 'no se encontró en frontend_rebalanceo/.env.production ni .env.development';
-            console.error(`  - ${k}: ${donde}`);
-        }
-        console.error('\n.env.verify sólo necesita dos líneas:\n');
-        console.error('  TEST_EMAIL=tu-cuenta-de-prueba@dominio.com');
-        console.error('  TEST_PASSWORD=la-contraseña\n');
+    const faltan = Object.entries(cfg).filter(([, v]) => !v).map(([k]) => k);
+    if (faltan.length) {
+        console.error(`\nNo encuentro ${faltan.join(', ')} en frontend_rebalanceo/.env.production ni .env.development.`);
         process.exit(1);
     }
-    return env;
+    return cfg;
+}
+
+// Preguntar por consola evita dos problemas de golpe: la contraseña no acaba en
+// texto plano en el disco, y nadie puede pegar un valor de ejemplo por error.
+async function pedirCredenciales() {
+    // Sin terminal (tubería, CI) readline no encadena bien dos preguntas: la
+    // primera consume el buffer entero. Ahí se leen las dos líneas de una vez.
+    if (!process.stdin.isTTY) {
+        const trozos = [];
+        for await (const c of process.stdin) trozos.push(c);
+        const [email = '', password = ''] = trozos.join('').split('\n').map(l => l.trim());
+        return { email, password };
+    }
+
+    const rl = readline.createInterface({ input: process.stdin, output: process.stdout, terminal: true });
+    const preguntar = (texto, oculto = false) => new Promise((resolve) => {
+        rl._writeToOutput = oculto
+            ? (str) => { if (str.includes(texto)) rl.output.write(str); }
+            : (str) => rl.output.write(str);
+        rl.question(texto, (val) => {
+            if (oculto) rl.output.write('\n');
+            resolve(val.trim());
+        });
+    });
+
+    const email = await preguntar('Email de la cuenta de prueba: ');
+    const password = await preguntar('Contraseña (no se muestra):  ', true);
+    rl.close();
+    return { email, password };
 }
 
 const results = [];
@@ -83,9 +91,14 @@ const check = (nombre, ok, detalle = '') => {
     console.log(`  ${ok ? '✅' : '❌'} ${nombre}${detalle ? ` — ${detalle}` : ''}`);
 };
 
-const env = loadEnv();
-const API = env.API_URL.replace(/\/$/, '');
-const SB = env.SUPABASE_URL.replace(/\/$/, '');
+const cfg = loadConfig();
+const API = cfg.API_URL.replace(/\/$/, '');
+const SB = cfg.SUPABASE_URL.replace(/\/$/, '');
+
+console.log(`\nProyecto: ${SB}`);
+console.log(`API:      ${API}\n`);
+const { email: EMAIL, password: PASSWORD } = await pedirCredenciales();
+if (!EMAIL || !PASSWORD) { console.error('\nHacen falta email y contraseña.'); process.exit(1); }
 
 let token;
 const api = async (path, { method = 'GET', body } = {}) => {
@@ -107,8 +120,8 @@ let authRes;
 try {
     authRes = await fetch(`${SB}/auth/v1/token?grant_type=password`, {
         method: 'POST',
-        headers: { apikey: env.SUPABASE_ANON_KEY, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: env.TEST_EMAIL, password: env.TEST_PASSWORD }),
+        headers: { apikey: cfg.SUPABASE_ANON_KEY, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: EMAIL, password: PASSWORD }),
     });
 } catch (e) {
     check('Inicio de sesión', false, `no se pudo contactar con ${SB} (${e.cause?.code || e.message})`);
