@@ -1,13 +1,20 @@
 import React, { useState } from 'react';
 import api from '../api'
-import { Loader2, ShieldCheck, HelpCircle, FlaskConical, TrendingUp, TrendingDown, Shuffle } from 'lucide-react';
+import { FlaskConical, Briefcase, Coins, Check } from 'lucide-react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
-import { GlassCard, BounceButton, Toggle, NumericField, fadeInUp, staggerContainer } from './UI';
+import { GlassCard, SectionHeader, Segmented, Button, Toggle, NumericField, fadeInUp, staggerContainer } from './UI';
 import { motion } from 'framer-motion';
 import { useGlobal } from '../context/GlobalContext';
 import { ContributionSchedule } from './ContributionSchedule';
 import { ContributionPlan } from './ContributionPlan';
-import { safeFloat } from '../utils';
+import { safeFloat, formatNumber } from '../utils';
+import { cn } from '../lib/cn';
+
+const MODEL_HINT = {
+    deterministic: 'sim.linear_desc',
+    montecarlo: 'sim.montecarlo_desc',
+    pessimistic: 'sim.conservative_desc',
+};
 
 export const SimulationView = ({
     portfolios = [], activePortfolioId,
@@ -16,26 +23,34 @@ export const SimulationView = ({
     const { t } = useGlobal();
     const [selectedPorts, setSelectedPorts] = useState([]);
     const [years, setYears] = useState(10);
-    const [monthlyContrib, setMonthlyContrib] = useState(500);
     const [simType, setSimType] = useState('deterministic');
-    const [contribMode, setContribMode] = useState('constant');
     const [applyTax, setApplyTax] = useState(false);
-    const [growthRate, setGrowthRate] = useState(2.0);
     const [results, setResults] = useState(null);
     const [loading, setLoading] = useState(false);
 
-    // Si ya hay un plan fijado, la proyección arranca con SUS números. Simular
-    // 500 €/mes cuando el plan dice 300 € daría una cifra final que no es la de
-    // este usuario, y es justo la cifra que se recuerda.
+    // La aportación de la proyección sale del plan salvo que se pida lo
+    // contrario. Antes había dos campos idénticos en la misma pantalla —el del
+    // plan y el de los parámetros— y nada decía cuál mandaba.
+    const [useCustom, setUseCustom] = useState(false);
+    const [customMonthly, setCustomMonthly] = useState(500);
+    const [customGrowth, setCustomGrowth] = useState(0);
+
+    const planActivo = safeFloat(plan?.monthly) > 0;
+    const monthlyContrib = useCustom || !planActivo ? safeFloat(customMonthly) : safeFloat(plan.monthly);
+    const growthRate = useCustom || !planActivo ? safeFloat(customGrowth) : safeFloat(plan.annualGrowthPct);
+    const contribMode = growthRate > 0 ? 'growing' : 'constant';
+
+    // Sin plan no hay nada de donde tirar: se abre directamente en manual.
+    React.useEffect(() => { if (!planActivo) setUseCustom(true); }, [planActivo]);
+
+    // Al pasar a manual, se parte de los números del plan en lugar de un valor
+    // suelto: así se edita sobre lo real en vez de empezar de cero.
     React.useEffect(() => {
-        if (safeFloat(plan?.monthly) > 0) {
-            setMonthlyContrib(safeFloat(plan.monthly));
-            if (safeFloat(plan.annualGrowthPct) > 0) {
-                setContribMode('growing');
-                setGrowthRate(safeFloat(plan.annualGrowthPct));
-            }
+        if (useCustom && planActivo) {
+            setCustomMonthly(safeFloat(plan.monthly));
+            setCustomGrowth(safeFloat(plan.annualGrowthPct));
         }
-    }, [plan?.monthly, plan?.annualGrowthPct]);
+    }, [useCustom]);
 
     React.useEffect(() => {
         if (activePortfolioId && selectedPorts.length === 0) setSelectedPorts([activePortfolioId]);
@@ -65,29 +80,14 @@ export const SimulationView = ({
         finally { setLoading(false); }
     };
 
-    const SimTypeButton = ({ type, label, icon: Icon, active, onClick, desc }) => (
-        <button
-            onClick={onClick}
-            className={`w-full p-4 rounded-xl text-left border transition-all relative group ${active ? 'bg-indigo-600 text-white border-indigo-600 shadow-md' : 'bg-surface-2 text-ink-3 border-line hover:border-indigo-200 dark:hover:border-indigo-800 hover:bg-white dark:hover:bg-slate-900'}`}
-        >
-            <div className="flex justify-between items-center mb-1">
-                <div className="flex items-center gap-2">
-                    <Icon size={16} />
-                    <span className="text-footnote font-semibold uppercase tracking-wide">{label}</span>
-                </div>
-                {active && <ShieldCheck size={16} />}
-            </div>
-            <div className={`text-caption2 ${active ? 'text-indigo-200' : 'text-ink-3'}`}>{desc}</div>
-        </button>
-    );
-
     const currentYear = new Date().getFullYear();
 
     return (
-        <motion.div variants={staggerContainer} initial="hidden" animate="visible" className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-            <div className="space-y-6">
-                {/* El plan va primero: es el compromiso real, y la proyección de
-                    abajo no es más que su consecuencia. */}
+        <motion.div variants={staggerContainer} initial="hidden" animate="visible" className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <div className="space-y-5">
+                {/* 1. El plan: el compromiso real. Es la única entrada de
+                    "cuánto aporto"; la proyección de abajo bebe de aquí en vez
+                    de repetir los mismos dos campos. */}
                 {onSavePlan && (
                     <ContributionPlan
                         plan={plan}
@@ -99,79 +99,106 @@ export const SimulationView = ({
                     />
                 )}
 
-                <GlassCard className="space-y-6">
-                    <div>
-                        <label className="text-caption2 font-semibold text-ink-3 block mb-3">{t('sim.select_portfolio')}</label>
-                        <div className="space-y-2">
-                            {portfolios.map(p => (
-                                <button key={p.id} onClick={() => togglePortfolio(p.id)} className={`w-full p-3 rounded-xl text-left text-footnote font-bold border transition-all flex justify-between ${selectedPorts.includes(p.id) ? 'bg-indigo-600 text-white border-indigo-600 shadow-md' : 'bg-surface-2 text-ink-3 border-transparent hover:bg-white dark:hover:bg-slate-900 hover:border-slate-200 dark:hover:border-slate-700'}`}>
-                                    {p.name}
-                                    {selectedPorts.includes(p.id) && <ShieldCheck size={14} />}
+                {/* 2. Qué proyectar */}
+                <GlassCard>
+                    <SectionHeader icon={Briefcase} title={t('sim.select_portfolio')} />
+                    <div className="space-y-2">
+                        {portfolios.map(p => {
+                            const sel = selectedPorts.includes(p.id);
+                            return (
+                                <button
+                                    key={p.id}
+                                    onClick={() => togglePortfolio(p.id)}
+                                    className={cn(
+                                        'w-full flex items-center justify-between gap-2 px-3.5 min-h-tap rounded-control text-left text-body transition-colors',
+                                        sel ? 'bg-brand-soft text-brand-ink font-semibold' : 'bg-surface-2 text-ink active:bg-surface-3'
+                                    )}
+                                >
+                                    <span className="truncate">{p.name}</span>
+                                    {sel && <Check size={17} className="text-brand shrink-0" strokeWidth={2.5} />}
                                 </button>
-                            ))}
-                        </div>
-                    </div>
-
-                    <div>
-                        <label className="text-caption2 font-semibold text-ink-3 block mb-3">{t('sim.model')}</label>
-                        <div className="space-y-2">
-                            <SimTypeButton type="deterministic" label={t('sim.linear')} icon={TrendingUp} active={simType === 'deterministic'} onClick={() => setSimType('deterministic')} desc={t('sim.linear_desc')} />
-                            <SimTypeButton type="montecarlo" label={t('sim.montecarlo')} icon={Shuffle} active={simType === 'montecarlo'} onClick={() => setSimType('montecarlo')} desc={t('sim.montecarlo_desc')} />
-                            <SimTypeButton type="pessimistic" label={t('sim.conservative')} icon={TrendingDown} active={simType === 'pessimistic'} onClick={() => setSimType('pessimistic')} desc={t('sim.conservative_desc')} />
-                        </div>
+                            );
+                        })}
                     </div>
                 </GlassCard>
 
-                <GlassCard className="space-y-6">
+                {/* 3. Cómo proyectar */}
+                <GlassCard className="space-y-5">
                     <div>
-                        <label className="text-caption2 font-semibold text-ink-3 block mb-3">{t('sim.params')}</label>
-                        <div className="space-y-5">
-                            <div>
-                                <div className="flex justify-between mb-2"><span className="text-footnote font-bold text-ink-2">{t('sim.horizon')}</span><span className="text-footnote font-semibold text-brand">{years} {t('sim.years')}</span></div>
-                                <input type="range" min="1" max="60" value={years} onChange={e => setYears(parseInt(e.target.value))} className="w-full accent-indigo-600 cursor-pointer" />
-                            </div>
-                            <NumericField
-                                label={t('sim.monthly')} unit="€"
-                                value={monthlyContrib}
-                                onChange={(v) => setMonthlyContrib(safeFloat(v))}
-                            />
-
-                            <div className="p-3 bg-surface-2 rounded-control">
-                                <Toggle
-                                    checked={contribMode === 'growing'}
-                                    onChange={(v) => setContribMode(v ? 'growing' : 'constant')}
-                                    label={t('sim.growing')}
-                                />
-                            </div>
-
-                            {contribMode === 'growing' && (
-                                <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} className="overflow-hidden">
-                                    <NumericField
-                                        label={t('sim.annual_growth')} unit="%"
-                                        value={growthRate}
-                                        onChange={(v) => setGrowthRate(safeFloat(v))}
-                                    />
-                                </motion.div>
-                            )}
-
-                            <div className="p-3 bg-surface-2 rounded-control">
-                                <Toggle
-                                    checked={applyTax}
-                                    onChange={setApplyTax}
-                                    label={t('sim.apply_tax')}
-                                />
-                            </div>
-                        </div>
+                        <SectionHeader icon={FlaskConical} title={t('sim.model')} hint={MODEL_HINT[simType] && t(MODEL_HINT[simType])} />
+                        <Segmented
+                            value={simType}
+                            onChange={setSimType}
+                            options={[
+                                { value: 'deterministic', label: t('sim.linear') },
+                                { value: 'montecarlo', label: t('sim.montecarlo') },
+                                { value: 'pessimistic', label: t('sim.conservative') },
+                            ]}
+                        />
                     </div>
 
-                    <BounceButton onClick={runSimulation} disabled={loading} className="w-full bg-slate-900 text-white py-4 rounded-xl font-semibold uppercase text-footnote hover:bg-indigo-600 shadow-xl transition-all">
-                        {loading ? <Loader2 className="animate-spin mx-auto" /> : t('sim.calculate')}
-                    </BounceButton>
+                    <div>
+                        <div className="flex justify-between items-baseline mb-2">
+                            <span className="text-subhead text-ink">{t('sim.horizon')}</span>
+                            <span className="text-subhead font-semibold text-brand tabular-nums">{years} {t('sim.years')}</span>
+                        </div>
+                        <input
+                            type="range" min="1" max="60" value={years}
+                            onChange={e => setYears(parseInt(e.target.value))}
+                            className="w-full accent-indigo-600 cursor-pointer"
+                        />
+                    </div>
+
+                    {/* De dónde salen las aportaciones. Por defecto, del plan:
+                        tener los mismos dos campos en dos sitios de la misma
+                        pantalla era la principal fuente de confusión. */}
+                    <div>
+                        <SectionHeader icon={Coins} title={t('sim.source')} className="mb-2.5" />
+                        <Segmented
+                            value={useCustom ? 'custom' : 'plan'}
+                            onChange={(v) => setUseCustom(v === 'custom')}
+                            options={[
+                                { value: 'plan', label: t('sim.use_plan') },
+                                { value: 'custom', label: t('sim.custom') },
+                            ]}
+                        />
+
+                        {!useCustom ? (
+                            <p className="text-footnote text-ink-2 mt-3 leading-snug">
+                                {planActivo
+                                    ? t('sim.from_plan')
+                                        .replace('{m}', formatNumber(safeFloat(plan.monthly)))
+                                        .replace('{g}', formatNumber(safeFloat(plan.annualGrowthPct), 1))
+                                    : t('sim.no_plan')}
+                            </p>
+                        ) : (
+                            <div className="space-y-3 mt-3">
+                                <NumericField
+                                    label={t('sim.monthly')} unit="€"
+                                    value={customMonthly}
+                                    onChange={setCustomMonthly}
+                                />
+                                <NumericField
+                                    label={t('sim.annual_growth')} unit="%"
+                                    value={customGrowth}
+                                    onChange={setCustomGrowth}
+                                />
+                            </div>
+                        )}
+                    </div>
+
+                    <div className="px-3 py-1 bg-surface-2 rounded-control">
+                        <Toggle checked={applyTax} onChange={setApplyTax} label={t('sim.apply_tax')} />
+                    </div>
+
+                    <Button size="lg" className="w-full" loading={loading} onClick={runSimulation}>
+                        {t('sim.calculate')}
+                    </Button>
                 </GlassCard>
 
                 <ContributionSchedule
                     monthly={monthlyContrib}
-                    annualGrowthPct={contribMode === 'growing' ? growthRate : 0}
+                    annualGrowthPct={growthRate}
                     months={years * 12}
                 />
             </div>

@@ -20,6 +20,7 @@ import { Card, Button, Segmented } from './components/UI';
 import { Home } from './pages/Home';
 import { Analysis } from './pages/Analysis';
 import { Dashboard } from './components/Dashboard';
+import { SimulationView } from './components/SimulationView';
 import { ContributionPlan } from './components/ContributionPlan';
 import { BottomNav } from './components/BottomNav';
 import { buildXray, computeOverlap, computeConcentration, computeDrift, buildPlanStatus, formatNumber } from './utils';
@@ -78,6 +79,7 @@ function Preview() {
                     <Segmented value={view} onChange={setView} size="sm" options={[
                         { value: 'home', label: 'Inicio' },
                         { value: 'pos', label: 'Posic.' },
+                        { value: 'sim', label: 'Simul.' },
                         { value: 'analisis', label: 'Análisis' },
                         { value: 'calc', label: 'Cálculos' },
                     ]} />
@@ -85,7 +87,16 @@ function Preview() {
                 </div>
             </header>
 
-            {view === 'pos' ? (
+            {view === 'sim' ? (
+                <SimulationView
+                    portfolios={[{ id: 'p1', name: 'Cartera principal' }, { id: 'p2', name: 'Indexada' }]}
+                    activePortfolioId="p1"
+                    plan={plan}
+                    planDefaults={{ monthly: 300, annualGrowthPct: 15 }}
+                    onSavePlan={setPlan}
+                    rebalanceHistory={HISTORY}
+                />
+            ) : view === 'pos' ? (
                 <Dashboard
                     portfolioItems={ITEMS.map(i => ({ ...i, units_held: 12.5, target_weight: i.targetWeight, current_price: 512.34, allocation: i.targetWeight > i.currentWeight ? 420 : -380, action: i.targetWeight > i.currentWeight ? 'BUY' : 'SELL' }))}
                     planTotals={{ targetSum: 100, investTotal: 800, unallocated: 0 }}
