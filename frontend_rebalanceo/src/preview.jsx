@@ -6,10 +6,20 @@
 import React, { useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import { MemoryRouter } from 'react-router-dom';
+import { MotionGlobalConfig } from 'framer-motion';
+
+// El panel de vista previa corre en segundo plano, donde requestAnimationFrame
+// no dispara y framer-motion se queda congelado a mitad de la entrada. Con
+// ?static las animaciones se saltan y lo que se ve es el estado final.
+if (new URLSearchParams(location.search).has('static')) {
+    MotionGlobalConfig.skipAnimations = true;
+}
 import './index.css';
 import { GlobalProvider } from './context/GlobalContext';
 import { Card, Button, Segmented } from './components/UI';
 import { Home } from './pages/Home';
+import { Analysis } from './pages/Analysis';
+import { Dashboard } from './components/Dashboard';
 import { ContributionPlan } from './components/ContributionPlan';
 import { BottomNav } from './components/BottomNav';
 import { buildXray, computeOverlap, computeConcentration, computeDrift, buildPlanStatus, formatNumber } from './utils';
@@ -61,19 +71,36 @@ function Preview() {
     const status = buildPlanStatus({ plan, history: HISTORY, months: 12 });
 
     return (
-        <div className="min-h-screen bg-canvas text-ink p-4 md:p-8 pb-24 space-y-6">
+        <div className="h-full app-scroll bg-canvas text-ink p-4 md:p-8 pb-24 space-y-6">
             <header className="flex items-center justify-between gap-4 flex-wrap">
                 <h1 className="text-xl font-bold tracking-tight">Banco de pruebas</h1>
                 <div className="flex gap-2">
                     <Segmented value={view} onChange={setView} size="sm" options={[
                         { value: 'home', label: 'Inicio' },
+                        { value: 'pos', label: 'Posic.' },
+                        { value: 'analisis', label: 'Análisis' },
                         { value: 'calc', label: 'Cálculos' },
                     ]} />
                     <Button variant="secondary" size="sm" icon={dark ? Sun : Moon} onClick={() => setDark(d => !d)} />
                 </div>
             </header>
 
-            {view === 'home' ? (
+            {view === 'pos' ? (
+                <Dashboard
+                    portfolioItems={ITEMS.map(i => ({ ...i, units_held: 12.5, target_weight: i.targetWeight, current_price: 512.34, allocation: i.targetWeight > i.currentWeight ? 420 : -380, action: i.targetWeight > i.currentWeight ? 'BUY' : 'SELL' }))}
+                    planTotals={{ targetSum: 100, investTotal: 800, unallocated: 0 }}
+                    rebalanceMode="contribute" setRebalanceMode={() => { }}
+                    totalValue={79000} riskProfile={7}
+                    contribution={800} setContribution={() => { }}
+                    rebalanceHistory={HISTORY} searchResults={[]} isSearching={false}
+                    query="" setQuery={() => { }} handleUpdate={() => { }} deleteItem={() => { }}
+                    applyRebalance={() => { }} calculating={false} addAsset={() => { }}
+                    searchAsset={() => { }} undoRebalance={() => { }} deleteHistoryItem={() => { }}
+                    chartData={[]}
+                />
+            ) : view === 'analisis' ? (
+                <Analysis portfolios={[{ id: 'p1', name: 'Cartera principal' }]} activePortfolioId="p1" />
+            ) : view === 'home' ? (
                 <Home
                     portfolios={[{ id: 'p1', name: 'Cartera principal' }]}
                     activePortfolio={{ id: 'p1', name: 'Cartera principal' }}

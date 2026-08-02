@@ -1,7 +1,7 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { CalendarCheck, Check, Flame, Pencil, TrendingUp, AlertCircle } from 'lucide-react';
-import { Card, SectionHeader, Button, Input, Badge, ProgressBar } from './UI';
+import { Card, SectionHeader, Button, NumericField, Badge, ProgressBar } from './UI';
 import { useGlobal } from '../context/GlobalContext';
 import { buildPlanStatus, planAmountFor, formatNumber, safeFloat } from '../utils';
 import { cn } from '../lib/cn';
@@ -54,24 +54,14 @@ export const ContributionPlan = ({ plan, onSave, history = [], saving = false, e
                     hint={t('plan.hint')}
                 />
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    <label className="block">
-                        <span className="label-caps block mb-1.5">{t('plan.monthly')}</span>
-                        <Input
-                            type="number" inputMode="decimal" min="0"
-                            value={monthly}
-                            onChange={e => setMonthly(e.target.value)}
-                            placeholder="300"
-                        />
-                    </label>
-                    <label className="block">
-                        <span className="label-caps block mb-1.5">{t('plan.growth')}</span>
-                        <Input
-                            type="number" inputMode="decimal" step="0.5"
-                            value={growth}
-                            onChange={e => setGrowth(e.target.value)}
-                            placeholder="3"
-                        />
-                    </label>
+                    <NumericField
+                        label={t('plan.monthly')} unit="€"
+                        value={monthly} onChange={setMonthly} placeholder="300"
+                    />
+                    <NumericField
+                        label={t('plan.growth')} unit="%"
+                        value={growth} onChange={setGrowth} placeholder="3"
+                    />
                 </div>
 
                 {safeFloat(monthly) > 0 && safeFloat(growth) !== 0 && (
@@ -152,7 +142,7 @@ export const ContributionPlan = ({ plan, onSave, history = [], saving = false, e
             </div>
 
             {/* Historial de meses */}
-            <div className="flex gap-1.5 overflow-x-auto pb-1 custom-scrollbar">
+            <div className="flex gap-1.5 scroll-x pb-1 custom-scrollbar">
                 {status.rows.map(r => (
                     <motion.div
                         key={r.key}

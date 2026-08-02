@@ -26,7 +26,7 @@ export const MainLayout = (props) => {
     };
 
     return (
-        <div className="min-h-screen bg-canvas text-ink font-sans flex overflow-hidden">
+        <div className="h-full bg-canvas text-ink font-sans flex overflow-hidden">
             {/* Desktop sidebar — completely hidden on mobile */}
             <div className="hidden md:block">
                 <Sidebar {...props} isOpen={false} setIsOpen={() => {}} />
@@ -34,7 +34,7 @@ export const MainLayout = (props) => {
 
             {/* Main content — márgenes de 16pt en iPhone, como una app nativa */}
             <main className={cn(
-                'flex-1 w-full md:ml-20 lg:ml-72 min-w-0 overflow-y-auto h-screen',
+                'flex-1 w-full md:ml-20 lg:ml-72 min-w-0 h-full app-scroll',
                 'px-4 md:px-8 lg:px-12',
                 'pt-[calc(0.5rem+env(safe-area-inset-top))] md:pt-8 lg:py-12',
                 // Hueco para la tab bar (49pt) + área segura, y algo de aire.

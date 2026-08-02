@@ -95,9 +95,8 @@ export const Home = ({
                 icon: Scale,
                 title: t('home.act_drift').replace('{name}', worst.name || worst.ticker),
                 body: t('home.act_drift_body')
-                    .replace('{drift}', formatNumber(worst.absDrift, 1))
-                    .replace('{dir}', worst.drift > 0 ? t('home.overweight') : t('home.underweight'))
-                    .replace('{band}', formatNumber(driftBand(worst.target), 1)),
+                    .replace('{amount}', formatNumber(worst.absAmount))
+                    .replace('{dir}', worst.drift > 0 ? t('home.overweight') : t('home.underweight')),
                 to: '/posiciones',
                 cta: t('home.act_drift_cta'),
             });
@@ -218,7 +217,7 @@ export const Home = ({
                     <div className="min-w-0">
                         <p className="text-subhead font-semibold text-ink">{t('home.all_good')}</p>
                         <p className="text-footnote font-medium text-ink-2 mt-0.5">
-                            {t('home.all_good_body').replace('{drift}', formatNumber(drift.totalDrift, 1))}
+                            {t('home.all_good_body').replace('{amount}', formatNumber(drift.totalAmount))}
                         </p>
                     </div>
                 </Card>
@@ -242,7 +241,7 @@ export const Home = ({
                         hint={t('home.drift_hint')}
                         action={
                             <Badge tone={drift.totalDrift > 5 ? 'negative' : drift.totalDrift > 2 ? 'warning' : 'positive'}>
-                                {formatNumber(drift.totalDrift, 1)} pp
+                                {formatNumber(drift.totalAmount)} €
                             </Badge>
                         }
                     />
@@ -258,10 +257,10 @@ export const Home = ({
                                             <div className="flex items-baseline justify-between gap-3 mb-1">
                                                 <span className="text-subhead font-semibold text-ink truncate">{r.name}</span>
                                                 <span className={cn(
-                                                    'text-footnote font-bold shrink-0 tabular-nums',
-                                                    sev === 'high' ? 'text-negative' : sev === 'warn' ? 'text-warning' : 'text-ink-3'
+                                                    'text-subhead font-semibold shrink-0 tabular-nums',
+                                                    sev === 'high' ? 'text-negative' : sev === 'warn' ? 'text-warning' : 'text-ink-2'
                                                 )}>
-                                                    {r.drift > 0 ? '+' : ''}{formatNumber(r.drift, 1)} pp
+                                                    {r.amount > 0 ? '+' : '−'}{formatNumber(Math.abs(r.amount))} €
                                                 </span>
                                             </div>
                                             {/* Objetivo vs real, misma escala */}

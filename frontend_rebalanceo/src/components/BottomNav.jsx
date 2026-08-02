@@ -152,7 +152,7 @@ export const BottomNav = ({ onLogout, portfolios = [], activePortfolio, setActiv
                                             transition={{ duration: 0.2, ease: [0.16, 1, 0.3, 1] }}
                                             className="overflow-hidden"
                                         >
-                                            <div className="space-y-0.5 py-1 max-h-52 overflow-y-auto custom-scrollbar">
+                                            <div className="space-y-0.5 py-1 max-h-52 overflow-y-auto no-scrollbar">
                                                 {portfolios.map(p => {
                                                     const active = activePortfolio?.id === p.id;
                                                     return (

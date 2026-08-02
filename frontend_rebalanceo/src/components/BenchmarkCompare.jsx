@@ -289,7 +289,7 @@ export const BenchmarkCompare = ({ holdings, period }) => {
                     </div>
 
                     {/* Absolute stats table */}
-                    <div className="overflow-x-auto mt-4">
+                    <div className="scroll-x mt-4">
                         <table className="w-full text-left min-w-[440px]">
                             <thead className="text-caption2 font-semibold text-ink-3 border-b border-line">
                                 <tr>

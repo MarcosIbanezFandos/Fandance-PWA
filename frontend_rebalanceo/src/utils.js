@@ -11,12 +11,18 @@ export const roundTo = (num, decimals = 2) => {
     return Math.round((safeFloat(num) + Number.EPSILON) * p) / p;
 };
 
+// El español, por norma CLDR, no separa los miles en números de cuatro cifras:
+// 6478 sale sin punto y 12.345 con él. En una columna de importes eso parece un
+// error de la app, así que se fuerza la agrupación siempre.
+const GROUPING = { useGrouping: 'always' };
+
 export const formatCurrency = (amount, decimals = 0) => {
     return safeFloat(amount).toLocaleString('es-ES', {
         style: 'currency',
         currency: 'EUR',
         maximumFractionDigits: decimals,
-        minimumFractionDigits: decimals
+        minimumFractionDigits: decimals,
+        ...GROUPING,
     });
 };
 
@@ -24,7 +30,8 @@ export const formatCurrency = (amount, decimals = 0) => {
 export const formatNumber = (amount, decimals = 0) => {
     return safeFloat(amount).toLocaleString('es-ES', {
         maximumFractionDigits: decimals,
-        minimumFractionDigits: decimals
+        minimumFractionDigits: decimals,
+        ...GROUPING,
     });
 };
 
@@ -33,7 +40,7 @@ export const formatUnits = (units) => {
     const n = safeFloat(units);
     const abs = Math.abs(n);
     const decimals = abs === 0 ? 0 : abs >= 1000 ? 2 : abs >= 1 ? 4 : 6;
-    return n.toLocaleString('es-ES', { maximumFractionDigits: decimals });
+    return n.toLocaleString('es-ES', { maximumFractionDigits: decimals, ...GROUPING });
 };
 
 /**
@@ -645,18 +652,28 @@ export const buildRebalancePlan = (items, contributionInput, mode = 'contribute'
  * mide qué fracción de la cartera habría que mover para volver al objetivo.
  */
 export const computeDrift = (items = []) => {
+    // El total sale de las propias posiciones: la desviación en euros no tiene
+    // sentido sin saber sobre cuánto patrimonio se aplica.
+    const total = items.reduce((s, i) => s + safeFloat(i.value), 0);
+
     const rows = items
         .map(i => {
             const current = safeFloat(i.currentWeight);
             const target = safeFloat(i.targetWeight);
+            const drift = current - target;
             return {
                 id: i.id,
                 ticker: i.asset?.ticker || i.ticker,
                 name: i.asset?.name || i.name || i.asset?.ticker,
                 current, target,
-                drift: current - target,
-                absDrift: Math.abs(current - target),
+                drift,
+                absDrift: Math.abs(drift),
                 value: safeFloat(i.value),
+                // Euros que sobran (+) o faltan (−) frente al objetivo. Es la
+                // cifra accionable: "te sobran 3.200 €" se entiende, "te sobran
+                // 4,1 pp" hay que traducirlo mentalmente antes de poder actuar.
+                amount: (drift / 100) * total,
+                absAmount: Math.abs((drift / 100) * total),
             };
         })
         .filter(r => r.target > 0 || r.current > 0)
@@ -665,10 +682,13 @@ export const computeDrift = (items = []) => {
     const sumAbs = rows.reduce((s, r) => s + r.absDrift, 0);
     return {
         rows,
+        total,
         maxDrift: rows.length ? rows[0].absDrift : 0,
         // Mitad de la suma: cada punto que sobra en un sitio falta en otro, así
         // que contarlos dos veces duplicaría el trabajo real de rebalanceo.
         totalDrift: sumAbs / 2,
+        // Dinero que habría que mover para volver al objetivo.
+        totalAmount: (sumAbs / 2 / 100) * total,
         worst: rows[0] || null,
     };
 };

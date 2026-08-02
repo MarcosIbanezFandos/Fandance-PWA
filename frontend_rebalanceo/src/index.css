@@ -116,20 +116,30 @@
 }
 
 @layer components {
-  /* Barra de scroll discreta y coherente con el tema. */
-  .custom-scrollbar::-webkit-scrollbar { width: 6px; height: 6px; }
-  .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
-  .custom-scrollbar::-webkit-scrollbar-thumb {
-    background-color: rgb(var(--c-line-strong));
-    border-radius: 20px;
+  /* Sin barras de scroll. En iOS no existen como elemento persistente: el
+     indicador aparece al arrastrar y se desvanece. Una barra siempre visible
+     es de escritorio y delata la web. */
+  .custom-scrollbar::-webkit-scrollbar,
+  .no-scrollbar::-webkit-scrollbar {
+    width: 0;
+    height: 0;
+    display: none;
   }
-  .custom-scrollbar::-webkit-scrollbar-thumb:hover {
-    background-color: rgb(var(--c-ink-3));
+  .custom-scrollbar,
+  .no-scrollbar {
+    scrollbar-width: none;
+    -ms-overflow-style: none;
   }
-  .custom-scrollbar {
-    scrollbar-width: thin;
-    scrollbar-color: rgb(var(--c-line-strong)) transparent;
+
+  /* Desplazamiento con inercia y sin arrastrar al contenedor padre cuando se
+     llega al final: es lo que hace que un carrusel no "empuje" la página. */
+  .scroll-x {
+    overflow-x: auto;
+    overscroll-behavior-x: contain;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
   }
+  .scroll-x::-webkit-scrollbar { display: none; }
 
   /* Etiqueta de sección. iOS las pone en gris, no en versalitas apretadas:
      las mayúsculas diminutas eran lo que más olor a dashboard web daba. */
@@ -161,10 +171,30 @@
   }
 }
 
-/* Comportamiento nativo sólo cuando se abre como app instalada. */
+/* La página nunca se desplaza: el scroll vive dentro del contenedor principal.
+   Sin esto, en iOS conviven dos scrolls (documento y <main>) y la pantalla da
+   pequeños saltos al llegar a los extremos. */
+html, body {
+  height: 100%;
+  overflow: hidden;
+  overscroll-behavior: none;
+}
+
+#root {
+  height: 100%;
+}
+
+/* El único scroller de la app, con inercia y sin encadenar el rebote. */
+.app-scroll {
+  overflow-y: auto;
+  overscroll-behavior-y: contain;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+}
+.app-scroll::-webkit-scrollbar { display: none; }
+
 @media (display-mode: standalone) {
-  html { overscroll-behavior-y: none; background: rgb(var(--c-canvas)); }
-  body { overscroll-behavior-y: none; }
+  html { background: rgb(var(--c-canvas)); }
 }
 
 /* Respetar a quien pide menos movimiento. */

@@ -255,6 +255,8 @@ class BenchmarkInput(BaseModel):
     holdings: List[dict] = Field(max_length=200)   # [{ticker, units}]
     benchmarks: List[Ticker] = Field(default=[], max_length=6)
     period: Period = "1y"
+    # Sólo se usa para acotar "max" al inicio real de la cartera.
+    portfolio_id: Optional[Uuid] = None
 
 # --- DATA FETCHING ---
 def get_asset_metadata(ticker: str):
@@ -721,6 +723,44 @@ def get_rebalance_history(portfolio_id: str, user_id: str = Standard):
     except: return []
 
 # --- CHART & NEWS ---
+_INCEPTION_CACHE = {}
+
+def _portfolio_inception(portfolio_id):
+    """Fecha desde la que tiene sentido dibujar esta cartera.
+
+    Se toma la creación de la cartera y, si hay rebalanceos registrados, el más
+    antiguo de los dos: alguien puede haber creado la cartera antes de empezar a
+    aportar, pero nunca al revés. Devuelve None si no se puede determinar, y en
+    ese caso no se recorta nada (mejor de más que ocultar histórico real).
+    """
+    cached = _INCEPTION_CACHE.get(portfolio_id)
+    if cached is not None:
+        return cached
+    dates = []
+    try:
+        p = supabase.table("portfolios").select("created_at").eq("id", portfolio_id).limit(1).execute()
+        if p.data and p.data[0].get("created_at"):
+            dates.append(pd.to_datetime(p.data[0]["created_at"]))
+        h = (supabase.table("rebalance_history").select("created_at")
+             .eq("portfolio_id", portfolio_id).order("created_at").limit(1).execute())
+        if h.data and h.data[0].get("created_at"):
+            dates.append(pd.to_datetime(h.data[0]["created_at"]))
+    except Exception as e:
+        print(f"INCEPTION {portfolio_id} err: {e}")
+        return None
+    if not dates:
+        return None
+    # Las series de yfinance llegan sin zona horaria; hay que igualar para poder
+    # comparar sin que pandas lance TypeError.
+    out = min(dates)
+    try:
+        out = out.tz_localize(None)
+    except (TypeError, AttributeError):
+        out = out.tz_convert(None) if getattr(out, "tzinfo", None) else out
+    _INCEPTION_CACHE[portfolio_id] = out
+    return out
+
+
 @app.post("/api/portfolio/history_chart")
 def get_chart_data(data: HistoryInput, user_id: str = External):
     assert_owns_portfolio(user_id, data.portfolio_id)
@@ -761,6 +801,15 @@ def get_chart_data(data: HistoryInput, user_id: str = External):
                 total_series += df[ticker] * units
 
         total_series = total_series[total_series > 0]
+
+        # "MAX" es el máximo DE ESTA CARTERA, no el del activo más antiguo que
+        # contiene. Sin este recorte, una cartera creada hace seis meses con
+        # Apple dentro dibujaba una curva desde 1980: técnicamente es el
+        # histórico de Apple, pero no es el patrimonio de nadie.
+        if data.period == "max":
+            inception = _portfolio_inception(data.portfolio_id)
+            if inception is not None:
+                total_series = total_series[total_series.index >= inception]
 
         if total_series.empty: return {"history": [], "change_pct": 0, "change_val": 0}
 
@@ -1176,6 +1225,19 @@ def portfolio_benchmark(data: BenchmarkInput, user_id: str = External):
         # air. The chart uses the filled frame, the relative metrics use `raw`.
         raw = df.copy()
         df = df.ffill().bfill()
+
+        # Igual que en el gráfico de patrimonio: "max" es el máximo de esta
+        # cartera. El recorte va ANTES de normalizar a base 100, porque si no la
+        # referencia sería un precio anterior a que la cartera existiera y todos
+        # los porcentajes saldrían medidos desde ahí.
+        if data.period == "max" and data.portfolio_id:
+            assert_owns_portfolio(user_id, data.portfolio_id)
+            inception = _portfolio_inception(data.portfolio_id)
+            if inception is not None:
+                df = df[df.index >= inception]
+                raw = raw[raw.index >= inception]
+                if df.empty:
+                    return {"series": [], "stats": {}, "labels": {}, "relative": {}}
 
         # Portfolio value series from current holdings.
         port = pd.Series(0.0, index=df.index)
