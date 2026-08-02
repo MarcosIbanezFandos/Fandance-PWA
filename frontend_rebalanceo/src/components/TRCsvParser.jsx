@@ -97,20 +97,20 @@ export const TRCsvParser = ({ currentValue, onParsed, onClear, hasData, compact 
                 tabIndex={0}
                 onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') inputRef.current?.click(); }}
                 className={`w-full cursor-pointer rounded-2xl border-2 border-dashed p-6 text-center transition-all duration-200 ${dragging
-                    ? 'border-indigo-500 bg-indigo-50/80 dark:bg-indigo-900/30 scale-[1.01]'
-                    : 'border-slate-200 dark:border-slate-700 hover:border-indigo-400 hover:bg-indigo-50/30 dark:hover:bg-indigo-900/10 bg-white/50 dark:bg-slate-800/30'}`}
+ ? 'border-indigo-500 bg-brand-soft/80 scale-[1.01]'
+ : 'border-line hover:border-indigo-400 hover:bg-indigo-50/30 dark:hover:bg-indigo-900/10 bg-surface/60'}`}
             >
                 {busy ? (
-                    <div className="flex items-center justify-center gap-2 text-sm font-bold text-slate-500 dark:text-slate-300 py-2">
-                        <Loader2 size={18} className="animate-spin text-indigo-500" /> {t('tr.parsing')}
+                    <div className="flex items-center justify-center gap-2 text-subhead font-bold text-ink-2 py-2">
+                        <Loader2 size={18} className="animate-spin text-brand" /> {t('tr.parsing')}
                     </div>
                 ) : (
                     <>
-                        <div className="inline-flex items-center justify-center w-12 h-12 bg-indigo-100 dark:bg-indigo-900/30 rounded-2xl mb-3">
-                            <FileUp size={22} className="text-indigo-500" />
+                        <div className="inline-flex items-center justify-center w-12 h-12 bg-brand-soft rounded-2xl mb-3">
+                            <FileUp size={22} className="text-brand" />
                         </div>
-                        <div className="text-sm font-black text-slate-700 dark:text-slate-200">{t('tr.drop')}</div>
-                        <div className="text-[11px] font-medium text-slate-400 mt-1.5">{t('tr.hint')}</div>
+                        <div className="text-subhead font-semibold text-ink">{t('tr.drop')}</div>
+                        <div className="text-caption1 font-medium text-ink-3 mt-1.5">{t('tr.hint')}</div>
                     </>
                 )}
             </div>
@@ -119,12 +119,12 @@ export const TRCsvParser = ({ currentValue, onParsed, onClear, hasData, compact 
                 <div className="mt-3 flex items-center justify-between gap-3 px-4 py-2.5 rounded-xl bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-100 dark:border-emerald-900/30">
                     <div className="flex items-center gap-2 min-w-0">
                         <CheckCircle2 size={14} className="text-emerald-500 shrink-0" />
-                        <span className="text-[11px] font-bold text-emerald-700 dark:text-emerald-300 truncate">{fileName}</span>
+                        <span className="text-caption1 font-bold text-emerald-700 dark:text-emerald-300 truncate">{fileName}</span>
                     </div>
                     {hasData && onClear && (
                         <button
                             onClick={(e) => { e.stopPropagation(); setFileName(''); onClear(); }}
-                            className="text-[10px] font-black uppercase tracking-wide text-slate-400 hover:text-rose-500 flex items-center gap-1 shrink-0 transition-colors"
+                            className="text-caption2 font-semibold uppercase tracking-wide text-ink-3 hover:text-rose-500 flex items-center gap-1 shrink-0 transition-colors"
                         >
                             <X size={12} /> {t('tr.clear')}
                         </button>
@@ -135,7 +135,7 @@ export const TRCsvParser = ({ currentValue, onParsed, onClear, hasData, compact 
             {error && (
                 <div className="mt-3 flex items-center gap-2 px-4 py-2.5 rounded-xl bg-amber-50 dark:bg-amber-900/20 border border-amber-100 dark:border-amber-900/30">
                     <AlertTriangle size={14} className="text-amber-500 shrink-0" />
-                    <span className="text-[11px] font-bold text-amber-700 dark:text-amber-300">{error}</span>
+                    <span className="text-caption1 font-bold text-amber-700 dark:text-amber-300">{error}</span>
                 </div>
             )}
         </div>

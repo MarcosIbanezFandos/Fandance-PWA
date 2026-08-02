@@ -3,6 +3,7 @@ import { Sidebar } from '../components/Sidebar';
 import { BottomNav } from '../components/BottomNav';
 import { Outlet, useLocation } from 'react-router-dom';
 import { useGlobal } from '../context/GlobalContext';
+import { cn } from '../lib/cn';
 
 export const MainLayout = (props) => {
     const { session } = props;
@@ -11,35 +12,54 @@ export const MainLayout = (props) => {
 
     const getHeaderTitle = () => {
         switch (location.pathname) {
-            case '/': return props.activePortfolio?.name || t('header.rebalancer');
-            case '/performance': return t('header.performance');
+            case '/': return props.activePortfolio?.name || t('header.home');
+            case '/posiciones': return t('header.positions');
+            case '/analisis': return t('header.analysis');
+            case '/simulacion': return t('header.simulations');
+            case '/rendimiento': return t('header.performance');
             case '/xray': return t('header.xray');
-            case '/analysis': return t('header.analysis');
-            case '/simulations': return t('header.simulations');
-            case '/news': return t('header.news');
+            case '/historial': return t('nav.history');
+            case '/noticias': return t('header.news');
             case '/settings': return t('header.settings');
             default: return 'Fandance';
         }
     };
 
     return (
-        <div className="min-h-screen bg-[#f8fafc] dark:bg-slate-950 text-slate-900 dark:text-slate-100 font-sans flex overflow-hidden transition-colors duration-300">
+        <div className="min-h-screen bg-canvas text-ink font-sans flex overflow-hidden">
             {/* Desktop sidebar — completely hidden on mobile */}
             <div className="hidden md:block">
                 <Sidebar {...props} isOpen={false} setIsOpen={() => {}} />
             </div>
 
-            {/* Main content */}
-            <main className="flex-1 w-full md:ml-20 lg:ml-72 px-4 md:px-8 lg:px-12 pt-[calc(0.75rem+env(safe-area-inset-top))] pb-[calc(5rem+env(safe-area-inset-bottom))] md:pb-8 md:pt-8 lg:py-12 transition-all min-w-0 overflow-y-auto h-screen">
-                <header className="flex justify-between items-center mb-4 md:mb-6 lg:mb-10">
-                    <div className="flex items-center gap-3 overflow-hidden">
-                        <h1 className="text-lg md:text-3xl lg:text-4xl font-black uppercase tracking-tighter text-slate-900 dark:text-white truncate">
-                            {getHeaderTitle()}
-                        </h1>
-                    </div>
-                    <div className="text-right hidden md:block shrink-0">
-                        <div className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest">{t('header.user')}</div>
-                        <div className="text-xs font-bold text-slate-700 dark:text-slate-300">{session?.user?.email}</div>
+            {/* Main content — márgenes de 16pt en iPhone, como una app nativa */}
+            <main className={cn(
+                'flex-1 w-full md:ml-20 lg:ml-72 min-w-0 overflow-y-auto h-screen',
+                'px-4 md:px-8 lg:px-12',
+                'pt-[calc(0.5rem+env(safe-area-inset-top))] md:pt-8 lg:py-12',
+                // Hueco para la tab bar (49pt) + área segura, y algo de aire.
+                'pb-[calc(4.5rem+env(safe-area-inset-bottom))] md:pb-8',
+                'transition-all'
+            )}>
+                {/* Large title: el patrón de navegación de iOS. Se encoge al
+                    hacer scroll para dejar sitio al contenido. */}
+                <header className="flex justify-between items-end gap-4 pt-2 pb-4 md:pb-7">
+                    <h1 className={cn(
+                        'min-w-0 truncate text-ink font-bold tracking-tight',
+                        'text-largetitle md:text-title1'
+                    )}>
+                        {getHeaderTitle()}
+                    </h1>
+                    <div className="hidden md:flex items-center gap-2.5 shrink-0 pb-1">
+                        <div className="text-right">
+                            <div className="text-caption1 text-ink-3">{t('header.user')}</div>
+                            <div className="text-footnote font-medium text-ink-2 mt-0.5">{session?.user?.email}</div>
+                        </div>
+                        <div className="w-9 h-9 rounded-full bg-brand-soft flex items-center justify-center shrink-0">
+                            <span className="text-caption1 font-semibold text-brand-ink uppercase">
+                                {(session?.user?.email || '?').slice(0, 2)}
+                            </span>
+                        </div>
                     </div>
                 </header>
                 <Outlet />

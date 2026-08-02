@@ -254,11 +254,30 @@ export const buildXray = (positions, filterTicker = null) => {
         if (value - secCovered > 0.5) sectors['unknown'] = (sectors['unknown'] || 0) + (value - secCovered);
     }
 
-    const toSorted = (obj) => Object.entries(obj)
-        .map(([key, value]) => ({ key, name: key, value, pct: total > 0 ? (value / total) * 100 : 0 }))
-        .sort((a, b) => b.value - a.value);
+    // "Other", "unknown" y compañía no son un país, un sector ni una divisa:
+    // son el hueco que deja la fuente de datos. Ponerlos a competir en el
+    // ranking llenaba el primer puesto de una barra que no informa de nada, así
+    // que se sacan de la lista y su peso se reporta aparte como "sin clasificar".
+    const RESIDUAL = /^(other|others|otros|unknown|desconocido|other \/ unknown|global \(diversified\)|n\/a|-|)$/i;
+    const isResidual = (k) => RESIDUAL.test(String(k ?? '').trim());
+
+    const toSorted = (obj) => {
+        const known = Object.entries(obj).filter(([k]) => !isResidual(k));
+        // Los porcentajes se normalizan sobre lo clasificado para que las barras
+        // sumen 100% y sigan siendo comparables entre sí.
+        const knownTotal = known.reduce((s, [, v]) => s + v, 0);
+        return known
+            .map(([key, value]) => ({ key, name: key, value, pct: knownTotal > 0 ? (value / knownTotal) * 100 : 0 }))
+            .sort((a, b) => b.value - a.value);
+    };
+
+    const residualPct = (obj) => {
+        const res = Object.entries(obj).reduce((s, [k, v]) => s + (isResidual(k) ? v : 0), 0);
+        return total > 0 ? (res / total) * 100 : 0;
+    };
 
     const companyList = [...companies.values()]
+        .filter(c => !isResidual(c.name) && !isResidual(c.key))
         .map(c => ({ ...c, sources: [...c.sources], pct: total > 0 ? (c.value / total) * 100 : 0 }))
         .sort((a, b) => b.value - a.value);
 
@@ -269,6 +288,14 @@ export const buildXray = (positions, filterTicker = null) => {
         currencies: toSorted(currencies),
         sectors: toSorted(sectors),
         regions: toSorted(regions),
+        // Peso que la fuente no supo etiquetar, por dimensión. La vista lo dice
+        // en texto en lugar de inventarse una categoría.
+        unclassified: {
+            countries: residualPct(countries),
+            currencies: residualPct(currencies),
+            sectors: residualPct(sectors),
+            regions: residualPct(regions),
+        },
         // Parte de la cartera cuya geografía sale de los pesos del índice y no
         // de posiciones reales; la vista lo advierte en lugar de fingir dato duro.
         estimatedGeoPct: total > 0 ? (estimatedGeo / total) * 100 : 0,
@@ -599,5 +626,233 @@ export const buildRebalancePlan = (items, contributionInput, mode = 'contribute'
             // In contribute mode the whole contribution is always allocated.
             unallocated: mode === 'contribute' ? Math.max(0, contribution - investTotal) : 0
         }
+    };
+};
+
+/* ================================================================== *
+ *  Analítica de decisión
+ *  Todo lo que hay aquí existe para responder a una pregunta concreta
+ *  del inversor, no para llenar una tarjeta.
+ * ================================================================== */
+
+/**
+ * Desviación frente a los pesos objetivo.
+ *
+ * Es la señal que justifica rebalancear: mientras la desviación sea pequeña,
+ * mover dinero sólo genera costes y peajes fiscales. Se devuelven dos medidas
+ * porque responden a cosas distintas: `maxDrift` avisa de la posición más
+ * descolocada y `totalDrift` (la mitad de la suma de desviaciones absolutas)
+ * mide qué fracción de la cartera habría que mover para volver al objetivo.
+ */
+export const computeDrift = (items = []) => {
+    const rows = items
+        .map(i => {
+            const current = safeFloat(i.currentWeight);
+            const target = safeFloat(i.targetWeight);
+            return {
+                id: i.id,
+                ticker: i.asset?.ticker || i.ticker,
+                name: i.asset?.name || i.name || i.asset?.ticker,
+                current, target,
+                drift: current - target,
+                absDrift: Math.abs(current - target),
+                value: safeFloat(i.value),
+            };
+        })
+        .filter(r => r.target > 0 || r.current > 0)
+        .sort((a, b) => b.absDrift - a.absDrift);
+
+    const sumAbs = rows.reduce((s, r) => s + r.absDrift, 0);
+    return {
+        rows,
+        maxDrift: rows.length ? rows[0].absDrift : 0,
+        // Mitad de la suma: cada punto que sobra en un sitio falta en otro, así
+        // que contarlos dos veces duplicaría el trabajo real de rebalanceo.
+        totalDrift: sumAbs / 2,
+        worst: rows[0] || null,
+    };
+};
+
+/** Umbral clásico de la regla 5/25 de Larimore, en puntos porcentuales. */
+export const driftBand = (targetPct) => {
+    const t = safeFloat(targetPct);
+    // Para pesos grandes manda el 5 absoluto; para los pequeños, el 25% relativo.
+    return Math.min(5, Math.max(1, t * 0.25));
+};
+
+export const driftSeverity = (row) => {
+    if (!row) return 'ok';
+    const band = driftBand(row.target);
+    if (row.absDrift >= band * 1.5) return 'high';
+    if (row.absDrift >= band) return 'warn';
+    return 'ok';
+};
+
+/**
+ * Solapamiento entre fondos: qué parte del patrimonio está duplicada.
+ *
+ * Dos ETF distintos pueden ser casi el mismo producto (un S&P 500 y un MSCI
+ * World comparten las mismas megacaps). Detectarlo es una decisión de negocio
+ * real: pagar dos comisiones por la misma exposición, o consolidar.
+ *
+ * `positions` es la respuesta de /portfolio/xray.
+ */
+export const computeOverlap = (positions = []) => {
+    const funds = positions.filter(p => ['ETF', 'Fund'].includes(p.type) && (p.holdings || []).length);
+    const pairs = [];
+
+    for (let i = 0; i < funds.length; i++) {
+        for (let j = i + 1; j < funds.length; j++) {
+            const a = funds[i], b = funds[j];
+            const wa = new Map(), wb = new Map();
+            for (const h of a.holdings) wa.set((h.symbol || h.name || '').toUpperCase(), safeFloat(h.weight));
+            for (const h of b.holdings) wb.set((h.symbol || h.name || '').toUpperCase(), safeFloat(h.weight));
+
+            // Solapamiento = suma de los mínimos de peso en cada emisor común.
+            // Es la definición estándar y acota bien: nunca supera el 100%.
+            let shared = 0;
+            const names = [];
+            for (const [sym, w] of wa) {
+                if (!sym || !wb.has(sym)) continue;
+                const m = Math.min(w, wb.get(sym));
+                if (m <= 0) continue;
+                shared += m;
+                names.push(sym);
+            }
+
+            const covA = [...wa.values()].reduce((s, w) => s + w, 0) || 1;
+            const covB = [...wb.values()].reduce((s, w) => s + w, 0) || 1;
+            // Se normaliza por la cobertura conocida: si de cada fondo sólo se
+            // ven las 10 mayores posiciones, comparar contra el 100% del fondo
+            // haría parecer que casi no se solapan.
+            const pct = (shared / Math.min(covA, covB)) * 100;
+
+            pairs.push({
+                key: `${a.ticker}|${b.ticker}`,
+                a: { ticker: a.ticker, name: a.name, value: safeFloat(a.value) },
+                b: { ticker: b.ticker, name: b.name, value: safeFloat(b.value) },
+                pct: Math.max(0, Math.min(100, pct)),
+                shared: names.slice(0, 8),
+                sharedCount: names.length,
+            });
+        }
+    }
+
+    return pairs.sort((x, y) => y.pct - x.pct);
+};
+
+/**
+ * Concentración de la cartera mirando a través de los fondos.
+ *
+ * `effectiveHoldings` (inverso de Herfindahl) responde a "¿entre cuántas
+ * empresas está repartido esto de verdad?". Tener 500 posiciones no diversifica
+ * si el 35% está en cinco valores.
+ */
+export const computeConcentration = (companies = []) => {
+    if (!companies.length) return { top1: 0, top5: 0, top10: 0, hhi: 0, effectiveHoldings: 0, count: 0 };
+    const pcts = companies.map(c => safeFloat(c.pct)).sort((a, b) => b - a);
+    const sum = (n) => pcts.slice(0, n).reduce((s, p) => s + p, 0);
+    const hhi = pcts.reduce((s, p) => s + (p / 100) ** 2, 0);
+    return {
+        top1: sum(1), top5: sum(5), top10: sum(10),
+        hhi,
+        effectiveHoldings: hhi > 0 ? 1 / hhi : 0,
+        count: companies.length,
+    };
+};
+
+/* ------------------------------------------------------------------ *
+ *  Plan de aportaciones
+ * ------------------------------------------------------------------ */
+
+const monthKey = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+
+/** Meses completos transcurridos entre dos fechas (puede ser negativo). */
+const monthsBetween = (from, to) =>
+    (to.getFullYear() - from.getFullYear()) * 12 + (to.getMonth() - from.getMonth());
+
+/**
+ * Importe que toca aportar en un mes dado según el plan.
+ * El crecimiento anual se reparte de forma compuesta mes a mes, igual que en
+ * buildContributionSchedule, para que plan y proyección no se contradigan.
+ */
+export const planAmountFor = (plan, date = new Date()) => {
+    if (!plan || safeFloat(plan.monthly) <= 0) return 0;
+    const start = plan.startDate ? new Date(plan.startDate) : new Date();
+    const m = monthsBetween(start, date);
+    if (m < 0) return 0;
+    const annualFactor = Math.max(0, 1 + safeFloat(plan.annualGrowthPct) / 100);
+    return Math.round(safeFloat(plan.monthly) * Math.pow(Math.pow(annualFactor, 1 / 12), m));
+};
+
+/**
+ * Estado del plan mes a mes.
+ *
+ * El check no se marca a mano: se deduce de los rebalanceos ya aplicados. Si en
+ * ese mes se aportó al menos lo previsto, cuenta como cumplido. Pedirle al
+ * usuario que confirme algo que la app ya sabe es trabajo que sobra.
+ */
+export const buildPlanStatus = ({ plan, history = [], months = 12, now = new Date() }) => {
+    if (!plan || safeFloat(plan.monthly) <= 0) {
+        return { rows: [], currentMonth: null, streak: 0, doneCount: 0, contributedTotal: 0, plannedTotal: 0 };
+    }
+
+    // Aportado por mes, sumando todos los rebalanceos aplicados en él.
+    const byMonth = {};
+    for (const h of history) {
+        const raw = h.created_at || h.date;
+        if (!raw) continue;
+        const d = new Date(raw);
+        if (Number.isNaN(d.getTime())) continue;
+        const amount = safeFloat(h.contribution ?? h.contribution_amount ?? h.amount);
+        if (amount <= 0) continue;
+        byMonth[monthKey(d)] = (byMonth[monthKey(d)] || 0) + amount;
+    }
+
+    const start = plan.startDate ? new Date(plan.startDate) : now;
+    const rows = [];
+    for (let i = months - 1; i >= 0; i--) {
+        const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+        if (monthsBetween(start, d) < 0) continue;
+        const planned = planAmountFor(plan, d);
+        const contributed = byMonth[monthKey(d)] || 0;
+        const isFuture = d > new Date(now.getFullYear(), now.getMonth(), 1);
+        const isCurrent = monthKey(d) === monthKey(now);
+        // Nadie transfiere 316,42 €: se transfiere 316, o 315. Exigir el importe
+        // exacto dejaría el mes sin marcar por céntimos. La tolerancia cubre el
+        // redondeo, no un incumplimiento real: un 5% por debajo sigue siendo
+        // parcial, que es justo lo que hay que ver.
+        const tolerance = Math.max(1, planned * 0.01);
+        rows.push({
+            key: monthKey(d),
+            date: d,
+            planned,
+            contributed,
+            done: planned > 0 && contributed >= planned - tolerance,
+            partial: contributed > 0 && contributed < planned - tolerance,
+            isCurrent,
+            isFuture,
+        });
+    }
+
+    // Racha: meses consecutivos cumplidos hacia atrás, sin contar el actual si
+    // todavía está en curso (aún puede cumplirse).
+    let streak = 0;
+    for (let i = rows.length - 1; i >= 0; i--) {
+        const r = rows[i];
+        if (r.isCurrent && !r.done) continue;
+        if (r.done) streak++;
+        else break;
+    }
+
+    const past = rows.filter(r => !r.isFuture);
+    return {
+        rows,
+        currentMonth: rows.find(r => r.isCurrent) || null,
+        streak,
+        doneCount: past.filter(r => r.done).length,
+        pastCount: past.length,
+        contributedTotal: past.reduce((s, r) => s + r.contributed, 0),
+        plannedTotal: past.reduce((s, r) => s + r.planned, 0),
     };
 };
