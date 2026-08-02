@@ -28,36 +28,36 @@ export const ProfileView = ({ session, onUpdateUser }) => {
         <motion.div variants={fadeInUp} initial="hidden" animate="visible" className="max-w-2xl mx-auto">
             <GlassCard className="!p-10">
                 <div className="flex items-center gap-4 mb-8">
-                    <div className="p-4 bg-indigo-50 rounded-full text-indigo-600"><UserCircle size={32}/></div>
+                    <div className="p-4 bg-brand-soft rounded-full text-brand"><UserCircle size={32}/></div>
                     <div>
-                        <h2 className="text-2xl font-black text-slate-900">Editar Perfil</h2>
-                        <p className="text-sm font-bold text-slate-400">Gestiona tu información personal</p>
+                        <h2 className="text-title1 font-semibold text-ink">Editar Perfil</h2>
+                        <p className="text-subhead font-bold text-ink-3">Gestiona tu información personal</p>
                     </div>
                 </div>
 
                 <div className="space-y-6">
                     <div className="grid grid-cols-2 gap-6">
                         <div>
-                            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-2">Nombre</label>
-                            <input value={name} onChange={e=>setName(e.target.value)} className="w-full bg-slate-50 p-4 rounded-xl font-bold text-slate-700 outline-none border-2 border-transparent focus:border-indigo-500 focus:bg-white transition-all"/>
+                            <label className="text-caption2 font-semibold text-ink-3 block mb-2">Nombre</label>
+                            <input value={name} onChange={e=>setName(e.target.value)} className="w-full bg-surface-2 p-4 rounded-xl font-bold text-ink-2 outline-none border-2 border-transparent focus:border-indigo-500 focus:bg-white transition-all"/>
                         </div>
                         <div>
-                            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-2">Apellidos</label>
-                            <input value={surname} onChange={e=>setSurname(e.target.value)} className="w-full bg-slate-50 p-4 rounded-xl font-bold text-slate-700 outline-none border-2 border-transparent focus:border-indigo-500 focus:bg-white transition-all"/>
+                            <label className="text-caption2 font-semibold text-ink-3 block mb-2">Apellidos</label>
+                            <input value={surname} onChange={e=>setSurname(e.target.value)} className="w-full bg-surface-2 p-4 rounded-xl font-bold text-ink-2 outline-none border-2 border-transparent focus:border-indigo-500 focus:bg-white transition-all"/>
                         </div>
                     </div>
                     
                     <div>
-                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-2">Email</label>
-                        <div className="w-full bg-slate-50 p-4 rounded-xl font-bold text-slate-500 cursor-not-allowed border-2 border-slate-100">{session?.user?.email}</div>
+                        <label className="text-caption2 font-semibold text-ink-3 block mb-2">Email</label>
+                        <div className="w-full bg-surface-2 p-4 rounded-xl font-bold text-ink-3 cursor-not-allowed border-2 border-line">{session?.user?.email}</div>
                     </div>
 
                     <div>
-                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-2">Nueva Contraseña (Opcional)</label>
-                        <input type="password" value={password} onChange={e=>setPassword(e.target.value)} placeholder="Dejar vacío para mantener la actual" className="w-full bg-slate-50 p-4 rounded-xl font-bold text-slate-700 outline-none border-2 border-transparent focus:border-indigo-500 focus:bg-white transition-all"/>
+                        <label className="text-caption2 font-semibold text-ink-3 block mb-2">Nueva Contraseña (Opcional)</label>
+                        <input type="password" value={password} onChange={e=>setPassword(e.target.value)} placeholder="Dejar vacío para mantener la actual" className="w-full bg-surface-2 p-4 rounded-xl font-bold text-ink-2 outline-none border-2 border-transparent focus:border-indigo-500 focus:bg-white transition-all"/>
                     </div>
 
-                    <BounceButton onClick={handleUpdate} disabled={loading} className="w-full bg-slate-900 hover:bg-indigo-600 text-white py-4 rounded-xl font-black uppercase text-xs tracking-widest shadow-xl hover:shadow-indigo-200 mt-4">
+                    <BounceButton onClick={handleUpdate} disabled={loading} className="w-full bg-slate-900 hover:bg-indigo-600 text-white py-4 rounded-xl font-semibold uppercase text-footnote shadow-xl hover:shadow-indigo-200 mt-4">
                         {loading ? <Loader2 className="animate-spin mx-auto"/> : 'Guardar Cambios'}
                     </BounceButton>
                 </div>

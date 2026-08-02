@@ -28,25 +28,25 @@ const Badge = ({ value, suffix = '%' }) => {
     if (value === null || value === undefined) return null;
     const up = value >= 0;
     return (
-        <span className={`inline-flex items-center gap-0.5 px-2 py-0.5 rounded text-[11px] font-black tabular-nums ${up ? 'bg-emerald-50 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400' : 'bg-rose-50 dark:bg-rose-900/30 text-rose-500 dark:text-rose-400'}`}>
+        <span className={`inline-flex items-center gap-0.5 px-2 py-0.5 rounded text-caption1 font-semibold tabular-nums ${up ? 'bg-emerald-50 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400' : 'bg-rose-50 dark:bg-rose-900/30 text-rose-500 dark:text-rose-400'}`}>
             {up ? '↑' : '↓'} {formatNumber(Math.abs(value), 2)}{suffix}
         </span>
     );
 };
 
 const StatRow = ({ label, value, badge, borderTop, borderBottom, bold, tooltip }) => (
-    <div className={`flex items-center justify-between py-3 px-1 ${borderTop ? 'border-t border-slate-200 dark:border-slate-700' : ''} ${borderBottom ? 'border-b border-slate-100 dark:border-slate-800' : ''}`}>
+    <div className={`flex items-center justify-between py-3 px-1 ${borderTop ? 'border-t border-line' : ''} ${borderBottom ? 'border-b border-line' : ''}`}>
         <div className="flex items-center gap-1.5">
-            <span className={`text-[13px] ${bold ? 'font-black text-slate-700 dark:text-slate-200' : 'font-bold text-slate-500 dark:text-slate-400'}`}>{label}</span>
+            <span className={`text-footnote ${bold ? 'font-semibold text-ink' : 'font-bold text-ink-3'}`}>{label}</span>
             {tooltip && (
                 <span className="group relative">
-                    <Info size={12} className="text-slate-300 dark:text-slate-600 cursor-help" />
-                    <span className="pointer-events-none absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-48 rounded-lg bg-slate-900 px-3 py-2 text-[10px] font-medium text-slate-200 opacity-0 group-hover:opacity-100 transition-opacity shadow-xl z-50">{tooltip}</span>
+                    <Info size={12} className="text-ink-3 cursor-help" />
+                    <span className="pointer-events-none absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-48 rounded-lg bg-slate-900 px-3 py-2 text-caption2 font-medium text-slate-200 opacity-0 group-hover:opacity-100 transition-opacity shadow-xl z-50">{tooltip}</span>
                 </span>
             )}
         </div>
         <div className="flex items-center gap-2">
-            <span className={`text-[13px] tabular-nums ${bold ? 'font-black text-slate-800 dark:text-slate-100' : 'font-bold text-slate-600 dark:text-slate-300'}`}>{value}</span>
+            <span className={`text-footnote tabular-nums ${bold ? 'font-semibold text-ink' : 'font-bold text-ink-2'}`}>{value}</span>
             {badge}
         </div>
     </div>
@@ -193,10 +193,10 @@ export const Performance = ({ portfolios, activePortfolioId }) => {
                     options={portfolios.map(p => ({ value: p.id, label: p.name }))}
                     placeholder="—"
                 />
-                <div className="flex bg-slate-100 dark:bg-slate-800 p-1 rounded-xl flex-wrap justify-center">
+                <div className="flex bg-surface-2 p-1 rounded-xl flex-wrap justify-center">
                     {PERIODS.map(opt => (
                         <button key={opt.id} onClick={() => setPeriod(opt.id)}
-                            className={`px-3 py-1.5 rounded-lg text-xs font-black transition-all ${period === opt.id ? 'bg-white dark:bg-slate-700 text-indigo-600 dark:text-indigo-400 shadow-sm' : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-300'}`}>
+                            className={`px-3 py-1.5 rounded-lg text-footnote font-semibold transition-all ${period === opt.id ? 'bg-surface text-brand shadow-sm' : 'text-ink-3 hover:text-slate-600 dark:hover:text-slate-300'}`}>
                             {opt.label}
                         </button>
                     ))}
@@ -204,23 +204,23 @@ export const Performance = ({ portfolios, activePortfolioId }) => {
             </GlassCard>
 
             {!pid ? (
-                <div className="text-center text-slate-400 font-bold py-16">{t('perf.select_portfolio')}</div>
+                <div className="text-center text-ink-3 font-bold py-16">{t('perf.select_portfolio')}</div>
             ) : loading ? (
-                <div className="h-64 flex items-center justify-center"><Loader2 className="animate-spin text-indigo-600" /></div>
+                <div className="h-64 flex items-center justify-center"><Loader2 className="animate-spin text-brand" /></div>
             ) : (
                 <>
                     {/* HERO: value + gain */}
                     <motion.div variants={fadeInUp}>
                         <GlassCard className="text-center py-8 relative">
-                            <div className="text-xs font-black text-slate-400 uppercase tracking-widest mb-1">{t('perf.title')}</div>
+                            <div className="text-footnote font-semibold text-ink-3 mb-1">{t('perf.title')}</div>
                             {periodStartLabel && (
-                                <div className="text-[11px] font-bold text-slate-400 mb-3">
+                                <div className="text-caption1 font-bold text-ink-3 mb-3">
                                     {t('perf.period_since')} {periodStartLabel}
                                 </div>
                             )}
-                            <div className="text-4xl md:text-5xl font-black text-slate-900 dark:text-white tracking-tight">{formatNumber(currentValue, 2)} €</div>
+                            <div className="text-largetitle md:text-5xl font-semibold text-ink tracking-tight">{formatNumber(currentValue, 2)} €</div>
                             {hasCsv && (
-                                <div className={`mt-3 inline-flex items-center gap-2 px-4 py-1.5 rounded-full text-sm font-black ${up ? 'bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600 dark:text-emerald-400' : 'bg-rose-50 dark:bg-rose-900/20 text-rose-500 dark:text-rose-400'}`}>
+                                <div className={`mt-3 inline-flex items-center gap-2 px-4 py-1.5 rounded-full text-subhead font-semibold ${up ? 'bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600 dark:text-emerald-400' : 'bg-rose-50 dark:bg-rose-900/20 text-rose-500 dark:text-rose-400'}`}>
                                     {up ? <TrendingUp size={16} /> : <TrendingDown size={16} />}
                                     {up ? '+' : ''}{formatNumber(periodMetrics.totalGross, 2)} € ({up ? '+' : ''}{periodMetrics.totalGrossPct}%)
                                 </div>
@@ -232,14 +232,14 @@ export const Performance = ({ portfolios, activePortfolioId }) => {
                     {hasCsv ? (
                         /* ── Compact mode: data imported, show a discrete chip ── */
                         <motion.div variants={fadeInUp}>
-                            <div className="flex items-center justify-between gap-3 px-5 py-3 bg-white dark:bg-slate-900 rounded-2xl border border-slate-100 dark:border-slate-800 shadow-sm">
+                            <div className="flex items-center justify-between gap-3 px-5 py-3 bg-surface rounded-2xl border border-line shadow-sm">
                                 <div className="flex items-center gap-3 min-w-0">
                                     <div className="p-2 bg-emerald-50 dark:bg-emerald-900/20 rounded-xl">
                                         <CheckCircle2 size={16} className="text-emerald-500" />
                                     </div>
                                     <div className="min-w-0">
-                                        <div className="text-xs font-black text-slate-700 dark:text-slate-200">{t('tr.imported_title')}</div>
-                                        <div className="text-[10px] font-bold text-slate-400 truncate">
+                                        <div className="text-footnote font-semibold text-ink">{t('tr.imported_title')}</div>
+                                        <div className="text-caption2 font-bold text-ink-3 truncate">
                                             {csvMetrics?.firstPurchase
                                                 ? `${t('tr.since_first')}: ${new Date(csvMetrics.firstPurchase).toLocaleDateString('es-ES', { day: '2-digit', month: 'short', year: 'numeric' })}`
                                                 : t('tr.imported_hint')
@@ -250,7 +250,7 @@ export const Performance = ({ portfolios, activePortfolioId }) => {
                                 <div className="flex items-center gap-2 shrink-0">
                                     <label
                                         htmlFor="csv-upload-input"
-                                        className="inline-flex items-center gap-1.5 px-3 py-2 bg-slate-100 dark:bg-slate-800 hover:bg-indigo-50 dark:hover:bg-indigo-900/20 text-slate-500 hover:text-indigo-600 dark:hover:text-indigo-400 rounded-xl text-[10px] font-black uppercase tracking-wide cursor-pointer transition-all"
+                                        className="inline-flex items-center gap-1.5 px-3 py-2 bg-surface-2 hover:bg-indigo-50 dark:hover:bg-indigo-900/20 text-ink-3 hover:text-indigo-600 dark:hover:text-indigo-400 rounded-xl text-caption2 font-semibold uppercase tracking-wide cursor-pointer transition-all"
                                     >
                                         <RefreshCw size={12} /> {t('tr.update')}
                                     </label>
@@ -275,28 +275,28 @@ export const Performance = ({ portfolios, activePortfolioId }) => {
                                     <div className="relative p-6 md:p-8">
                                         {/* Header */}
                                         <div className="text-center mb-6">
-                                            <div className="inline-flex items-center gap-2 px-3 py-1.5 bg-indigo-100 dark:bg-indigo-900/30 rounded-full mb-4">
-                                                <Receipt size={13} className="text-indigo-500" />
-                                                <span className="text-[10px] font-black text-indigo-600 dark:text-indigo-400 uppercase tracking-widest">{t('tr.title')}</span>
+                                            <div className="inline-flex items-center gap-2 px-3 py-1.5 bg-brand-soft rounded-full mb-4">
+                                                <Receipt size={13} className="text-brand" />
+                                                <span className="text-caption2 font-semibold text-brand">{t('tr.title')}</span>
                                             </div>
-                                            <h3 className="text-lg font-black text-slate-800 dark:text-white mb-2">{t('tr.onboarding_title')}</h3>
-                                            <p className="text-xs font-medium text-slate-400 max-w-md mx-auto leading-relaxed">{t('tr.onboarding_desc')}</p>
+                                            <h3 className="text-title3 font-semibold text-ink mb-2">{t('tr.onboarding_title')}</h3>
+                                            <p className="text-footnote font-medium text-ink-3 max-w-md mx-auto leading-relaxed">{t('tr.onboarding_desc')}</p>
                                         </div>
 
                                         {/* Steps */}
                                         <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-6">
-                                            <div className="flex items-start gap-3 p-4 bg-white/70 dark:bg-slate-800/50 rounded-2xl backdrop-blur-sm border border-white/50 dark:border-slate-700/50">
-                                                <div className="w-7 h-7 shrink-0 bg-indigo-500 rounded-xl flex items-center justify-center text-white text-xs font-black">1</div>
+                                            <div className="flex items-start gap-3 p-4 bg-surface/70 rounded-2xl backdrop-blur-sm border border-line">
+                                                <div className="w-7 h-7 shrink-0 bg-indigo-500 rounded-xl flex items-center justify-center text-white text-footnote font-semibold">1</div>
                                                 <div>
-                                                    <div className="text-xs font-black text-slate-700 dark:text-slate-200">{t('tr.step1_title')}</div>
-                                                    <div className="text-[10px] font-medium text-slate-400 mt-0.5">{t('tr.step1_desc')}</div>
+                                                    <div className="text-footnote font-semibold text-ink">{t('tr.step1_title')}</div>
+                                                    <div className="text-caption2 font-medium text-ink-3 mt-0.5">{t('tr.step1_desc')}</div>
                                                 </div>
                                             </div>
-                                            <div className="flex items-start gap-3 p-4 bg-white/70 dark:bg-slate-800/50 rounded-2xl backdrop-blur-sm border border-white/50 dark:border-slate-700/50">
-                                                <div className="w-7 h-7 shrink-0 bg-indigo-500 rounded-xl flex items-center justify-center text-white text-xs font-black">2</div>
+                                            <div className="flex items-start gap-3 p-4 bg-surface/70 rounded-2xl backdrop-blur-sm border border-line">
+                                                <div className="w-7 h-7 shrink-0 bg-indigo-500 rounded-xl flex items-center justify-center text-white text-footnote font-semibold">2</div>
                                                 <div>
-                                                    <div className="text-xs font-black text-slate-700 dark:text-slate-200">{t('tr.step2_title')}</div>
-                                                    <div className="text-[10px] font-medium text-slate-400 mt-0.5">{t('tr.step2_desc')}</div>
+                                                    <div className="text-footnote font-semibold text-ink">{t('tr.step2_title')}</div>
+                                                    <div className="text-caption2 font-medium text-ink-3 mt-0.5">{t('tr.step2_desc')}</div>
                                                 </div>
                                             </div>
                                         </div>
@@ -321,20 +321,20 @@ export const Performance = ({ portfolios, activePortfolioId }) => {
                             {/* Top KPI cards — 2x2 on mobile, 4 on desktop */}
                             <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-6">
                                 <GlassCard className="!p-4">
-                                    <div className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">{t('perf.portfolio_value')}</div>
-                                    <div className="text-lg font-black text-slate-800 dark:text-white tabular-nums">{formatNumber(periodMetrics.portfolioValue, 2)} €</div>
+                                    <div className="text-caption2 font-semibold text-ink-3 mb-1">{t('perf.portfolio_value')}</div>
+                                    <div className="text-title3 font-semibold text-ink tabular-nums">{formatNumber(periodMetrics.portfolioValue, 2)} €</div>
                                 </GlassCard>
                                 <GlassCard className="!p-4">
-                                    <div className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">{t('perf.invested')}</div>
-                                    <div className="text-lg font-black text-slate-800 dark:text-white tabular-nums">{formatNumber(periodMetrics.invested, 2)} €</div>
+                                    <div className="text-caption2 font-semibold text-ink-3 mb-1">{t('perf.invested')}</div>
+                                    <div className="text-title3 font-semibold text-ink tabular-nums">{formatNumber(periodMetrics.invested, 2)} €</div>
                                 </GlassCard>
                                 <GlassCard className="!p-4">
-                                    <div className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">{t('perf.cashflow')}</div>
-                                    <div className="text-lg font-black text-slate-800 dark:text-white tabular-nums">{formatNumber(periodMetrics.cashFlow, 2)} €</div>
+                                    <div className="text-caption2 font-semibold text-ink-3 mb-1">{t('perf.cashflow')}</div>
+                                    <div className="text-title3 font-semibold text-ink tabular-nums">{formatNumber(periodMetrics.cashFlow, 2)} €</div>
                                 </GlassCard>
                                 <GlassCard className="!p-4">
-                                    <div className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">{t('perf.total_gross')}</div>
-                                    <div className={`text-lg font-black tabular-nums ${periodMetrics.totalGross >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-500 dark:text-rose-400'}`}>
+                                    <div className="text-caption2 font-semibold text-ink-3 mb-1">{t('perf.total_gross')}</div>
+                                    <div className={`text-title3 font-semibold tabular-nums ${periodMetrics.totalGross >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-500 dark:text-rose-400'}`}>
                                         {periodMetrics.totalGross >= 0 ? '+' : ''}{formatNumber(periodMetrics.totalGross, 2)} €
                                     </div>
                                     {periodMetrics.totalGrossPct !== 0 && (
@@ -347,26 +347,26 @@ export const Performance = ({ portfolios, activePortfolioId }) => {
                             <div className="grid grid-cols-2 gap-3 mb-6">
                                 <GlassCard className="!p-4">
                                     <div className="flex items-center gap-1.5 mb-1">
-                                        <div className="text-[10px] font-black text-slate-400 uppercase tracking-widest">TIR</div>
+                                        <div className="text-caption2 font-semibold text-ink-3">TIR</div>
                                         <span className="group relative">
-                                            <Info size={11} className="text-slate-300 dark:text-slate-600 cursor-help" />
-                                            <span className="pointer-events-none absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-44 rounded-lg bg-slate-900 px-3 py-2 text-[10px] font-medium text-slate-200 opacity-0 group-hover:opacity-100 transition-opacity shadow-xl z-50">{t('perf.tir_hint')}</span>
+                                            <Info size={11} className="text-ink-3 cursor-help" />
+                                            <span className="pointer-events-none absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-44 rounded-lg bg-slate-900 px-3 py-2 text-caption2 font-medium text-slate-200 opacity-0 group-hover:opacity-100 transition-opacity shadow-xl z-50">{t('perf.tir_hint')}</span>
                                         </span>
                                     </div>
-                                    <div className={`text-xl font-black tabular-nums ${periodMetrics.tir !== null && periodMetrics.tir >= 0 ? 'text-emerald-600 dark:text-emerald-400' : periodMetrics.tir !== null ? 'text-rose-500 dark:text-rose-400' : 'text-slate-500'}`}>
+                                    <div className={`text-title2 font-semibold tabular-nums ${periodMetrics.tir !== null && periodMetrics.tir >= 0 ? 'text-emerald-600 dark:text-emerald-400' : periodMetrics.tir !== null ? 'text-rose-500 dark:text-rose-400' : 'text-ink-3'}`}>
                                         <Badge value={periodMetrics.tir} />
                                     </div>
                                 </GlassCard>
                                 <GlassCard className="!p-4">
                                     <div className="flex items-center gap-1.5 mb-1">
-                                        <div className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{t('perf.ttwror')}</div>
+                                        <div className="text-caption2 font-semibold text-ink-3">{t('perf.ttwror')}</div>
                                         <span className="group relative">
-                                            <Info size={11} className="text-slate-300 dark:text-slate-600 cursor-help" />
-                                            <span className="pointer-events-none absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-44 rounded-lg bg-slate-900 px-3 py-2 text-[10px] font-medium text-slate-200 opacity-0 group-hover:opacity-100 transition-opacity shadow-xl z-50">{t('perf.ttwror_hint')}</span>
+                                            <Info size={11} className="text-ink-3 cursor-help" />
+                                            <span className="pointer-events-none absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-44 rounded-lg bg-slate-900 px-3 py-2 text-caption2 font-medium text-slate-200 opacity-0 group-hover:opacity-100 transition-opacity shadow-xl z-50">{t('perf.ttwror_hint')}</span>
                                         </span>
                                     </div>
-                                    <div className={`text-xl font-black tabular-nums`}>
-                                        {ttwrorValue !== null ? <Badge value={ttwrorValue} /> : <span className="text-slate-400">—</span>}
+                                    <div className={`text-title2 font-semibold tabular-nums`}>
+                                        {ttwrorValue !== null ? <Badge value={ttwrorValue} /> : <span className="text-ink-3">—</span>}
                                     </div>
                                 </GlassCard>
                             </div>
@@ -386,7 +386,7 @@ export const Performance = ({ portfolios, activePortfolioId }) => {
                                 />
                                 <StatRow label={t('perf.dividends')} borderBottom
                                     value={`${formatNumber(periodMetrics.dividends, 2)} €`}
-                                    badge={periodMetrics.dividends > 0 ? <Badge value={periodMetrics.dividendPct} /> : <span className="text-[11px] font-bold text-slate-400 bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded">0,00 %</span>}
+                                    badge={periodMetrics.dividends > 0 ? <Badge value={periodMetrics.dividendPct} /> : <span className="text-caption1 font-bold text-ink-3 bg-surface-2 px-2 py-0.5 rounded">0,00 %</span>}
                                 />
                                 <StatRow label={t('perf.interest')} borderBottom
                                     value={<span className={periodMetrics.interest > 0 ? 'text-emerald-600 dark:text-emerald-400' : ''}>{formatNumber(periodMetrics.interest, 2)} €</span>}
@@ -409,7 +409,7 @@ export const Performance = ({ portfolios, activePortfolioId }) => {
 
                                 {/* Net total */}
                                 <StatRow label={t('perf.net_total')} bold borderTop
-                                    value={<span className={`text-lg ${periodMetrics.netTotal >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-500 dark:text-rose-400'}`}>{formatNumber(periodMetrics.netTotal, 2)} €</span>}
+                                    value={<span className={`text-title3 ${periodMetrics.netTotal >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-500 dark:text-rose-400'}`}>{formatNumber(periodMetrics.netTotal, 2)} €</span>}
                                 />
                             </GlassCard>
                         </motion.div>
@@ -419,36 +419,36 @@ export const Performance = ({ portfolios, activePortfolioId }) => {
                     {!hasCsv && history.length > 0 && (
                         <div className="grid grid-cols-2 lg:grid-cols-4 gap-6">
                             <GlassCard>
-                                <div className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">{t('perf.invested')}</div>
-                                <div className="text-2xl font-black text-slate-800 dark:text-slate-100 tabular-nums">{formatNumber(legacyMetrics.invested, 2)} €</div>
+                                <div className="text-caption2 font-semibold text-ink-3 mb-1">{t('perf.invested')}</div>
+                                <div className="text-title1 font-semibold text-ink tabular-nums">{formatNumber(legacyMetrics.invested, 2)} €</div>
                             </GlassCard>
                             <GlassCard>
-                                <div className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">{t('perf.gain')}</div>
-                                <div className={`text-2xl font-black tabular-nums ${legacyMetrics.gain >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-500 dark:text-rose-400'}`}>{legacyMetrics.gain >= 0 ? '+' : ''}{formatNumber(legacyMetrics.gain, 2)} €</div>
-                                <div className="text-[11px] font-bold text-slate-400 mt-1">{legacyMetrics.gain >= 0 ? '+' : ''}{formatNumber(legacyMetrics.gainPct, 2)}%</div>
+                                <div className="text-caption2 font-semibold text-ink-3 mb-1">{t('perf.gain')}</div>
+                                <div className={`text-title1 font-semibold tabular-nums ${legacyMetrics.gain >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-500 dark:text-rose-400'}`}>{legacyMetrics.gain >= 0 ? '+' : ''}{formatNumber(legacyMetrics.gain, 2)} €</div>
+                                <div className="text-caption1 font-bold text-ink-3 mt-1">{legacyMetrics.gain >= 0 ? '+' : ''}{formatNumber(legacyMetrics.gainPct, 2)}%</div>
                             </GlassCard>
                             <GlassCard>
-                                <div className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">TIR</div>
-                                <div className={`text-2xl font-black tabular-nums ${legacyMetrics.tir !== null && legacyMetrics.tir >= 0 ? 'text-emerald-600 dark:text-emerald-400' : legacyMetrics.tir !== null ? 'text-rose-500 dark:text-rose-400' : 'text-slate-500'}`}>
+                                <div className="text-caption2 font-semibold text-ink-3 mb-1">TIR</div>
+                                <div className={`text-title1 font-semibold tabular-nums ${legacyMetrics.tir !== null && legacyMetrics.tir >= 0 ? 'text-emerald-600 dark:text-emerald-400' : legacyMetrics.tir !== null ? 'text-rose-500 dark:text-rose-400' : 'text-ink-3'}`}>
                                     {legacyMetrics.tir !== null ? `${legacyMetrics.tir >= 0 ? '+' : ''}${formatNumber(legacyMetrics.tir, 2)}%` : '—'}
                                 </div>
-                                <div className="text-[11px] font-bold text-slate-400 mt-1">{t('perf.tir_hint')}</div>
+                                <div className="text-caption1 font-bold text-ink-3 mt-1">{t('perf.tir_hint')}</div>
                             </GlassCard>
                             <GlassCard>
-                                <div className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">{t('perf.simple_return')}</div>
-                                <div className={`text-2xl font-black tabular-nums ${legacyMetrics.gain >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-500 dark:text-rose-400'}`}>{legacyMetrics.gain >= 0 ? '+' : ''}{formatNumber(legacyMetrics.gainPct, 2)}%</div>
+                                <div className="text-caption2 font-semibold text-ink-3 mb-1">{t('perf.simple_return')}</div>
+                                <div className={`text-title1 font-semibold tabular-nums ${legacyMetrics.gain >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-500 dark:text-rose-400'}`}>{legacyMetrics.gain >= 0 ? '+' : ''}{formatNumber(legacyMetrics.gainPct, 2)}%</div>
                             </GlassCard>
                         </div>
                     )}
 
                     {!hasCsv && !history.length && (
-                        <div className="text-center text-slate-400 font-bold py-10 px-6 bg-white dark:bg-slate-900 rounded-[2rem] border border-slate-100 dark:border-slate-800">{t('perf.no_data')}</div>
+                        <div className="text-center text-ink-3 font-bold py-10 px-6 bg-surface rounded-[2rem] border border-line">{t('perf.no_data')}</div>
                     )}
 
                     {/* Evolution chart */}
                     {evolution.length > 1 && (
                         <GlassCard>
-                            <div className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-4">{t('perf.evolution')}</div>
+                            <div className="text-caption2 font-semibold text-ink-3 mb-4">{t('perf.evolution')}</div>
                             <div className="h-64">
                                 <ResponsiveContainer width="100%" height="100%">
                                     <AreaChart data={evolution} margin={{ top: 5, right: 5, left: 5, bottom: 0 }}>

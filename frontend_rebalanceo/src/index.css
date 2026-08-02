@@ -1,37 +1,177 @@
+/* Inter variable, self-hospedada: la PWA sigue teniendo tipografía sin red. */
+@import '@fontsource-variable/inter';
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
-/* Opcional: Estilo personalizado para barras de desplazamiento */
-.custom-scrollbar::-webkit-scrollbar {
-  width: 6px;
-  /* Sin altura, una barra horizontal sale con el grosor por defecto del sistema. */
-  height: 6px;
-}
-.custom-scrollbar::-webkit-scrollbar-track {
-  background: transparent;
-}
-.custom-scrollbar::-webkit-scrollbar-thumb {
-  background-color: #cbd5e1;
-  border-radius: 20px;
-}
-.dark .custom-scrollbar::-webkit-scrollbar-thumb {
-  background-color: #334155;
-}
+/* ------------------------------------------------------------------
+   Tokens de color. Un único juego de nombres semánticos para los dos
+   temas: los componentes usan `bg-surface` / `text-ink` y nunca colores
+   crudos, así que cambiar el tema no exige tocar ni un componente.
+   ------------------------------------------------------------------ */
+@layer base {
+  :root {
+    --c-canvas: 246 247 249;
+    --c-surface: 255 255 255;
+    --c-surface-2: 241 243 247;
+    --c-surface-3: 232 235 241;
+    --c-line: 230 233 239;
+    --c-line-strong: 212 217 227;
 
-/* Remove the grey tap flash on mobile for a native, app-like feel (harmless on desktop). */
-html { -webkit-tap-highlight-color: transparent; }
+    --c-ink: 15 23 42;
+    --c-ink-2: 71 85 105;
+    --c-ink-3: 138 148 166;
 
-/* App-like behaviour ONLY when launched from the home screen (installed PWA).
-   These rules never apply in a normal browser tab or on desktop. */
-@media (display-mode: standalone) {
-  html {
-    /* Matches the dark theme_color behind the status bar / any overscroll area. */
-    background: #0f172a;
-    /* No rubber-band bounce → feels native. */
-    overscroll-behavior-y: none;
+    --c-brand: 79 70 229;
+    --c-brand-soft: 238 242 255;
+    --c-brand-ink: 67 56 202;
+
+    --c-positive: 5 150 105;
+    --c-positive-soft: 236 253 245;
+    --c-negative: 225 29 72;
+    --c-negative-soft: 255 241 242;
+    --c-warning: 217 119 6;
+    --c-warning-soft: 255 251 235;
+
+    --c-viz-1: 79 70 229;
+    --c-viz-2: 8 145 178;
+    --c-viz-3: 124 58 237;
+    --c-viz-4: 217 119 6;
+    --c-viz-5: 5 150 105;
+    --c-viz-6: 219 39 119;
   }
+
+  .dark {
+    --c-canvas: 11 16 32;
+    --c-surface: 18 24 41;
+    --c-surface-2: 26 33 54;
+    --c-surface-3: 35 43 67;
+    --c-line: 35 43 67;
+    --c-line-strong: 49 58 86;
+
+    --c-ink: 232 236 245;
+    --c-ink-2: 163 173 194;
+    --c-ink-3: 111 122 145;
+
+    --c-brand: 129 140 248;
+    --c-brand-soft: 30 36 80;
+    --c-brand-ink: 165 180 252;
+
+    --c-positive: 52 211 153;
+    --c-positive-soft: 6 40 31;
+    --c-negative: 251 113 133;
+    --c-negative-soft: 43 16 21;
+    --c-warning: 251 191 36;
+    --c-warning-soft: 42 31 6;
+
+    --c-viz-1: 129 140 248;
+    --c-viz-2: 34 211 238;
+    --c-viz-3: 167 139 250;
+    --c-viz-4: 251 191 36;
+    --c-viz-5: 52 211 153;
+    --c-viz-6: 244 114 182;
+  }
+
+  html {
+    -webkit-tap-highlight-color: transparent;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    /* Safari amplía el texto al girar el móvil si no se fija. */
+    -webkit-text-size-adjust: 100%;
+  }
+
   body {
-    overscroll-behavior-y: none;
+    @apply bg-canvas text-ink font-sans text-body;
+    /* SF Pro ya viene con el tracking correcto; apretarlo lo empeora. */
+    letter-spacing: -0.01em;
+  }
+
+  /* Nada de selección accidental al mantener pulsado, como en una app nativa.
+     Los campos y el contenido copiable se reactivan justo debajo. */
+  body {
+    -webkit-user-select: none;
+    user-select: none;
+  }
+  input, textarea, [contenteditable], .selectable {
+    -webkit-user-select: text;
+    user-select: text;
+  }
+
+  /* iOS hace zoom al enfocar un input de menos de 16px. Subirlos a 17 evita
+     el salto de escala que delata al instante que esto es una web. */
+  input, select, textarea {
+    font-size: 1.0625rem;
+  }
+
+  /* Las cifras de una tabla financiera tienen que alinearse en columna. */
+  .tabular-nums, table, .font-mono-nums {
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* Un único anillo de foco en toda la app, visible sólo por teclado. */
+  :focus-visible {
+    @apply outline-none ring-2 ring-brand ring-offset-2 ring-offset-canvas rounded-[inherit];
+  }
+}
+
+@layer components {
+  /* Barra de scroll discreta y coherente con el tema. */
+  .custom-scrollbar::-webkit-scrollbar { width: 6px; height: 6px; }
+  .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
+  .custom-scrollbar::-webkit-scrollbar-thumb {
+    background-color: rgb(var(--c-line-strong));
+    border-radius: 20px;
+  }
+  .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+    background-color: rgb(var(--c-ink-3));
+  }
+  .custom-scrollbar {
+    scrollbar-width: thin;
+    scrollbar-color: rgb(var(--c-line-strong)) transparent;
+  }
+
+  /* Etiqueta de sección. iOS las pone en gris, no en versalitas apretadas:
+     las mayúsculas diminutas eran lo que más olor a dashboard web daba. */
+  .label-caps {
+    @apply text-footnote font-semibold text-ink-3;
+  }
+
+  /* Separador fino de iOS: media línea real en pantallas retina, e insertado
+     por la izquierda para que arranque bajo el texto y no bajo el icono. */
+  .ios-sep > * + * {
+    border-top: 0.5px solid rgb(var(--c-line));
+  }
+  .ios-sep-inset > * + * {
+    border-top: 0.5px solid rgb(var(--c-line));
+    background-clip: padding-box;
+  }
+
+  /* Zona táctil de 44pt sin engordar el elemento visible. */
+  .tap-target {
+    position: relative;
+  }
+  .tap-target::after {
+    content: '';
+    position: absolute;
+    inset: 50% 0 auto 0;
+    height: 2.75rem;
+    transform: translateY(-50%);
+    min-width: 2.75rem;
+  }
+}
+
+/* Comportamiento nativo sólo cuando se abre como app instalada. */
+@media (display-mode: standalone) {
+  html { overscroll-behavior-y: none; background: rgb(var(--c-canvas)); }
+  body { overscroll-behavior-y: none; }
+}
+
+/* Respetar a quien pide menos movimiento. */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
   }
 }
