@@ -44,7 +44,7 @@ export const ContributionSchedule = ({ monthly, annualGrowthPct = 0, months }) =
                 </div>
             ) : (
                 <>
-                    <div className="flex gap-2 overflow-x-auto pb-2 -mx-1 px-1 snap-x custom-scrollbar">
+                    <div className="flex gap-2 scroll-x pb-2 -mx-1 px-1 snap-x custom-scrollbar">
                         {rows.map((r, i) => {
                             const last = i === rows.length - 1;
                             return (

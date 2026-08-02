@@ -161,7 +161,7 @@ export const Segmented = ({ value, onChange, options = [], className = '', size 
   const box = size === 'sm' ? 'h-8 p-[0.125rem]' : 'h-[2.25rem] p-[0.1875rem]';
   const item = size === 'sm' ? 'text-caption1 px-2.5' : 'text-footnote px-3';
   return (
-    <div className={cn('inline-flex bg-surface-2 rounded-field w-full', box, className)}>
+    <div className={cn('flex min-w-0 bg-surface-2 rounded-field w-full', box, className)}>
       {options.map(o => {
         const active = o.value === value;
         return (
@@ -170,7 +170,9 @@ export const Segmented = ({ value, onChange, options = [], className = '', size 
             type="button"
             onClick={() => onChange(o.value)}
             className={cn(
-                'relative flex-1 inline-flex items-center justify-center gap-1.5 rounded-[0.4375rem] whitespace-nowrap',
+                // min-w-0 es lo que permite que los botones bajen del ancho de
+                // su texto; sin él, cuatro etiquetas largas desbordan la fila.
+                'relative flex-1 min-w-0 inline-flex items-center justify-center gap-1.5 rounded-[0.4375rem]',
                 // El control mide 32pt como en iOS, pero la zona de toque llega
                 // a 44pt vía pseudo-elemento: se cumple la HIG sin engordarlo.
                 'transition-colors duration-200 tap-target',
@@ -185,9 +187,9 @@ export const Segmented = ({ value, onChange, options = [], className = '', size 
                 className="absolute inset-0 bg-surface rounded-[0.4375rem] shadow-[0_3px_8px_rgb(0_0_0/0.12),0_1px_1px_rgb(0_0_0/0.04)]"
               />
             )}
-            <span className="relative flex items-center gap-1.5">
-              {o.icon && <o.icon size={size === 'sm' ? 13 : 15} strokeWidth={2} />}
-              {o.label}
+            <span className="relative flex items-center gap-1.5 min-w-0">
+              {o.icon && <o.icon size={size === 'sm' ? 13 : 15} strokeWidth={2} className="shrink-0" />}
+              <span className="truncate">{o.label}</span>
             </span>
           </button>
         );
@@ -217,6 +219,56 @@ export const Input = React.forwardRef(({ icon: Icon, className = '', wrapperClas
   </div>
 ));
 Input.displayName = 'Input';
+
+/**
+ * Campo numérico para importes y porcentajes.
+ *
+ * Un `<input type=number>` suelto trae de serie las flechitas del navegador, un
+ * teclado alfabético en el móvil y ninguna pista de la unidad. Aquí: teclado
+ * decimal, unidad visible, cifra grande y tabular, y selección al enfocar para
+ * poder sobrescribir de un toque en vez de borrar dígito a dígito.
+ */
+export const NumericField = React.forwardRef(({
+  label, hint, unit, value, onChange, placeholder,
+  min, max, step, disabled = false, className = '', align = 'left',
+}, ref) => (
+  <label className={cn('block', className)}>
+    {label && <span className="block text-footnote text-ink-2 mb-1.5">{label}</span>}
+    <span className={cn(
+      'flex items-center gap-2 h-12 px-3.5 rounded-field bg-surface-2',
+      'transition-colors duration-150 focus-within:bg-surface-3',
+      'ring-brand/25 focus-within:ring-4',
+      disabled && 'opacity-50'
+    )}>
+      <input
+        ref={ref}
+        type="text"
+        inputMode="decimal"
+        // El patrón deja pasar coma y punto: en España se teclea "1,5".
+        pattern="[0-9]*[.,]?[0-9]*"
+        value={value}
+        placeholder={placeholder}
+        disabled={disabled}
+        onFocus={(e) => e.target.select()}
+        onChange={(e) => {
+          const v = e.target.value;
+          if (v === '' || /^[0-9]*[.,]?[0-9]*$/.test(v)) onChange(v);
+        }}
+        // h-full: si el input mide menos que la caja, tocar en el hueco no
+        // enfoca y el campo parece que no responde.
+        className={cn(
+          'w-full h-full bg-transparent outline-none border-0 p-0',
+          'text-title3 font-semibold tabular-nums text-ink',
+          'placeholder:text-ink-3 placeholder:font-normal',
+          align === 'right' && 'text-right'
+        )}
+      />
+      {unit && <span className="text-title3 font-medium text-ink-3 shrink-0 select-none">{unit}</span>}
+    </span>
+    {hint && <span className="block text-caption1 text-ink-3 mt-1.5">{hint}</span>}
+  </label>
+));
+NumericField.displayName = 'NumericField';
 
 /* ---------------------------------------------------------------- *
  *  Presentación de datos

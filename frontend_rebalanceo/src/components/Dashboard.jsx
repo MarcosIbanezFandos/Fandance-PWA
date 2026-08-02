@@ -1,8 +1,8 @@
 import React from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Wallet, Activity, ListFilter, Plus, Search, Loader2, ArrowUpRight, ArrowDownRight, Trash2, Calendar, RotateCcw, PlusCircle, History as HistoryIcon, Repeat, Coins, AlertTriangle, CheckCircle2 } from 'lucide-react';
+import { Wallet, Activity, ListFilter, Plus, Search, Loader2, ArrowUpRight, ArrowDownRight, Trash2, Calendar, RotateCcw, PlusCircle, History as HistoryIcon, AlertTriangle, CheckCircle2 } from 'lucide-react';
 import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer } from 'recharts';
-import { GlassCard, CountUp, BounceButton, fadeInUp, staggerContainer } from './UI';
+import { GlassCard, CountUp, BounceButton, NumericField, Segmented, fadeInUp, staggerContainer } from './UI';
 import { safeFloat, formatNumber, formatUnits } from '../utils';
 import { useGlobal } from '../context/GlobalContext';
 import _ from 'lodash';
@@ -42,15 +42,15 @@ export const Dashboard = ({
     const investTotal = safeFloat(planTotals?.investTotal);
     const unallocated = safeFloat(planTotals?.unallocated);
 
-    const modeBtn = (mode, label, icon) => (
-        <button
-            onClick={() => setRebalanceMode(mode)}
-            className={`flex items-center gap-2 px-4 py-2 rounded-xl text-caption1 font-semibold uppercase tracking-wide transition-all ${rebalanceMode === mode
- ? 'bg-indigo-600 text-white shadow-md shadow-indigo-500/20'
- : 'text-ink-3 hover:text-slate-600 dark:hover:text-slate-300'}`}
-        >
-            {icon}{label}
-        </button>
+    const modeControl = (
+        <Segmented
+            value={rebalanceMode}
+            onChange={setRebalanceMode}
+            options={[
+                { value: 'contribute', label: t('dash.mode_contribute') },
+                { value: 'full', label: t('dash.mode_full') },
+            ]}
+        />
     );
 
     const driftColor = (item) => {
@@ -68,7 +68,7 @@ export const Dashboard = ({
                 <GlassCard className="!p-4 md:!p-6">
                     <div className="text-caption2 md:text-caption2 font-semibold text-ink-3 mb-1 pr-8">{t('kpi.total_value')}</div>
                     <div className="text-title2 md:text-largetitle font-semibold text-ink tabular-nums"><CountUp value={totalValue} suffix=" €" /></div>
-                    <div className="mt-1 md:mt-2 text-caption2 md:text-caption2 font-semibold uppercase text-ink-3 truncate">{t('kpi.current_capital')}</div>
+                    <div className="mt-1 md:mt-2 text-caption2 md:text-caption2 font-semibold text-ink-3 truncate">{t('kpi.current_capital')}</div>
                     <div className="absolute top-3 right-3 md:top-6 md:right-6 p-2 md:p-3 bg-surface-2 rounded-lg md:rounded-xl text-brand"><Wallet size={18} /></div>
                 </GlassCard>
 
@@ -92,7 +92,7 @@ export const Dashboard = ({
                             />
                             <span className="text-body md:text-title2 text-ink-3 font-bold">€</span>
                         </div>
-                        <div className="mt-1 md:mt-2 text-caption2 md:text-caption2 font-semibold uppercase text-ink-3">EUR / mes</div>
+                        <div className="mt-1 md:mt-2 text-caption2 md:text-caption2 font-semibold text-ink-3">EUR / mes</div>
                     </div>
                     <div className="absolute top-3 right-3 md:top-6 md:right-6 p-2 md:p-3 bg-brand-soft text-brand rounded-lg md:rounded-xl"><Plus size={18} /></div>
                 </GlassCard>
@@ -100,7 +100,7 @@ export const Dashboard = ({
                 <GlassCard className="!p-4 md:!p-6">
                     <div className="text-caption2 md:text-caption2 font-semibold text-ink-3 mb-1 pr-8">{t('kpi.composition')}</div>
                     <div className="text-title2 md:text-largetitle font-semibold text-ink tabular-nums">{portfolioItems.length}</div>
-                    <div className="text-caption2 md:text-caption2 font-bold text-ink-3 mt-1 uppercase truncate">{assetSummary}</div>
+                    <div className="text-caption2 md:text-caption2 font-bold text-ink-3 mt-1 truncate">{assetSummary}</div>
                     <div className="absolute top-3 right-3 md:top-6 md:right-6 p-2 md:p-3 bg-emerald-50 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400 rounded-lg md:rounded-xl"><ListFilter size={18} /></div>
                 </GlassCard>
             </div>
@@ -110,7 +110,7 @@ export const Dashboard = ({
                     <div className="bg-surface p-6 rounded-[2rem] shadow-sm relative z-50 border border-line">
                         <div className="relative flex items-center bg-surface-2 rounded-2xl p-3 border border-line focus-within:border-indigo-500 focus-within:ring-4 focus-within:ring-brand/10 transition-all">
                             <Search className="text-ink-3 mr-3" size={20} />
-                            <input className="bg-transparent w-full outline-none font-bold text-subhead text-ink placeholder:text-slate-400" placeholder={t('dash.search')} value={query} onChange={e => { setQuery(e.target.value); searchAsset(e.target.value) }} />
+                            <input className="bg-transparent w-full outline-none text-body text-ink placeholder:text-ink-3" placeholder={t('dash.search')} value={query} onChange={e => { setQuery(e.target.value); searchAsset(e.target.value) }} />
                             {isSearching && <Loader2 className="animate-spin text-brand" size={18} />}
                         </div>
                         <AnimatePresence>
@@ -134,12 +134,9 @@ export const Dashboard = ({
                         {/* Header: mode toggle + targets badge */}
                         <div className="p-5 md:p-6 border-b border-line flex flex-col lg:flex-row lg:items-center justify-between gap-4">
                             <div>
-                                <h3 className="text-subhead font-semibold text-ink uppercase tracking-tight mb-2">{t('dash.plan_title')}</h3>
-                                <div className="inline-flex bg-surface-2 rounded-2xl p-1">
-                                    {modeBtn('contribute', t('dash.mode_contribute'), <Coins size={13} />)}
-                                    {modeBtn('full', t('dash.mode_full'), <Repeat size={13} />)}
-                                </div>
-                                <p className="text-caption1 font-bold text-ink-3 mt-2">
+                                <h3 className="text-headline font-semibold text-ink mb-2.5">{t('dash.plan_title')}</h3>
+                                {modeControl}
+                                <p className="text-footnote text-ink-2 mt-2">
                                     {rebalanceMode === 'contribute' ? t('dash.mode_contribute_hint') : t('dash.mode_full_hint')}
                                 </p>
                             </div>
@@ -149,7 +146,7 @@ export const Dashboard = ({
                                     <span className="text-caption2 font-semibold text-ink-3">{t('dash.target_sum')}</span>
                                 </div>
                                 <div className={`text-title3 font-semibold ${targetsBalanced ? 'text-emerald-600 dark:text-emerald-400' : 'text-amber-600 dark:text-amber-400'}`}>{formatNumber(targetSum, 1)}%</div>
-                                {!targetsBalanced && <div className="text-caption2 font-bold text-amber-500 uppercase">{t('dash.fix_settings')}</div>}
+                                {!targetsBalanced && <div className="text-caption2 font-bold text-amber-500 ">{t('dash.fix_settings')}</div>}
                             </div>
                         </div>
 
@@ -192,20 +189,35 @@ export const Dashboard = ({
                                             <span className="text-caption2 font-bold text-ink-3 tabular-nums">→ {formatNumber(item.targetWeight, 1)}%</span>
                                         </div>
 
-                                        <div className="flex items-center gap-2">
-                                            <label className="flex-1">
-                                                <span className="block text-caption2 font-semibold text-ink-3 mb-1">{t('th.units')}</span>
-                                                <input inputMode="decimal" className="w-full bg-surface-2 text-ink rounded-lg p-2 text-center text-footnote font-bold outline-none focus:ring-2 ring-brand" value={item.units_held} onChange={e => handleUpdate(item.id, 'units_held', e.target.value)} onFocus={e => e.target.select()} />
-                                            </label>
-                                            <label className="flex-1">
-                                                <span className="block text-caption2 font-semibold text-ink-3 mb-1">{t('th.value')} €</span>
-                                                <input inputMode="decimal" className="w-full bg-surface text-ink border border-line rounded-lg p-2 text-center text-footnote font-bold outline-none focus:ring-2 ring-emerald-500" value={item.value} onChange={e => handleUpdate(item.id, 'value', e.target.value)} onFocus={e => e.target.select()} />
-                                            </label>
-                                            <label className="w-16">
-                                                <span className="block text-caption2 font-semibold text-ink-3 mb-1">{t('th.target')} %</span>
-                                                <input inputMode="decimal" className="w-full bg-surface-2 text-ink rounded-lg p-2 text-center text-footnote font-bold outline-none focus:ring-2 ring-brand" value={item.target_weight} onChange={e => handleUpdate(item.id, 'target_weight', e.target.value)} onFocus={e => e.target.select()} />
-                                            </label>
-                                            <button onClick={() => deleteItem(item.id)} className="mt-4 p-2 text-ink-3 active:text-rose-500 shrink-0"><Trash2 size={16} /></button>
+                                        {/* Campos de 44pt con la unidad dentro: eran cajitas de
+                                            13px donde el dedo no acertaba y el teclado tapaba
+                                            la fila entera. */}
+                                        <div className="flex items-end gap-2">
+                                            <NumericField
+                                                className="flex-1"
+                                                label={t('th.units')}
+                                                value={item.units_held}
+                                                onChange={(v) => handleUpdate(item.id, 'units_held', v)}
+                                            />
+                                            <NumericField
+                                                className="flex-1"
+                                                label={t('th.value')} unit="€"
+                                                value={item.value}
+                                                onChange={(v) => handleUpdate(item.id, 'value', v)}
+                                            />
+                                            <NumericField
+                                                className="w-[5.5rem]"
+                                                label={t('th.target')} unit="%"
+                                                value={item.target_weight}
+                                                onChange={(v) => handleUpdate(item.id, 'target_weight', v)}
+                                            />
+                                            <button
+                                                onClick={() => deleteItem(item.id)}
+                                                aria-label={t('portfolio.delete')}
+                                                className="h-12 w-11 flex items-center justify-center rounded-field text-ink-3 active:bg-negative-soft active:text-negative shrink-0 transition-colors"
+                                            >
+                                                <Trash2 size={18} />
+                                            </button>
                                         </div>
                                     </div>
                                 );
@@ -222,7 +234,7 @@ export const Dashboard = ({
                         </div>
 
                         {/* DESKTOP TABLE */}
-                        <div className="hidden md:block overflow-x-auto">
+                        <div className="hidden md:block scroll-x">
                             <table className="w-full text-left min-w-[600px]">
                                 <thead className="bg-surface-2/80 text-caption2 font-semibold text-slate-400 border-b border-line">
                                     <tr>
@@ -296,7 +308,7 @@ export const Dashboard = ({
                                 {portfolioItems.length > 0 && (
                                     <tfoot>
                                         <tr className="border-t-2 border-line bg-surface-2/60 text-footnote">
-                                            <td className="p-3 pl-6 font-semibold text-ink-2 uppercase text-caption2">{t('th.totals')}</td>
+                                            <td className="p-3 pl-6 font-semibold text-ink-2 text-caption2">{t('th.totals')}</td>
                                             <td></td>
                                             <td></td>
                                             <td className="p-3 text-center font-semibold text-ink whitespace-nowrap">{formatNumber(totalValue)}€</td>
@@ -357,7 +369,7 @@ export const Dashboard = ({
                                         <div className="absolute bottom-1 left-0 w-full text-center pointer-events-none px-4">
                                             <div className="text-caption2 font-semibold text-ink-3">{t('kpi.total_value')}</div>
                                             <div className="text-title1 font-semibold text-ink tracking-tight tabular-nums">{formatNumber(totalValue)} €</div>
-                                            <div className="text-caption2 font-bold text-ink-3 uppercase truncate">{assetSummary}</div>
+                                            <div className="text-caption2 font-bold text-ink-3 truncate">{assetSummary}</div>
                                         </div>
                                     </div>
                                 ) : (
@@ -396,13 +408,13 @@ export const Dashboard = ({
                                                     <div className="p-3 bg-surface rounded-xl border border-line text-ink-3"><Calendar size={16} /></div>
                                                     <div>
                                                         <div className="text-footnote font-semibold text-ink">{new Date(h.created_at).toLocaleDateString()}</div>
-                                                        <div className="text-caption2 font-bold text-ink-3 uppercase">{new Date(h.created_at).toLocaleTimeString()}</div>
+                                                        <div className="text-caption2 font-bold text-ink-3 ">{new Date(h.created_at).toLocaleTimeString()}</div>
                                                     </div>
                                                 </div>
                                                 <div className="flex items-center gap-4">
                                                     <div className="text-right">
                                                         <div className="text-footnote font-semibold text-brand">+{formatNumber(h.contribution)} €</div>
-                                                        <div className="text-caption2 font-bold text-ink-3 uppercase">{t('dash.contribution_short')}</div>
+                                                        <div className="text-caption2 font-bold text-ink-3 ">{t('dash.contribution_short')}</div>
                                                     </div>
                                                     <div className="flex gap-1">
                                                         <button onClick={() => undoRebalance(h.id)} className="p-2 hover:brightness-95 rounded-xl text-ink-3 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors" title="Undo"><RotateCcw size={18} /></button>

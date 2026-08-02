@@ -56,7 +56,7 @@ const BreakdownCard = ({ title, icon: Icon, items, tone, pretty, note, unclassif
                 <p className="text-footnote font-medium text-ink-3 py-3">—</p>
             ) : (
                 <>
-                    <div className={cn(expanded && 'max-h-[26rem] overflow-y-auto custom-scrollbar pr-1')}>
+                    <div className={cn(expanded && 'max-h-[26rem] overflow-y-auto no-scrollbar pr-1')}>
                         <BarList items={shown} tone={tone} pretty={pretty} />
                     </div>
 
@@ -155,12 +155,10 @@ export const Xray = ({ portfolios, activePortfolioId }) => {
     return (
         <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.25 }} className="space-y-5 md:space-y-6">
             {/* Controles */}
-            <Card className="!p-3 flex flex-col md:flex-row items-stretch md:items-center gap-2.5 sticky top-0 md:top-4 z-40 !bg-surface/85 backdrop-blur-xl">
-                <Dropdown className="w-full md:w-64" value={pid} onChange={setPid} options={portfolioOptions} icon={Building2} placeholder="—" />
-                <div className="md:ml-auto w-full md:w-72">
-                    <Dropdown value={filter} onChange={(v) => { setFilter(v); setVisibleCount(PAGE_SIZE); }} options={etfOptions} icon={Layers} align="right" />
-                </div>
-            </Card>
+            <div className="sticky -top-2 md:top-0 z-40 -mx-4 px-4 md:-mx-8 md:px-8 pt-2 pb-3 bg-canvas/85 backdrop-blur-xl flex items-center gap-2.5">
+                <Dropdown className="flex-1 md:max-w-xs" value={pid} onChange={setPid} options={portfolioOptions} icon={Building2} placeholder="—" />
+                <Dropdown className="flex-1 md:max-w-xs" value={filter} onChange={(v) => { setFilter(v); setVisibleCount(PAGE_SIZE); }} options={etfOptions} icon={Layers} align="right" />
+            </div>
 
             {!pid ? (
                 <Card><EmptyState icon={Inbox} title={t('xray.select_portfolio')} /></Card>

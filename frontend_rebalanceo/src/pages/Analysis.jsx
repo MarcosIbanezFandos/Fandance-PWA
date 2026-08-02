@@ -363,7 +363,7 @@ export const Analysis = ({ portfolios = [], activePortfolioId }) => {
             try {
                 const r = await api.post(`${import.meta.env.VITE_API_URL}/portfolio/benchmark`, {
                     holdings: items.map(i => ({ ticker: i.asset.ticker, units: safeFloat(i.units_held) })),
-                    benchmarks: [BENCH], period,
+                    benchmarks: [BENCH], period, portfolio_id: pid,
                 }, { timeout: 60000 });
                 if (!off) setBench({ stats: r.data?.stats || null, relative: r.data?.relative || null });
             } catch { if (!off) setBench({ stats: null, relative: null }); }
@@ -432,20 +432,27 @@ export const Analysis = ({ portfolios = [], activePortfolioId }) => {
 
     return (
         <motion.div variants={staggerContainer} initial="hidden" animate="visible" className="space-y-5">
-            <Card className="!p-3 flex flex-col md:flex-row items-stretch md:items-center gap-2.5 sticky top-0 md:top-4 z-40 !bg-surface/85 backdrop-blur-xl">
-                <Dropdown className="w-full md:w-64" value={pid} onChange={setPid} options={portfolioOptions} placeholder="—" />
-                <div className="md:ml-auto">
-                    <Segmented size="sm" value={period} onChange={setPeriod} options={PERIODS} className="w-full md:w-auto" />
-                </div>
-            </Card>
-
-            <div className="-mx-4 px-4 md:mx-0 md:px-0 overflow-x-auto custom-scrollbar">
+            {/* Cabecera anclada. Se pega al borde superior del scroller y se
+                extiende hasta los márgenes para que el contenido pase por
+                debajo sin asomar por los lados. Nada de aquí hace scroll
+                propio: los cuatro apartados caben, así que se reparten el
+                ancho en lugar de desplazarse. */}
+            {/* Sólo lo que identifica la vista se queda anclado: cartera y
+                apartado. Cada control ocupa su propia fila para que las
+                etiquetas quepan enteras — truncar "Composición" a "Comp…" es
+                peor que ocupar una línea más. */}
+            <div className="sticky -top-2 md:top-0 z-40 -mx-4 px-4 md:-mx-8 md:px-8 pt-2 pb-3 bg-canvas/85 backdrop-blur-xl space-y-2.5">
+                <Dropdown className="w-full md:max-w-xs" value={pid} onChange={setPid} options={portfolioOptions} placeholder="—" />
                 <Segmented
                     value={section}
                     onChange={setSection}
-                    options={SECTIONS.map(s => ({ value: s.value, label: t(s.labelKey), icon: s.icon }))}
+                    options={SECTIONS.map(s => ({ value: s.value, label: t(s.labelKey) }))}
                 />
             </div>
+
+            {/* El periodo va con los datos, no con la navegación: cambia lo que
+                se mide, no dónde estás. */}
+            <Segmented size="sm" value={period} onChange={setPeriod} options={PERIODS} />
 
             {!pid ? (
                 <Card><EmptyState icon={Inbox} title={t('an.select_portfolio')} /></Card>
