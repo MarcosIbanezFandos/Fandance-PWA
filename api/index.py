@@ -187,7 +187,13 @@ def assert_owns_history(user_id: str, history_id: str) -> str:
 
 Name = Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=60)]
 Ticker = Annotated[str, StringConstraints(strip_whitespace=True, to_upper=True, min_length=1, max_length=15, pattern=r"^[A-Za-z0-9.\-^=]+$")]
-Uuid = Annotated[str, StringConstraints(strip_whitespace=True, max_length=64)]
+# Formato UUID real. PostgREST ya parametriza, así que esto no evita
+# inyección, pero rechaza en el borde lo que sólo puede ser basura y
+# evita que llegue a la base de datos a provocar un 500.
+Uuid = Annotated[str, StringConstraints(
+    strip_whitespace=True, max_length=36,
+    pattern=r"^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$",
+)]
 
 Period = Literal["1d", "5d", "1mo", "3mo", "6mo", "ytd", "1y", "2y", "5y", "10y", "max"]
 

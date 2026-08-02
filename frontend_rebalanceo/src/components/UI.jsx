@@ -230,44 +230,74 @@ Input.displayName = 'Input';
  */
 export const NumericField = React.forwardRef(({
   label, hint, unit, value, onChange, placeholder,
-  min, max, step, disabled = false, className = '', align = 'left',
-}, ref) => (
-  <label className={cn('block', className)}>
-    {label && <span className="block text-footnote text-ink-2 mb-1.5">{label}</span>}
-    <span className={cn(
-      'flex items-center gap-2 h-12 px-3.5 rounded-field bg-surface-2',
-      'transition-colors duration-150 focus-within:bg-surface-3',
-      'ring-brand/25 focus-within:ring-4',
-      disabled && 'opacity-50'
-    )}>
-      <input
-        ref={ref}
-        type="text"
-        inputMode="decimal"
-        // El patrón deja pasar coma y punto: en España se teclea "1,5".
-        pattern="[0-9]*[.,]?[0-9]*"
-        value={value}
-        placeholder={placeholder}
-        disabled={disabled}
-        onFocus={(e) => e.target.select()}
-        onChange={(e) => {
-          const v = e.target.value;
-          if (v === '' || /^[0-9]*[.,]?[0-9]*$/.test(v)) onChange(v);
-        }}
-        // h-full: si el input mide menos que la caja, tocar en el hueco no
-        // enfoca y el campo parece que no responde.
-        className={cn(
-          'w-full h-full bg-transparent outline-none border-0 p-0',
-          'text-title3 font-semibold tabular-nums text-ink',
-          'placeholder:text-ink-3 placeholder:font-normal',
-          align === 'right' && 'text-right'
-        )}
-      />
-      {unit && <span className="text-title3 font-medium text-ink-3 shrink-0 select-none">{unit}</span>}
-    </span>
-    {hint && <span className="block text-caption1 text-ink-3 mt-1.5">{hint}</span>}
-  </label>
-));
+  disabled = false, className = '', align = 'left', ...rest
+}, ref) => {
+  // Se guarda el texto tal cual lo escribe el usuario, no el número. Si el
+  // valor viviera sólo como número, "1," se convertiría en 1 en cuanto se
+  // teclea la coma y sería imposible escribir decimales.
+  const asText = (v) =>
+    v === null || v === undefined || v === '' || Number(v) === 0 ? '' : String(v).replace('.', ',');
+
+  const [text, setText] = useState(() => asText(value));
+
+  // Sólo se re-sincroniza cuando el valor de fuera difiere de verdad; si no,
+  // cada render devolvería el cursor al final al escribir.
+  useEffect(() => {
+    const num = (t) => parseFloat(String(t).replace(',', '.'));
+    const a = num(text), b = num(value);
+    const bothEmpty = text === '' && (value === '' || value === null || value === undefined || Number(value) === 0);
+    if (!bothEmpty && !(Number.isFinite(a) && Number.isFinite(b) && a === b)) setText(asText(value));
+  }, [value]);
+
+  const handle = (raw) => {
+    // Sólo dígitos y un separador decimal.
+    let v = raw.replace(/[^\d.,]/g, '').replace(/[.,]/, '§').replace(/[.,]/g, '').replace('§', ',');
+    // El cero a la izquierda es el que se quedaba pegado: al venir el campo con
+    // un 0 inicial, teclear "300" dejaba "0300" y no había forma de borrarlo
+    // salvo seleccionando todo. Se elimina salvo en "0,algo".
+    v = v.replace(/^0+(?=\d)/, '');
+    setText(v);
+    onChange(v === '' ? '' : v.replace(',', '.'));
+  };
+
+  return (
+    <label className={cn('block', className)}>
+      {label && <span className="block text-footnote text-ink-2 mb-1.5">{label}</span>}
+      <span className={cn(
+        'flex items-center gap-2 h-12 px-3.5 rounded-field bg-surface-2',
+        'transition-colors duration-150 focus-within:bg-surface-3',
+        disabled && 'opacity-50'
+      )}>
+        <input
+          ref={ref}
+          type="text"
+          inputMode="decimal"
+          enterKeyHint="done"
+          autoComplete="off"
+          autoCorrect="off"
+          spellCheck={false}
+          value={text}
+          placeholder={placeholder}
+          disabled={disabled}
+          onFocus={(e) => e.target.select()}
+          onChange={(e) => handle(e.target.value)}
+          // Enter cierra el teclado en lugar de enviar el formulario que lo
+          // contenga, que es lo que dejaba la vista a medio recolocar.
+          onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); e.currentTarget.blur(); } }}
+          className={cn(
+            'w-full h-full bg-transparent outline-none border-0 p-0',
+            'text-title3 font-semibold tabular-nums text-ink',
+            'placeholder:text-ink-3 placeholder:font-normal',
+            align === 'right' && 'text-right'
+          )}
+          {...rest}
+        />
+        {unit && <span className="text-title3 font-medium text-ink-3 shrink-0 select-none">{unit}</span>}
+      </span>
+      {hint && <span className="block text-caption1 text-ink-3 mt-1.5">{hint}</span>}
+    </label>
+  );
+});
 NumericField.displayName = 'NumericField';
 
 /* ---------------------------------------------------------------- *

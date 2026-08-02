@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import api from '../api'
 import { Loader2, ShieldCheck, HelpCircle, FlaskConical, TrendingUp, TrendingDown, Shuffle } from 'lucide-react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
-import { GlassCard, BounceButton, Toggle, fadeInUp, staggerContainer } from './UI';
+import { GlassCard, BounceButton, Toggle, NumericField, fadeInUp, staggerContainer } from './UI';
 import { motion } from 'framer-motion';
 import { useGlobal } from '../context/GlobalContext';
 import { ContributionSchedule } from './ContributionSchedule';
@@ -11,7 +11,7 @@ import { safeFloat } from '../utils';
 
 export const SimulationView = ({
     portfolios = [], activePortfolioId,
-    plan, onSavePlan, planSaving, planError, rebalanceHistory = [],
+    plan, planDefaults, onSavePlan, planSaving, planError, rebalanceHistory = [],
 }) => {
     const { t } = useGlobal();
     const [selectedPorts, setSelectedPorts] = useState([]);
@@ -91,6 +91,7 @@ export const SimulationView = ({
                 {onSavePlan && (
                     <ContributionPlan
                         plan={plan}
+                        planDefaults={planDefaults}
                         onSave={onSavePlan}
                         history={rebalanceHistory}
                         saving={planSaving}
@@ -129,13 +130,11 @@ export const SimulationView = ({
                                 <div className="flex justify-between mb-2"><span className="text-footnote font-bold text-ink-2">{t('sim.horizon')}</span><span className="text-footnote font-semibold text-brand">{years} {t('sim.years')}</span></div>
                                 <input type="range" min="1" max="60" value={years} onChange={e => setYears(parseInt(e.target.value))} className="w-full accent-indigo-600 cursor-pointer" />
                             </div>
-                            <div>
-                                <span className="text-footnote font-bold text-ink-2 block mb-2">{t('sim.monthly')}</span>
-                                <div className="flex items-center gap-2 bg-surface-2 p-3 rounded-xl border border-transparent focus-within:border-indigo-500 transition-colors">
-                                    <input type="number" value={monthlyContrib} onChange={e => setMonthlyContrib(parseFloat(e.target.value) || 0)} className="bg-transparent outline-none w-full font-bold text-subhead text-ink" />
-                                    <span className="text-footnote font-bold text-ink-3">€</span>
-                                </div>
-                            </div>
+                            <NumericField
+                                label={t('sim.monthly')} unit="€"
+                                value={monthlyContrib}
+                                onChange={(v) => setMonthlyContrib(safeFloat(v))}
+                            />
 
                             <div className="p-3 bg-surface-2 rounded-control">
                                 <Toggle
@@ -147,8 +146,11 @@ export const SimulationView = ({
 
                             {contribMode === 'growing' && (
                                 <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} className="overflow-hidden">
-                                    <span className="label-caps block mb-1.5">{t('sim.annual_growth')}</span>
-                                    <input type="number" value={growthRate} onChange={e => setGrowthRate(parseFloat(e.target.value) || 0)} className="w-full bg-positive-soft p-2.5 rounded-control font-semibold text-subhead text-positive outline-none border border-positive/25 focus:ring-4 focus:ring-positive/10 transition-all" />
+                                    <NumericField
+                                        label={t('sim.annual_growth')} unit="%"
+                                        value={growthRate}
+                                        onChange={(v) => setGrowthRate(safeFloat(v))}
+                                    />
                                 </motion.div>
                             )}
 

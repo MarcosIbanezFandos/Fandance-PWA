@@ -15,16 +15,21 @@ const MONTH_SHORT = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'se
  * este mes aportaste al menos lo previsto, el mes queda cumplido solo. Así el
  * plan no puede desalinearse de lo que realmente hiciste.
  */
-export const ContributionPlan = ({ plan, onSave, history = [], saving = false, error = null, compact = false }) => {
+export const ContributionPlan = ({ plan, planDefaults = null, onSave, history = [], saving = false, error = null, compact = false }) => {
     const { t } = useGlobal();
     const [editing, setEditing] = useState(false);
-    const [monthly, setMonthly] = useState(plan?.monthly ?? 0);
-    const [growth, setGrowth] = useState(plan?.annualGrowthPct ?? 0);
+    // Si la cartera no tiene plan, el formulario arranca con la sugerencia en
+    // vez de en blanco: rellenar dos campos desde cero es fricción para algo
+    // que casi siempre tiene el mismo valor razonable.
+    const seed = (p, d) => (safeFloat(p?.monthly) > 0 ? p : (d || { monthly: 0, annualGrowthPct: 0 }));
+    const [monthly, setMonthly] = useState(() => seed(plan, planDefaults).monthly ?? 0);
+    const [growth, setGrowth] = useState(() => seed(plan, planDefaults).annualGrowthPct ?? 0);
 
     useEffect(() => {
-        setMonthly(plan?.monthly ?? 0);
-        setGrowth(plan?.annualGrowthPct ?? 0);
-    }, [plan?.monthly, plan?.annualGrowthPct]);
+        const s = seed(plan, planDefaults);
+        setMonthly(s.monthly ?? 0);
+        setGrowth(s.annualGrowthPct ?? 0);
+    }, [plan?.monthly, plan?.annualGrowthPct, planDefaults]);
 
     const status = useMemo(
         () => buildPlanStatus({ plan, history, months: compact ? 6 : 12 }),

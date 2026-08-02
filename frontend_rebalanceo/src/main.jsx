@@ -4,6 +4,9 @@ import { BrowserRouter } from 'react-router-dom'
 import './index.css'
 import App from './App.jsx'
 import { GlobalProvider } from './context/GlobalContext'
+import { installKeyboardFix } from './lib/keyboardFix'
+
+installKeyboardFix()
 
 createRoot(document.getElementById('root')).render(
   <StrictMode>

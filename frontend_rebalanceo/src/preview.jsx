@@ -60,7 +60,7 @@ const PLAN = { monthly: 300, annualGrowthPct: 5, startDate: new Date(now.getFull
 function Preview() {
     const [dark, setDark] = useState(false);
     const [view, setView] = useState('home');
-    const [plan, setPlan] = useState(PLAN);
+    const [plan, setPlan] = useState(new URLSearchParams(location.search).has('noplan') ? { monthly: 0, annualGrowthPct: 0 } : PLAN);
 
     React.useEffect(() => { document.documentElement.classList.toggle('dark', dark); }, [dark]);
 
@@ -108,6 +108,7 @@ function Preview() {
                     totalValue={79000}
                     rebalanceHistory={HISTORY}
                     plan={plan}
+                    planDefaults={{ monthly: 300, annualGrowthPct: 15 }}
                     onSavePlan={setPlan}
                 />
             ) : (
