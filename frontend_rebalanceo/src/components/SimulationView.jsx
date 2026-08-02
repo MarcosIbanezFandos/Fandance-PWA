@@ -2,12 +2,17 @@ import React, { useState } from 'react';
 import api from '../api'
 import { Loader2, ShieldCheck, HelpCircle, FlaskConical, TrendingUp, TrendingDown, Shuffle } from 'lucide-react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
-import { GlassCard, BounceButton, fadeInUp, staggerContainer } from './UI';
+import { GlassCard, BounceButton, Toggle, fadeInUp, staggerContainer } from './UI';
 import { motion } from 'framer-motion';
 import { useGlobal } from '../context/GlobalContext';
 import { ContributionSchedule } from './ContributionSchedule';
+import { ContributionPlan } from './ContributionPlan';
+import { safeFloat } from '../utils';
 
-export const SimulationView = ({ portfolios = [] }) => {
+export const SimulationView = ({
+    portfolios = [], activePortfolioId,
+    plan, onSavePlan, planSaving, planError, rebalanceHistory = [],
+}) => {
     const { t } = useGlobal();
     const [selectedPorts, setSelectedPorts] = useState([]);
     const [years, setYears] = useState(10);
@@ -18,6 +23,23 @@ export const SimulationView = ({ portfolios = [] }) => {
     const [growthRate, setGrowthRate] = useState(2.0);
     const [results, setResults] = useState(null);
     const [loading, setLoading] = useState(false);
+
+    // Si ya hay un plan fijado, la proyección arranca con SUS números. Simular
+    // 500 €/mes cuando el plan dice 300 € daría una cifra final que no es la de
+    // este usuario, y es justo la cifra que se recuerda.
+    React.useEffect(() => {
+        if (safeFloat(plan?.monthly) > 0) {
+            setMonthlyContrib(safeFloat(plan.monthly));
+            if (safeFloat(plan.annualGrowthPct) > 0) {
+                setContribMode('growing');
+                setGrowthRate(safeFloat(plan.annualGrowthPct));
+            }
+        }
+    }, [plan?.monthly, plan?.annualGrowthPct]);
+
+    React.useEffect(() => {
+        if (activePortfolioId && selectedPorts.length === 0) setSelectedPorts([activePortfolioId]);
+    }, [activePortfolioId]);
 
     const togglePortfolio = (id) => {
         if (selectedPorts.includes(id)) setSelectedPorts(selectedPorts.filter(p => p !== id));
@@ -46,16 +68,16 @@ export const SimulationView = ({ portfolios = [] }) => {
     const SimTypeButton = ({ type, label, icon: Icon, active, onClick, desc }) => (
         <button
             onClick={onClick}
-            className={`w-full p-4 rounded-xl text-left border transition-all relative group ${active ? 'bg-indigo-600 text-white border-indigo-600 shadow-md' : 'bg-slate-50 dark:bg-slate-800 text-slate-500 dark:text-slate-400 border-slate-100 dark:border-slate-700 hover:border-indigo-200 dark:hover:border-indigo-800 hover:bg-white dark:hover:bg-slate-900'}`}
+            className={`w-full p-4 rounded-xl text-left border transition-all relative group ${active ? 'bg-indigo-600 text-white border-indigo-600 shadow-md' : 'bg-surface-2 text-ink-3 border-line hover:border-indigo-200 dark:hover:border-indigo-800 hover:bg-white dark:hover:bg-slate-900'}`}
         >
             <div className="flex justify-between items-center mb-1">
                 <div className="flex items-center gap-2">
                     <Icon size={16} />
-                    <span className="text-xs font-black uppercase tracking-wide">{label}</span>
+                    <span className="text-footnote font-semibold uppercase tracking-wide">{label}</span>
                 </div>
                 {active && <ShieldCheck size={16} />}
             </div>
-            <div className={`text-[10px] ${active ? 'text-indigo-200' : 'text-slate-400'}`}>{desc}</div>
+            <div className={`text-caption2 ${active ? 'text-indigo-200' : 'text-ink-3'}`}>{desc}</div>
         </button>
     );
 
@@ -64,12 +86,24 @@ export const SimulationView = ({ portfolios = [] }) => {
     return (
         <motion.div variants={staggerContainer} initial="hidden" animate="visible" className="grid grid-cols-1 lg:grid-cols-3 gap-8">
             <div className="space-y-6">
+                {/* El plan va primero: es el compromiso real, y la proyección de
+                    abajo no es más que su consecuencia. */}
+                {onSavePlan && (
+                    <ContributionPlan
+                        plan={plan}
+                        onSave={onSavePlan}
+                        history={rebalanceHistory}
+                        saving={planSaving}
+                        error={planError}
+                    />
+                )}
+
                 <GlassCard className="space-y-6">
                     <div>
-                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-3">{t('sim.select_portfolio')}</label>
+                        <label className="text-caption2 font-semibold text-ink-3 block mb-3">{t('sim.select_portfolio')}</label>
                         <div className="space-y-2">
                             {portfolios.map(p => (
-                                <button key={p.id} onClick={() => togglePortfolio(p.id)} className={`w-full p-3 rounded-xl text-left text-xs font-bold border transition-all flex justify-between ${selectedPorts.includes(p.id) ? 'bg-indigo-600 text-white border-indigo-600 shadow-md' : 'bg-slate-50 dark:bg-slate-800 text-slate-500 dark:text-slate-400 border-transparent hover:bg-white dark:hover:bg-slate-900 hover:border-slate-200 dark:hover:border-slate-700'}`}>
+                                <button key={p.id} onClick={() => togglePortfolio(p.id)} className={`w-full p-3 rounded-xl text-left text-footnote font-bold border transition-all flex justify-between ${selectedPorts.includes(p.id) ? 'bg-indigo-600 text-white border-indigo-600 shadow-md' : 'bg-surface-2 text-ink-3 border-transparent hover:bg-white dark:hover:bg-slate-900 hover:border-slate-200 dark:hover:border-slate-700'}`}>
                                     {p.name}
                                     {selectedPorts.includes(p.id) && <ShieldCheck size={14} />}
                                 </button>
@@ -78,7 +112,7 @@ export const SimulationView = ({ portfolios = [] }) => {
                     </div>
 
                     <div>
-                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-3">{t('sim.model')}</label>
+                        <label className="text-caption2 font-semibold text-ink-3 block mb-3">{t('sim.model')}</label>
                         <div className="space-y-2">
                             <SimTypeButton type="deterministic" label={t('sim.linear')} icon={TrendingUp} active={simType === 'deterministic'} onClick={() => setSimType('deterministic')} desc={t('sim.linear_desc')} />
                             <SimTypeButton type="montecarlo" label={t('sim.montecarlo')} icon={Shuffle} active={simType === 'montecarlo'} onClick={() => setSimType('montecarlo')} desc={t('sim.montecarlo_desc')} />
@@ -89,44 +123,46 @@ export const SimulationView = ({ portfolios = [] }) => {
 
                 <GlassCard className="space-y-6">
                     <div>
-                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-3">{t('sim.params')}</label>
+                        <label className="text-caption2 font-semibold text-ink-3 block mb-3">{t('sim.params')}</label>
                         <div className="space-y-5">
                             <div>
-                                <div className="flex justify-between mb-2"><span className="text-xs font-bold text-slate-600 dark:text-slate-300">{t('sim.horizon')}</span><span className="text-xs font-black text-indigo-600 dark:text-indigo-400">{years} {t('sim.years')}</span></div>
+                                <div className="flex justify-between mb-2"><span className="text-footnote font-bold text-ink-2">{t('sim.horizon')}</span><span className="text-footnote font-semibold text-brand">{years} {t('sim.years')}</span></div>
                                 <input type="range" min="1" max="60" value={years} onChange={e => setYears(parseInt(e.target.value))} className="w-full accent-indigo-600 cursor-pointer" />
                             </div>
                             <div>
-                                <span className="text-xs font-bold text-slate-600 dark:text-slate-300 block mb-2">{t('sim.monthly')}</span>
-                                <div className="flex items-center gap-2 bg-slate-50 dark:bg-slate-800 p-3 rounded-xl border border-transparent focus-within:border-indigo-500 transition-colors">
-                                    <input type="number" value={monthlyContrib} onChange={e => setMonthlyContrib(parseFloat(e.target.value) || 0)} className="bg-transparent outline-none w-full font-bold text-sm text-slate-700 dark:text-slate-200" />
-                                    <span className="text-xs font-bold text-slate-400">€</span>
+                                <span className="text-footnote font-bold text-ink-2 block mb-2">{t('sim.monthly')}</span>
+                                <div className="flex items-center gap-2 bg-surface-2 p-3 rounded-xl border border-transparent focus-within:border-indigo-500 transition-colors">
+                                    <input type="number" value={monthlyContrib} onChange={e => setMonthlyContrib(parseFloat(e.target.value) || 0)} className="bg-transparent outline-none w-full font-bold text-subhead text-ink" />
+                                    <span className="text-footnote font-bold text-ink-3">€</span>
                                 </div>
                             </div>
 
-                            <div className="flex items-center justify-between p-3 bg-slate-50 dark:bg-slate-800 rounded-xl">
-                                <span className="text-xs font-bold text-slate-600 dark:text-slate-300">{t('sim.growing')}</span>
-                                <button onClick={() => setContribMode(contribMode === 'constant' ? 'growing' : 'constant')} className={`w-10 h-6 rounded-full p-1 transition-colors ${contribMode === 'growing' ? 'bg-emerald-500' : 'bg-slate-200 dark:bg-slate-700'}`}>
-                                    <div className={`w-4 h-4 bg-white dark:bg-slate-300 rounded-full shadow-sm transform transition-transform ${contribMode === 'growing' ? 'translate-x-4 dark:bg-white' : ''}`} />
-                                </button>
+                            <div className="p-3 bg-surface-2 rounded-control">
+                                <Toggle
+                                    checked={contribMode === 'growing'}
+                                    onChange={(v) => setContribMode(v ? 'growing' : 'constant')}
+                                    label={t('sim.growing')}
+                                />
                             </div>
 
                             {contribMode === 'growing' && (
                                 <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} className="overflow-hidden">
-                                    <span className="text-xs font-bold text-emerald-600 dark:text-emerald-400 block mb-1">{t('sim.annual_growth')}</span>
-                                    <input type="number" value={growthRate} onChange={e => setGrowthRate(parseFloat(e.target.value) || 0)} className="w-full bg-emerald-50 dark:bg-emerald-900/20 p-2 rounded-lg font-bold text-sm text-emerald-700 dark:text-emerald-300 outline-none border border-emerald-100 dark:border-emerald-900/40" />
+                                    <span className="label-caps block mb-1.5">{t('sim.annual_growth')}</span>
+                                    <input type="number" value={growthRate} onChange={e => setGrowthRate(parseFloat(e.target.value) || 0)} className="w-full bg-positive-soft p-2.5 rounded-control font-semibold text-subhead text-positive outline-none border border-positive/25 focus:ring-4 focus:ring-positive/10 transition-all" />
                                 </motion.div>
                             )}
 
-                            <div className="flex items-center justify-between p-3 bg-slate-50 dark:bg-slate-800 rounded-xl">
-                                <span className="text-xs font-bold text-slate-600 dark:text-slate-300">{t('sim.apply_tax')}</span>
-                                <button onClick={() => setApplyTax(!applyTax)} className={`w-10 h-6 rounded-full p-1 transition-colors ${applyTax ? 'bg-rose-500' : 'bg-slate-200 dark:bg-slate-700'}`}>
-                                    <div className={`w-4 h-4 bg-white dark:bg-slate-300 rounded-full shadow-sm transform transition-transform ${applyTax ? 'translate-x-4 dark:bg-white' : ''}`} />
-                                </button>
+                            <div className="p-3 bg-surface-2 rounded-control">
+                                <Toggle
+                                    checked={applyTax}
+                                    onChange={setApplyTax}
+                                    label={t('sim.apply_tax')}
+                                />
                             </div>
                         </div>
                     </div>
 
-                    <BounceButton onClick={runSimulation} disabled={loading} className="w-full bg-slate-900 text-white py-4 rounded-xl font-black uppercase text-xs tracking-widest hover:bg-indigo-600 shadow-xl transition-all">
+                    <BounceButton onClick={runSimulation} disabled={loading} className="w-full bg-slate-900 text-white py-4 rounded-xl font-semibold uppercase text-footnote hover:bg-indigo-600 shadow-xl transition-all">
                         {loading ? <Loader2 className="animate-spin mx-auto" /> : t('sim.calculate')}
                     </BounceButton>
                 </GlassCard>
@@ -144,23 +180,23 @@ export const SimulationView = ({ portfolios = [] }) => {
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                             {results.map((res, i) => (
                                 <GlassCard key={i} className="!p-6 border-t-4 border-t-indigo-500">
-                                    <div className="text-xs font-black uppercase tracking-widest text-slate-400 mb-4">{res.portfolio_name}</div>
+                                    <div className="text-footnote font-semibold text-ink-3 mb-4">{res.portfolio_name}</div>
                                     <div className="space-y-4">
                                         <div className="flex justify-between items-end">
-                                            <div className="text-sm text-slate-500 dark:text-slate-400 font-bold">{t('sim.investment')}</div>
-                                            <div className="text-xl font-black text-slate-800 dark:text-slate-100">{res.total_invested.toLocaleString()} €</div>
+                                            <div className="text-subhead text-ink-3 font-bold">{t('sim.investment')}</div>
+                                            <div className="text-title2 font-semibold text-ink">{res.total_invested.toLocaleString()} €</div>
                                         </div>
                                         <div className="flex justify-between items-end">
-                                            <div className="text-sm text-slate-500 font-bold">{t('sim.gross')}</div>
-                                            <div className="text-2xl font-black text-indigo-600">{res.final_gross.toLocaleString()} €</div>
+                                            <div className="text-subhead text-ink-3 font-bold">{t('sim.gross')}</div>
+                                            <div className="text-title1 font-semibold text-brand">{res.final_gross.toLocaleString()} €</div>
                                         </div>
                                         {applyTax && (
-                                            <div className="flex justify-between items-end pt-2 border-t border-slate-50 dark:border-slate-800">
-                                                <div className="text-sm text-slate-500 dark:text-slate-400 font-bold">{t('sim.net')}</div>
-                                                <div className="text-2xl font-black text-emerald-600 dark:text-emerald-400">{res.final_net.toLocaleString()} €</div>
+                                            <div className="flex justify-between items-end pt-2 border-t border-line">
+                                                <div className="text-subhead text-ink-3 font-bold">{t('sim.net')}</div>
+                                                <div className="text-title1 font-semibold text-emerald-600 dark:text-emerald-400">{res.final_net.toLocaleString()} €</div>
                                             </div>
                                         )}
-                                        <div className={`inline-flex items-center px-3 py-1 rounded-full text-[10px] font-black uppercase ${res.gain >= 0 ? 'bg-emerald-50 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400' : 'bg-rose-50 dark:bg-rose-900/30 text-rose-500 dark:text-rose-400'}`}>
+                                        <div className={`inline-flex items-center px-3 py-1 rounded-full text-caption2 font-semibold uppercase ${res.gain >= 0 ? 'bg-emerald-50 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400' : 'bg-rose-50 dark:bg-rose-900/30 text-rose-500 dark:text-rose-400'}`}>
                                             {res.gain >= 0 ? t('sim.profit') : t('sim.loss')}: {res.gain.toLocaleString()} €
                                         </div>
                                     </div>
@@ -196,9 +232,9 @@ export const SimulationView = ({ portfolios = [] }) => {
                         </GlassCard>
                     </>
                 ) : (
-                    <div className="h-full flex flex-col items-center justify-center text-slate-300 dark:text-slate-600 border-2 border-dashed border-slate-200 dark:border-slate-800 rounded-[2.5rem] py-20">
+                    <div className="h-full flex flex-col items-center justify-center text-ink-3 border-2 border-dashed border-line rounded-[2.5rem] py-20">
                         <FlaskConical size={48} className="mb-4 opacity-50" />
-                        <div className="text-sm font-bold uppercase tracking-widest text-center mt-4">{t('sim.empty')}</div>
+                        <div className="text-subhead font-bold text-center mt-4">{t('sim.empty')}</div>
                     </div>
                 )}
             </motion.div>
