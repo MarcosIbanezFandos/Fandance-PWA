@@ -1,9 +1,34 @@
-import React from 'react';
-import { TrendingUp, Scale, FlaskConical, Newspaper, PieChart, ScanSearch, PlusCircle, LogOut, Briefcase, MoreVertical, Edit2, Copy, Trash2, Settings } from 'lucide-react';
+import React, { useState, useRef, useEffect } from 'react';
+import {
+  HomeIcon, Wallet, Activity, FlaskConical, ScanSearch, TrendingUp, History,
+  Newspaper, Settings, PlusCircle, LogOut, Briefcase, MoreVertical, Edit2, Copy, Trash2,
+} from 'lucide-react';
 import { NavLink, useNavigate, useLocation } from 'react-router-dom';
 import { useGlobal } from '../context/GlobalContext';
+import { cn } from '../lib/cn';
 
-export const Sidebar = ({ portfolios, activePortfolio, setActivePortfolio, onCreatePortfolio, onLogout, onRename, onDuplicate, onDelete, isOpen, setIsOpen }) => {
+// Mismo orden y jerarquía que la barra inferior: las cuatro principales arriba
+// y las secundarias debajo de una separación, para que la navegación no cambie
+// de forma según el tamaño de pantalla.
+const NAV_MAIN = [
+  { to: '/', icon: HomeIcon, key: 'nav.home' },
+  { to: '/posiciones', icon: Wallet, key: 'nav.positions' },
+  { to: '/analisis', icon: Activity, key: 'nav.analysis' },
+  { to: '/simulacion', icon: FlaskConical, key: 'nav.simulations' },
+];
+
+const NAV_SECONDARY = [
+  { to: '/xray', icon: ScanSearch, key: 'nav.xray_full' },
+  { to: '/rendimiento', icon: TrendingUp, key: 'nav.performance' },
+  { to: '/historial', icon: History, key: 'nav.history' },
+  { to: '/noticias', icon: Newspaper, key: 'nav.news' },
+  { to: '/settings', icon: Settings, key: 'nav.settings' },
+];
+
+export const Sidebar = ({
+  portfolios = [], activePortfolio, setActivePortfolio, onCreatePortfolio,
+  onLogout, onRename, onDuplicate, onDelete, isOpen, setIsOpen,
+}) => {
   const navigate = useNavigate();
   const location = useLocation();
   const { t } = useGlobal();
@@ -14,53 +39,84 @@ export const Sidebar = ({ portfolios, activePortfolio, setActivePortfolio, onCre
     if (location.pathname !== '/') navigate('/');
   };
 
-  // Plain CSS active state (no shared-layout animation): renders reliably on
-  // every browser, including iOS Safari inside the transformed sidebar.
   const MenuLink = ({ to, label, icon: Icon }) => (
     <NavLink
       to={to}
       end={to === '/'}
       title={label}
-      onClick={() => setIsOpen(false)}
-      className={({ isActive }) =>
-        `w-full flex items-center gap-4 p-4 md:p-3 lg:p-4 md:justify-center lg:justify-start rounded-2xl transition-colors relative ${isActive
-          ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-900/40'
-          : 'text-slate-200 hover:text-white hover:bg-slate-800'}`
-      }
+      onClick={() => setIsOpen && setIsOpen(false)}
+      className={({ isActive }) => cn(
+        'w-full flex items-center gap-3 px-3 h-11 rounded-control relative',
+        'md:justify-center lg:justify-start',
+        'transition-colors duration-150',
+        isActive
+          ? 'bg-brand-soft text-brand-ink font-semibold'
+          : 'text-ink-2 hover:text-ink hover:bg-surface-2 font-medium'
+      )}
     >
-      <Icon size={20} className="shrink-0" />
-      <span className="font-bold text-sm md:hidden lg:block truncate">{label}</span>
+      {({ isActive }) => (
+        <>
+          {isActive && <span className="absolute left-0 top-2 bottom-2 w-[3px] rounded-r-full bg-brand md:hidden lg:block" />}
+          <Icon size={19} strokeWidth={isActive ? 2.3 : 1.9} className="shrink-0" />
+          <span className="text-subhead truncate md:hidden lg:block">{label}</span>
+        </>
+      )}
     </NavLink>
   );
 
   return (
-    <aside className={`fixed top-0 left-0 h-full bg-slate-900 text-white flex flex-col justify-between z-50 border-r border-slate-800 shadow-2xl transition-all duration-300 ease-in-out w-72 md:w-20 lg:w-72 pt-[env(safe-area-inset-top)] pb-[env(safe-area-inset-bottom)] ${isOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'}`}>
-      <div className="p-6 md:p-3 lg:p-6">
-        <div className="flex items-center gap-3 mb-10 text-indigo-400 overflow-hidden md:justify-center lg:justify-start">
-          <div className="p-2 bg-indigo-600/20 rounded-xl shrink-0"><TrendingUp size={24} /></div>
-          <h1 className="text-xl font-black tracking-tighter uppercase text-white md:hidden lg:block truncate">F<span className="text-indigo-500">AND</span>ANCE</h1>
+    <aside className={cn(
+        'fixed top-0 left-0 h-full z-50 flex flex-col justify-between',
+        'bg-surface border-r border-line',
+        'w-72 md:w-20 lg:w-72',
+        'pt-[env(safe-area-inset-top)] pb-[env(safe-area-inset-bottom)]',
+        'transition-transform duration-300 ease-out',
+        isOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'
+    )}>
+      <div className="p-4 lg:p-5 min-h-0 flex flex-col">
+        {/* Marca */}
+        <div className="flex items-center gap-2.5 mb-7 px-1 md:justify-center lg:justify-start">
+          <div className="w-9 h-9 rounded-xl bg-brand flex items-center justify-center shrink-0">
+            <TrendingUp size={19} className="text-white" strokeWidth={2.5} />
+          </div>
+          <h1 className="text-body font-bold tracking-tight text-ink md:hidden lg:block">
+            F<span className="text-brand">and</span>ance
+          </h1>
         </div>
 
-        <nav className="space-y-2">
-          <MenuLink to="/" label={t('sidebar.rebalance')} icon={Scale} />
-          <MenuLink to="/performance" label={t('sidebar.performance')} icon={PieChart} />
-          <MenuLink to="/xray" label={t('sidebar.xray')} icon={ScanSearch} />
-          <MenuLink to="/analysis" label={t('sidebar.analysis')} icon={FlaskConical} />
-          <MenuLink to="/simulations" label={t('sidebar.simulations')} icon={TrendingUp} />
-          <MenuLink to="/news" label={t('sidebar.news')} icon={Newspaper} />
-          <MenuLink to="/settings" label={t('sidebar.settings')} icon={Settings} />
+        <nav className="space-y-1">
+          {NAV_MAIN.map(({ to, icon, key }) => (
+            <MenuLink key={to} to={to} label={t(key)} icon={icon} />
+          ))}
 
-          <div className="my-6 h-px bg-slate-800/50 mx-2"></div>
+          <div className="!mt-4 !mb-2 h-px bg-line" />
 
-          <button onClick={onCreatePortfolio} title={t('sidebar.new_portfolio')} className="w-full flex items-center gap-4 p-4 md:p-3 lg:p-4 md:justify-center lg:justify-start rounded-2xl text-indigo-300 hover:text-indigo-200 hover:bg-indigo-900/30 transition-colors border border-dashed border-indigo-700/60 hover:border-indigo-500">
-            <PlusCircle size={20} className="shrink-0" />
-            <span className="font-bold text-sm md:hidden lg:block truncate">{t('sidebar.new_portfolio')}</span>
-          </button>
+          {NAV_SECONDARY.map(({ to, icon, key }) => (
+            <MenuLink key={to} to={to} label={t(key)} icon={icon} />
+          ))}
         </nav>
 
-        <div className="mt-8 md:hidden lg:block">
-          <div className="text-[10px] font-black uppercase text-slate-400 tracking-widest mb-4 px-2">{t('sidebar.my_portfolios')}</div>
-          <div className="space-y-2 max-h-64 overflow-y-auto pr-2 custom-scrollbar">
+        <div className="my-5 h-px bg-line" />
+
+        <button
+          onClick={onCreatePortfolio}
+          title={t('sidebar.new_portfolio')}
+          className={cn(
+              'w-full flex items-center gap-3 px-3 h-11 rounded-control',
+              'md:justify-center lg:justify-start',
+              'text-brand font-semibold text-subhead',
+              'border border-dashed border-brand/35 hover:border-brand hover:bg-brand-soft',
+              'transition-colors duration-150'
+          )}
+        >
+          <PlusCircle size={19} className="shrink-0" strokeWidth={2} />
+          <span className="truncate md:hidden lg:block">{t('sidebar.new_portfolio')}</span>
+        </button>
+
+        {/* Carteras */}
+        <div className="mt-6 md:hidden lg:flex lg:flex-col min-h-0">
+          <div className="label-caps px-1 mb-2.5">{t('sidebar.my_portfolios')}</div>
+          <div className="space-y-0.5 overflow-y-auto max-h-64 custom-scrollbar pr-1">
             {portfolios.map(p => (
               <PortfolioItem
                 key={p.id}
@@ -70,14 +126,25 @@ export const Sidebar = ({ portfolios, activePortfolio, setActivePortfolio, onCre
                 onRename={onRename} onDuplicate={onDuplicate} onDelete={onDelete}
               />
             ))}
+            {portfolios.length === 0 && (
+              <p className="text-footnote font-medium text-ink-3 px-1 py-2">—</p>
+            )}
           </div>
         </div>
       </div>
 
-      <div className="p-4 md:p-3 lg:p-4 border-t border-slate-800 bg-slate-900/50 backdrop-blur-sm">
-        <button onClick={onLogout} title={t('sidebar.logout')} className="w-full flex items-center gap-4 p-3 md:p-2 lg:p-3 md:justify-center lg:justify-start text-rose-300 hover:text-rose-200 hover:bg-rose-900/25 rounded-xl transition-colors group">
-          <LogOut size={20} className="group-hover:-translate-x-1 transition-transform shrink-0" />
-          <span className="font-bold text-xs md:hidden lg:block truncate">{t('sidebar.logout')}</span>
+      <div className="p-4 lg:p-5 border-t border-line">
+        <button
+          onClick={onLogout}
+          title={t('sidebar.logout')}
+          className={cn(
+              'w-full flex items-center gap-3 px-3 h-10 rounded-control',
+              'md:justify-center lg:justify-start',
+              'text-negative hover:bg-negative-soft transition-colors duration-150 group'
+          )}
+        >
+          <LogOut size={18} className="shrink-0 group-hover:-translate-x-0.5 transition-transform" strokeWidth={2} />
+          <span className="text-subhead font-semibold truncate md:hidden lg:block">{t('sidebar.logout')}</span>
         </button>
       </div>
     </aside>
@@ -85,25 +152,60 @@ export const Sidebar = ({ portfolios, activePortfolio, setActivePortfolio, onCre
 };
 
 const PortfolioItem = ({ portfolio, isActive, onClick, onRename, onDuplicate, onDelete }) => {
-  const [menuOpen, setMenuOpen] = React.useState(false);
+  const [menuOpen, setMenuOpen] = useState(false);
+  const ref = useRef(null);
   const { t } = useGlobal();
+
+  useEffect(() => {
+    if (!menuOpen) return;
+    const onDoc = (e) => { if (ref.current && !ref.current.contains(e.target)) setMenuOpen(false); };
+    document.addEventListener('mousedown', onDoc);
+    return () => document.removeEventListener('mousedown', onDoc);
+  }, [menuOpen]);
+
   return (
-    <div className={`group relative w-full flex items-center gap-3 p-3 rounded-xl text-left transition-all ${isActive ? 'bg-slate-800 text-white border border-slate-700 shadow-md' : 'text-slate-300 hover:text-white hover:bg-slate-800/60 border border-transparent'}`}>
-      <button className="flex-1 flex items-center gap-3 text-left overflow-hidden" onClick={onClick}>
-        <Briefcase size={16} className={isActive ? 'text-indigo-400' : 'text-slate-400'} />
-        <span className="text-xs font-bold truncate">{portfolio.name}</span>
+    <div ref={ref} className={cn(
+        'group relative w-full flex items-center gap-2 pl-3 pr-1 h-10 rounded-control transition-colors',
+        isActive ? 'bg-surface-2 border border-line' : 'border border-transparent hover:bg-surface-2'
+    )}>
+      <button className="flex-1 flex items-center gap-2.5 text-left min-w-0" onClick={onClick}>
+        <Briefcase size={15} className={cn('shrink-0', isActive ? 'text-brand' : 'text-ink-3')} strokeWidth={2} />
+        <span className={cn('text-footnote truncate', isActive ? 'font-semibold text-ink' : 'font-medium text-ink-2')}>
+          {portfolio.name}
+        </span>
       </button>
-      <div className="opacity-0 group-hover:opacity-100 transition-opacity">
-        <button onClick={(e) => { e.stopPropagation(); setMenuOpen(!menuOpen) }} className="p-1 hover:bg-slate-700 rounded"><MoreVertical size={14} /></button>
-        {menuOpen && (
-          <div className="absolute right-0 top-full mt-1 w-36 bg-slate-800 border border-slate-700 rounded-xl shadow-2xl z-50 overflow-hidden py-1" onMouseLeave={() => setMenuOpen(false)}>
-            <button onClick={(e) => { e.stopPropagation(); onRename(portfolio.id) }} className="w-full text-left px-3 py-3 text-[10px] font-bold text-slate-300 hover:bg-slate-700 flex gap-2 items-center"><Edit2 size={12} /> {t('portfolio.rename')}</button>
-            <button onClick={(e) => { e.stopPropagation(); onDuplicate(portfolio.id, portfolio.name) }} className="w-full text-left px-3 py-3 text-[10px] font-bold text-slate-300 hover:bg-slate-700 flex gap-2 items-center"><Copy size={12} /> {t('portfolio.duplicate')}</button>
-            <div className="h-px bg-slate-700 my-1"></div>
-            <button onClick={(e) => { e.stopPropagation(); onDelete(portfolio.id) }} className="w-full text-left px-3 py-3 text-[10px] font-bold text-rose-400 hover:bg-rose-900/30 flex gap-2 items-center"><Trash2 size={12} /> {t('portfolio.delete')}</button>
-          </div>
+
+      <button
+        onClick={(e) => { e.stopPropagation(); setMenuOpen(v => !v); }}
+        aria-label="Opciones"
+        className={cn(
+            'p-1.5 rounded-lg text-ink-3 hover:text-ink hover:bg-surface-3 transition-all shrink-0',
+            menuOpen ? 'opacity-100' : 'opacity-0 group-hover:opacity-100 focus-visible:opacity-100'
         )}
-      </div>
+      >
+        <MoreVertical size={14} />
+      </button>
+
+      {menuOpen && (
+        <div className="absolute right-0 top-full mt-1 w-40 bg-surface border border-line rounded-control shadow-pop z-50 overflow-hidden p-1">
+          <MenuAction icon={Edit2} label={t('portfolio.rename')} onClick={() => { setMenuOpen(false); onRename(portfolio.id); }} />
+          <MenuAction icon={Copy} label={t('portfolio.duplicate')} onClick={() => { setMenuOpen(false); onDuplicate(portfolio.id, portfolio.name); }} />
+          <div className="h-px bg-line my-1" />
+          <MenuAction icon={Trash2} label={t('portfolio.delete')} danger onClick={() => { setMenuOpen(false); onDelete(portfolio.id); }} />
+        </div>
+      )}
     </div>
   );
-}
+};
+
+const MenuAction = ({ icon: Icon, label, onClick, danger = false }) => (
+  <button
+    onClick={(e) => { e.stopPropagation(); onClick(); }}
+    className={cn(
+        'w-full text-left px-2.5 py-2 rounded-lg text-footnote font-semibold flex gap-2 items-center transition-colors',
+        danger ? 'text-negative hover:bg-negative-soft' : 'text-ink-2 hover:bg-surface-2 hover:text-ink'
+    )}
+  >
+    <Icon size={13} strokeWidth={2} /> {label}
+  </button>
+);

@@ -13,7 +13,9 @@ import { SimulationView } from './components/SimulationView'
 import { NewsView } from './components/NewsView'
 import { MainLayout } from './layouts/MainLayout'
 import { Analysis } from './pages/Analysis'
+import { Home } from './pages/Home'
 import { Performance } from './pages/Performance'
+import { RebalanceHistoryPage } from './pages/RebalanceHistoryPage'
 import { Xray } from './pages/Xray'
 import { Settings } from './pages/Settings'
 
@@ -43,6 +45,49 @@ function App() {
     useEffect(() => { localStorage.setItem('rebalanceMode', rebalanceMode) }, [rebalanceMode])
 
     const [rebalanceHistory, setRebalanceHistory] = useState([])
+
+    // --- Plan de aportación ---
+    // Vive en la cartera activa (columnas plan_*). El cumplimiento mensual NO se
+    // guarda: se deduce de rebalanceHistory, que ya sabe lo aportado de verdad.
+    const [planSaving, setPlanSaving] = useState(false)
+    const [planError, setPlanError] = useState(null)
+
+    const contributionPlan = useMemo(() => {
+        if (!activePortfolio) return null
+        return {
+            monthly: safeFloat(activePortfolio.plan_monthly),
+            annualGrowthPct: safeFloat(activePortfolio.plan_growth_pct),
+            startDate: activePortfolio.plan_start || null,
+        }
+    }, [activePortfolio])
+
+    const saveContributionPlan = useCallback(async (next) => {
+        if (!activePortfolio) return
+        setPlanSaving(true); setPlanError(null)
+        const patch = {
+            plan_monthly: next.monthly,
+            plan_growth_pct: next.annualGrowthPct,
+            plan_start: next.startDate,
+        }
+        try {
+            await api.put(`${import.meta.env.VITE_API_URL}/portfolios/contribution_plan`, {
+                portfolio_id: activePortfolio.id,
+                monthly: next.monthly,
+                annual_growth_pct: next.annualGrowthPct,
+                start_date: next.startDate,
+            })
+            setActivePortfolio(p => (p ? { ...p, ...patch } : p))
+            setPortfolios(list => list.map(p => (p.id === activePortfolio.id ? { ...p, ...patch } : p)))
+        } catch (e) {
+            setPlanError(
+                e?.response?.status === 501
+                    ? 'Falta ejecutar supabase/contribution_plan.sql en tu base de datos.'
+                    : 'No se pudo guardar el plan.'
+            )
+        } finally {
+            setPlanSaving(false)
+        }
+    }, [activePortfolio])
 
     // UI State
     const [query, setQuery] = useState('')
@@ -288,7 +333,7 @@ function App() {
     const handleDuplicatePort = async (pid, name) => { await api.post(`${import.meta.env.VITE_API_URL}/portfolios/duplicate`, { portfolio_id: pid, new_name: name + " (Copy)" }); loadPortfolios(session.user.id); }
     const handleDeletePort = async (pid) => { if (confirm("Delete entire portfolio?")) { await api.delete(`${import.meta.env.VITE_API_URL}/portfolios/delete/${pid}`); loadPortfolios(session.user.id); setActivePortfolio(null); } }
 
-    if (appLoading) return <div className="h-screen flex items-center justify-center bg-slate-900 text-white font-black uppercase tracking-tighter"><Loader2 className="animate-spin mr-3 text-indigo-500" /> Loading Fandance...</div>
+    if (appLoading) return <div className="h-screen flex items-center justify-center bg-slate-900 text-white font-semibold uppercase tracking-tight"><Loader2 className="animate-spin mr-3 text-brand" /> Loading Fandance...</div>
     if (!session) return <AuthScreen onLogin={setSession} />
 
     const totalVal = portfolioItems.reduce((s, i) => s + safeFloat(i.value), 0);
@@ -327,6 +372,19 @@ function App() {
                 />
             }>
                 <Route path="/" element={
+                    <Home
+                        portfolios={portfolios}
+                        activePortfolio={activePortfolio}
+                        portfolioItems={tableData}
+                        totalValue={totalVal}
+                        rebalanceHistory={rebalanceHistory}
+                        plan={contributionPlan}
+                        onSavePlan={saveContributionPlan}
+                        planSaving={planSaving}
+                        planError={planError}
+                    />
+                } />
+                <Route path="/posiciones" element={
                     activePortfolio ? (
                         <Dashboard
                             portfolioItems={tableData}
@@ -353,17 +411,42 @@ function App() {
                             chartData={chartData}
                         />
                     ) : (
-                        <div className="flex items-center justify-center h-96 text-slate-400 font-bold bg-white rounded-[2.5rem] border border-slate-100 shadow-sm">
+                        <div className="flex items-center justify-center h-96 text-ink-3 font-bold bg-surface rounded-card border border-line shadow-card">
                             {portfolios.length === 0 ? "Create a portfolio to get started" : "Select a portfolio"}
                         </div>
                     )
                 } />
-                <Route path="/dashboard" element={<Navigate to="/" replace />} />
-                <Route path="/performance" element={<Performance portfolios={portfolios} activePortfolioId={activePortfolio?.id} />} />
+
+                {/* Rutas antiguas: se conservan redirigidas para no romper enlaces
+                    guardados ni la pantalla de inicio de la PWA instalada. */}
+                <Route path="/dashboard" element={<Navigate to="/posiciones" replace />} />
+                <Route path="/analysis" element={<Navigate to="/analisis" replace />} />
+                <Route path="/simulations" element={<Navigate to="/simulacion" replace />} />
+                <Route path="/performance" element={<Navigate to="/rendimiento" replace />} />
+                <Route path="/news" element={<Navigate to="/noticias" replace />} />
+
+                <Route path="/analisis" element={<Analysis portfolios={portfolios} activePortfolioId={activePortfolio?.id} />} />
+                <Route path="/simulacion" element={
+                    <SimulationView
+                        portfolios={portfolios}
+                        activePortfolioId={activePortfolio?.id}
+                        plan={contributionPlan}
+                        onSavePlan={saveContributionPlan}
+                        planSaving={planSaving}
+                        planError={planError}
+                        rebalanceHistory={rebalanceHistory}
+                    />
+                } />
+                <Route path="/rendimiento" element={<Performance portfolios={portfolios} activePortfolioId={activePortfolio?.id} />} />
                 <Route path="/xray" element={<Xray portfolios={portfolios} activePortfolioId={activePortfolio?.id} />} />
-                <Route path="/analysis" element={<Analysis portfolios={portfolios} />} />
-                <Route path="/simulations" element={<SimulationView portfolios={portfolios} />} />
-                <Route path="/news" element={<NewsView portfolios={portfolios} activePortfolioId={activePortfolio?.id} />} />
+                <Route path="/noticias" element={<NewsView portfolios={portfolios} activePortfolioId={activePortfolio?.id} />} />
+                <Route path="/historial" element={
+                    <RebalanceHistoryPage
+                        history={rebalanceHistory}
+                        onUndo={undoRebalance}
+                        onDelete={deleteHistoryItem}
+                    />
+                } />
                 <Route path="/settings" element={
                     <Settings
                         session={session}
