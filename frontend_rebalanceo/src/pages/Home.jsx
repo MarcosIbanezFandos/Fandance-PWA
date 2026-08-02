@@ -30,7 +30,7 @@ const PERIODS = [
  */
 export const Home = ({
     portfolios = [], activePortfolio, portfolioItems = [], totalValue = 0,
-    rebalanceHistory = [], plan, onSavePlan, planSaving, planError,
+    rebalanceHistory = [], plan, planDefaults, onSavePlan, planSaving, planError,
 }) => {
     const { t } = useGlobal();
     const [period, setPeriod] = useState('1y');
@@ -227,6 +227,7 @@ export const Home = ({
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
                 <ContributionPlan
                     plan={plan}
+                    planDefaults={planDefaults}
                     onSave={onSavePlan}
                     history={rebalanceHistory}
                     saving={planSaving}

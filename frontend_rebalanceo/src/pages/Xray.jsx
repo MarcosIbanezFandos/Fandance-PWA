@@ -210,7 +210,7 @@ export const Xray = ({ portfolios, activePortfolioId }) => {
                                         <input
                                             value={query}
                                             onChange={e => { setQuery(e.target.value); setVisibleCount(PAGE_SIZE); }}
-                                            placeholder={t('xray.search')}
+                                            enterKeyHint="search" onKeyDown={e => { if (e.key === "Enter") e.currentTarget.blur(); }} placeholder={t('xray.search')}
                                             className="bg-transparent w-full outline-none text-subhead font-medium text-ink placeholder:text-ink-3 placeholder:font-normal"
                                         />
                                     </div>

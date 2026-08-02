@@ -6,7 +6,7 @@ import { Routes, Route, useNavigate, Navigate } from 'react-router-dom'
 
 import { supabase } from './supabaseClient'
 import { safeFloat, buildRebalancePlan, roundTo } from './utils'
-import { isAdmin, applyDefaultTargets } from './config/allocation'
+import { isAdmin, applyDefaultTargets, DEFAULT_CONTRIBUTION_PLAN } from './config/allocation'
 import { AuthScreen } from './components/AuthScreen'
 import { Dashboard } from './components/Dashboard'
 import { SimulationView } from './components/SimulationView'
@@ -60,6 +60,14 @@ function App() {
             startDate: activePortfolio.plan_start || null,
         }
     }, [activePortfolio])
+
+    // Sugerencia con la que se precarga el formulario si la cartera no tiene
+    // plan. Es sólo el punto de partida del editor; hasta que no se guarda, no
+    // hay plan y el seguimiento mensual no cuenta nada.
+    const planDefaults = useMemo(
+        () => (isAdmin(session?.user?.email) ? DEFAULT_CONTRIBUTION_PLAN : null),
+        [session]
+    )
 
     const saveContributionPlan = useCallback(async (next) => {
         if (!activePortfolio) return
@@ -379,6 +387,7 @@ function App() {
                         totalValue={totalVal}
                         rebalanceHistory={rebalanceHistory}
                         plan={contributionPlan}
+                        planDefaults={planDefaults}
                         onSavePlan={saveContributionPlan}
                         planSaving={planSaving}
                         planError={planError}
@@ -431,6 +440,7 @@ function App() {
                         portfolios={portfolios}
                         activePortfolioId={activePortfolio?.id}
                         plan={contributionPlan}
+                        planDefaults={planDefaults}
                         onSavePlan={saveContributionPlan}
                         planSaving={planSaving}
                         planError={planError}

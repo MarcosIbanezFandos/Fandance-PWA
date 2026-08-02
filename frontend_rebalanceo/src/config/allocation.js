@@ -62,3 +62,11 @@ export const applyDefaultTargets = (items) => {
             : { ...i, target_weight: 0 }
     );
 };
+
+/**
+ * Plan de aportación con el que arranca el formulario cuando la cartera aún no
+ * tiene uno guardado. No se persiste hasta que el usuario pulsa Guardar: es una
+ * sugerencia, no un plan activo, así que el seguimiento mensual no empieza a
+ * contar solo.
+ */
+export const DEFAULT_CONTRIBUTION_PLAN = { monthly: 300, annualGrowthPct: 15 };

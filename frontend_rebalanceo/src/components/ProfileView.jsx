@@ -39,22 +39,22 @@ export const ProfileView = ({ session, onUpdateUser }) => {
                     <div className="grid grid-cols-2 gap-6">
                         <div>
                             <label className="text-caption2 font-semibold text-ink-3 block mb-2">Nombre</label>
-                            <input value={name} onChange={e=>setName(e.target.value)} className="w-full bg-surface-2 p-4 rounded-xl font-bold text-ink-2 outline-none border-2 border-transparent focus:border-indigo-500 focus:bg-white transition-all"/>
+                            <input value={name} onChange={e=>setName(e.target.value)} className="w-full h-12 px-3.5 bg-surface-2 rounded-field outline-none text-body text-ink placeholder:text-ink-3 focus:bg-surface-3 transition-colors"/>
                         </div>
                         <div>
                             <label className="text-caption2 font-semibold text-ink-3 block mb-2">Apellidos</label>
-                            <input value={surname} onChange={e=>setSurname(e.target.value)} className="w-full bg-surface-2 p-4 rounded-xl font-bold text-ink-2 outline-none border-2 border-transparent focus:border-indigo-500 focus:bg-white transition-all"/>
+                            <input value={surname} onChange={e=>setSurname(e.target.value)} className="w-full h-12 px-3.5 bg-surface-2 rounded-field outline-none text-body text-ink placeholder:text-ink-3 focus:bg-surface-3 transition-colors"/>
                         </div>
                     </div>
                     
                     <div>
                         <label className="text-caption2 font-semibold text-ink-3 block mb-2">Email</label>
-                        <div className="w-full bg-surface-2 p-4 rounded-xl font-bold text-ink-3 cursor-not-allowed border-2 border-line">{session?.user?.email}</div>
+                        <div className="w-full h-12 px-3.5 bg-surface-2 rounded-field outline-none text-body text-ink placeholder:text-ink-3 focus:bg-surface-3 transition-colors">{session?.user?.email}</div>
                     </div>
 
                     <div>
                         <label className="text-caption2 font-semibold text-ink-3 block mb-2">Nueva Contraseña (Opcional)</label>
-                        <input type="password" value={password} onChange={e=>setPassword(e.target.value)} placeholder="Dejar vacío para mantener la actual" className="w-full bg-surface-2 p-4 rounded-xl font-bold text-ink-2 outline-none border-2 border-transparent focus:border-indigo-500 focus:bg-white transition-all"/>
+                        <input type="password" value={password} onChange={e=>setPassword(e.target.value)} placeholder="Dejar vacío para mantener la actual" className="w-full h-12 px-3.5 bg-surface-2 rounded-field outline-none text-body text-ink placeholder:text-ink-3 focus:bg-surface-3 transition-colors"/>
                     </div>
 
                     <BounceButton onClick={handleUpdate} disabled={loading} className="w-full bg-slate-900 hover:bg-indigo-600 text-white py-4 rounded-xl font-semibold uppercase text-footnote shadow-xl hover:shadow-indigo-200 mt-4">

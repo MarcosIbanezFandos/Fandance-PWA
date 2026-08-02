@@ -85,6 +85,8 @@ export const Dashboard = ({
                         <div className="flex items-center">
                             <input
                                 inputMode="decimal"
+                                enterKeyHint="done"
+                                onKeyDown={e => { if (e.key === "Enter") e.currentTarget.blur(); }}
                                 className="text-title2 md:text-largetitle font-semibold text-ink w-16 md:w-32 bg-transparent outline-none tabular-nums"
                                 value={contribution}
                                 onChange={e => setContribution(e.target.value)}
@@ -110,7 +112,7 @@ export const Dashboard = ({
                     <div className="bg-surface p-6 rounded-[2rem] shadow-sm relative z-50 border border-line">
                         <div className="relative flex items-center bg-surface-2 rounded-2xl p-3 border border-line focus-within:border-indigo-500 focus-within:ring-4 focus-within:ring-brand/10 transition-all">
                             <Search className="text-ink-3 mr-3" size={20} />
-                            <input className="bg-transparent w-full outline-none text-body text-ink placeholder:text-ink-3" placeholder={t('dash.search')} value={query} onChange={e => { setQuery(e.target.value); searchAsset(e.target.value) }} />
+                            <input className="bg-transparent w-full outline-none text-body text-ink placeholder:text-ink-3" enterKeyHint="search" onKeyDown={e => { if (e.key === "Enter") e.currentTarget.blur(); }} placeholder={t('dash.search')} value={query} onChange={e => { setQuery(e.target.value); searchAsset(e.target.value) }} />
                             {isSearching && <Loader2 className="animate-spin text-brand" size={18} />}
                         </div>
                         <AnimatePresence>
@@ -267,11 +269,11 @@ export const Dashboard = ({
                                                     </td>
                                                     <td className="p-3 text-right text-footnote font-mono text-ink-3 whitespace-nowrap">{formatNumber(item.current_price, 2)}€</td>
                                                     <td className="p-3 text-center">
-                                                        <input className="w-14 bg-surface-2 text-ink rounded-lg p-1.5 text-center text-footnote font-bold focus:bg-white dark:focus:bg-slate-700 focus:ring-2 ring-brand outline-none transition-all" value={item.units_held} onChange={e => handleUpdate(item.id, 'units_held', e.target.value)} onFocus={e => e.target.select()} />
+                                                        <input className="w-16 h-10 bg-surface-2 text-ink rounded-field px-2 text-center text-subhead font-semibold tabular-nums outline-none focus:bg-surface-3 transition-colors" value={item.units_held} onChange={e => handleUpdate(item.id, 'units_held', e.target.value)} onFocus={e => e.target.select()} />
                                                     </td>
                                                     <td className="p-3 text-center">
                                                         <div className="relative inline-block">
-                                                            <input className="w-20 bg-surface text-ink border border-line rounded-lg p-1.5 pr-5 text-center text-footnote font-bold focus:ring-2 ring-emerald-500 outline-none transition-all" value={item.value} onChange={e => handleUpdate(item.id, 'value', e.target.value)} onFocus={e => e.target.select()} />
+                                                            <input className="w-24 h-10 bg-surface-2 text-ink rounded-field px-2 pr-5 text-center text-subhead font-semibold tabular-nums outline-none focus:bg-surface-3 transition-colors" value={item.value} onChange={e => handleUpdate(item.id, 'value', e.target.value)} onFocus={e => e.target.select()} />
                                                             <span className="absolute right-2 top-1/2 -translate-y-1/2 text-caption2 text-ink-3 font-bold">€</span>
                                                         </div>
                                                     </td>
@@ -284,7 +286,7 @@ export const Dashboard = ({
                                                         </div>
                                                     </td>
                                                     <td className="p-3 text-center">
-                                                        <input className="w-12 bg-surface-2 text-ink rounded-lg p-1.5 text-center text-footnote font-bold focus:bg-white dark:focus:bg-slate-700 focus:ring-2 ring-brand outline-none transition-all" value={item.target_weight} onChange={e => handleUpdate(item.id, 'target_weight', e.target.value)} onFocus={e => e.target.select()} />
+                                                        <input className="w-14 h-10 bg-surface-2 text-ink rounded-field px-2 text-center text-subhead font-semibold tabular-nums outline-none focus:bg-surface-3 transition-colors" value={item.target_weight} onChange={e => handleUpdate(item.id, 'target_weight', e.target.value)} onFocus={e => e.target.select()} />
                                                     </td>
                                                     <td className="p-3 pr-6 text-right bg-brand-soft/30 whitespace-nowrap">
                                                         <div className={`inline-flex flex-col items-end`}>
