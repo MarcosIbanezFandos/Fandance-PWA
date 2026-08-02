@@ -2,21 +2,22 @@
 /**
  * Comprobación end-to-end del plan de aportación contra Supabase real.
  *
- * Se ejecuta en TU máquina. Las credenciales se leen de un fichero local que
- * nunca sale de ahí, y el informe que imprime no contiene ningún secreto: sólo
- * PASS/FAIL y datos derivados. Puedes pegarlo tal cual.
+ * Se ejecuta en TU máquina. Las credenciales se quedan en tu disco y el informe
+ * que imprime no contiene ningún secreto: sólo PASS/FAIL y datos derivados.
+ * Puedes pegarlo tal cual.
  *
- * Uso:
+ * La URL de Supabase, la clave anon y la del API se leen solas de
+ * frontend_rebalanceo/.env.production (o .env.development). Lo único que hay que
+ * escribir es la cuenta con la que iniciar sesión:
+ *
  *   1) Crea Fandance-PWA/.env.verify  (ya está en .gitignore):
  *
- *        SUPABASE_URL=https://<tu-proyecto>.supabase.co
- *        SUPABASE_ANON_KEY=<la clave anon, la pública>
- *        API_URL=https://fandance-pwa.vercel.app/api
  *        TEST_EMAIL=<email de una cuenta de prueba>
  *        TEST_PASSWORD=<su contraseña>
  *
- *      Usa una cuenta de prueba, no la tuya principal: el script escribe un
- *      plan y lo restaura al terminar, pero mejor no tocar datos reales.
+ *      Usa una cuenta de prueba, no la principal: el script escribe un plan y
+ *      lo restaura al terminar, pero mejor no tocar datos reales.
+ *      Cuando acabes, bórralo:  rm .env.verify
  *
  *   2) node scripts/verificar-plan.mjs
  */
@@ -27,23 +28,50 @@ import { readFileSync } from 'node:fs';
 
 const ROOT = new URL('..', import.meta.url).pathname;
 
-function loadEnv() {
-    let raw;
-    try {
-        raw = readFileSync(`${ROOT}.env.verify`, 'utf8');
-    } catch {
-        console.error('Falta .env.verify en la raíz del repo. Mira la cabecera de este fichero.');
-        process.exit(1);
-    }
+const parseEnvFile = (ruta) => {
     const env = {};
+    let raw;
+    try { raw = readFileSync(ruta, 'utf8'); } catch { return env; }
     for (const line of raw.split('\n')) {
-        const m = line.match(/^\s*([A-Z_]+)\s*=\s*(.*)\s*$/);
-        if (m) env[m[1]] = m[2].trim();
+        const m = line.match(/^\s*([A-Z_][A-Z0-9_]*)\s*=\s*(.*?)\s*$/);
+        if (m) env[m[1]] = m[2].replace(/^["']|["']$/g, '').trim();
     }
-    const faltan = ['SUPABASE_URL', 'SUPABASE_ANON_KEY', 'API_URL', 'TEST_EMAIL', 'TEST_PASSWORD']
-        .filter(k => !env[k]);
-    if (faltan.length) {
-        console.error('Faltan variables en .env.verify:', faltan.join(', '));
+    return env;
+};
+
+// Un valor de la plantilla no sustituido produce un fallo de DNS con volcado de
+// pila; mejor detectarlo aquí y decir qué falta.
+const esPlaceholder = (v) => !v || /TU-PROYECTO|LA_CLAVE|ejemplo\.com|su-contraseña|<.*>/i.test(v);
+
+function loadEnv() {
+    const front = `${ROOT}frontend_rebalanceo/`;
+    const app = { ...parseEnvFile(`${front}.env.development`), ...parseEnvFile(`${front}.env.production`) };
+    const verify = parseEnvFile(`${ROOT}.env.verify`);
+
+    // Un valor de plantilla en .env.verify se ignora en lugar de tapar la
+    // configuración real de la app: si alguien pega el ejemplo tal cual, el
+    // script sigue funcionando en vez de fallar con un DNS inexistente.
+    const pick = (a, b) => (esPlaceholder(a) ? b : a);
+    const env = {
+        SUPABASE_URL: pick(verify.SUPABASE_URL, app.VITE_SUPABASE_URL),
+        SUPABASE_ANON_KEY: pick(verify.SUPABASE_ANON_KEY, app.VITE_SUPABASE_ANON_KEY),
+        API_URL: pick(verify.API_URL, app.VITE_API_URL),
+        TEST_EMAIL: verify.TEST_EMAIL,
+        TEST_PASSWORD: verify.TEST_PASSWORD,
+    };
+
+    const malas = Object.entries(env).filter(([, v]) => esPlaceholder(v)).map(([k]) => k);
+    if (malas.length) {
+        console.error('\nNo puedo arrancar. Revisa estas variables:\n');
+        for (const k of malas) {
+            const donde = ['TEST_EMAIL', 'TEST_PASSWORD'].includes(k)
+                ? 'escríbela en Fandance-PWA/.env.verify'
+                : 'no se encontró en frontend_rebalanceo/.env.production ni .env.development';
+            console.error(`  - ${k}: ${donde}`);
+        }
+        console.error('\n.env.verify sólo necesita dos líneas:\n');
+        console.error('  TEST_EMAIL=tu-cuenta-de-prueba@dominio.com');
+        console.error('  TEST_PASSWORD=la-contraseña\n');
         process.exit(1);
     }
     return env;
@@ -75,11 +103,17 @@ const api = async (path, { method = 'GET', body } = {}) => {
 };
 
 console.log('\n── Autenticación ──');
-const authRes = await fetch(`${SB}/auth/v1/token?grant_type=password`, {
-    method: 'POST',
-    headers: { apikey: env.SUPABASE_ANON_KEY, 'Content-Type': 'application/json' },
-    body: JSON.stringify({ email: env.TEST_EMAIL, password: env.TEST_PASSWORD }),
-});
+let authRes;
+try {
+    authRes = await fetch(`${SB}/auth/v1/token?grant_type=password`, {
+        method: 'POST',
+        headers: { apikey: env.SUPABASE_ANON_KEY, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: env.TEST_EMAIL, password: env.TEST_PASSWORD }),
+    });
+} catch (e) {
+    check('Inicio de sesión', false, `no se pudo contactar con ${SB} (${e.cause?.code || e.message})`);
+    process.exit(1);
+}
 const auth = await authRes.json().catch(() => ({}));
 if (!authRes.ok || !auth.access_token) {
     check('Inicio de sesión', false, auth.error_description || auth.msg || `HTTP ${authRes.status}`);
