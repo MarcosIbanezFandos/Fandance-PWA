@@ -149,6 +149,9 @@ export const GlobalProvider = ({ children }) => {
                 'dash.contribution_short': 'Aportación',
                 'dash.to_invest_summary': 'A invertir este mes',
                 'dash.unallocated': 'Sin asignar',
+                'dash.only_this': 'Aportar solo a este activo',
+                'dash.manual_amounts': 'Importes fijados a mano',
+                'dash.back_to_auto': 'Reparto automático',
                 // Table headers
                 'th.asset': 'Activo',
                 'th.price': 'Precio',
@@ -526,6 +529,9 @@ export const GlobalProvider = ({ children }) => {
                 'dash.contribution_short': 'Contribution',
                 'dash.to_invest_summary': 'To invest this month',
                 'dash.unallocated': 'Unallocated',
+                'dash.only_this': 'Contribute to this asset only',
+                'dash.manual_amounts': 'Amounts set by hand',
+                'dash.back_to_auto': 'Automatic split',
                 // Table headers
                 'th.asset': 'Asset',
                 'th.price': 'Price',

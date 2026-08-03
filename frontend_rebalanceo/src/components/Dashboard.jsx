@@ -1,6 +1,6 @@
 import React from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Search, Loader2, ArrowUpRight, ArrowDownRight, Trash2, Calendar, RotateCcw, PlusCircle, History as HistoryIcon, AlertTriangle, CheckCircle2 } from 'lucide-react';
+import { Search, Loader2, ArrowUpRight, ArrowDownRight, Trash2, Calendar, RotateCcw, PlusCircle, History as HistoryIcon, AlertTriangle, CheckCircle2, Target, Undo2 } from 'lucide-react';
 import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer } from 'recharts';
 import { GlassCard, Card, StatTile, CountUp, BounceButton, NumericField, Segmented, fadeInUp, staggerContainer } from './UI';
 import { safeFloat, formatNumber, formatUnits } from '../utils';
@@ -17,9 +17,19 @@ export const Dashboard = ({
     totalValue, riskProfile, contribution, setContribution,
     rebalanceHistory, searchResults, isSearching, query, setQuery,
     handleUpdate, deleteItem, applyRebalance, calculating, addAsset, searchAsset, undoRebalance, deleteHistoryItem,
-    chartData
+    chartData, overrides = {}, setOverride, clearOverrides
 }) => {
     const { t } = useGlobal();
+
+    const fijado = (id) => overrides[id] !== undefined && overrides[id] !== '';
+    const hayFijados = Object.keys(overrides).length > 0;
+
+    // "Sólo este": todo el aporte a un activo y cero al resto. Es el atajo del
+    // caso que antes no se podía hacer — el reparto siempre tocaba todos.
+    const soloEste = (id) => {
+        if (!setOverride) return;
+        portfolioItems.forEach(i => setOverride(i.id, i.id === id ? safeFloat(contribution) : 0));
+    };
 
     const assetSummary = React.useMemo(() => {
         if (!portfolioItems || portfolioItems.length === 0) return t('kpi.no_assets');
@@ -137,11 +147,24 @@ export const Dashboard = ({
                             </div>
                         </div>
 
-                        {/* Summary strip */}
+                        {/* Resumen del mes */}
                         <div className="px-5 md:px-6 py-3 bg-brand-soft/50 border-b border-line flex items-center justify-between text-footnote">
-                            <span className="font-bold text-ink-3">{t('dash.to_invest_summary')}</span>
-                            <span className="font-semibold text-brand text-body">{formatNumber(investTotal)} €</span>
+                            <span className="text-ink-2">{t('dash.to_invest_summary')}</span>
+                            <span className="font-semibold text-brand text-body tabular-nums">{formatNumber(investTotal)} €</span>
                         </div>
+
+                        {/* Aviso cuando el reparto lo manda el usuario y no el cálculo. */}
+                        {hayFijados && (
+                            <div className="px-5 md:px-6 py-2.5 border-b border-line flex items-center justify-between gap-3 bg-brand-soft">
+                                <span className="text-footnote text-brand-ink">{t('dash.manual_amounts')}</span>
+                                <button
+                                    onClick={clearOverrides}
+                                    className="flex items-center gap-1.5 text-footnote font-semibold text-brand shrink-0 active:opacity-60"
+                                >
+                                    <Undo2 size={14} /> {t('dash.back_to_auto')}
+                                </button>
+                            </div>
+                        )}
 
                         {/* MOBILE: card list (no horizontal scrolling) */}
                         <div className="md:hidden divide-y divide-line">
@@ -159,11 +182,32 @@ export const Dashboard = ({
                                                     <div className="text-caption2 font-bold text-indigo-400">{item.asset?.ticker} · {formatNumber(item.current_price, 2)}€</div>
                                                 </div>
                                             </div>
-                                            <div className="text-right shrink-0">
-                                                <div className={`text-subhead font-semibold tabular-nums ${isBuy ? 'text-emerald-600 dark:text-emerald-400' : isSell ? 'text-rose-500 dark:text-rose-400' : 'text-ink-3'}`}>
-                                                    {isSell ? '−' : isBuy ? '+' : ''}{formatNumber(Math.abs(safeFloat(item.allocation)))}€
+                                            {/* Importe editable. Fijar uno y poner el resto a 0
+                                                es lo que permite aportar a un solo activo. */}
+                                            <div className="text-right shrink-0 flex items-center gap-1.5">
+                                                <div>
+                                                    <div className="flex items-center gap-0.5 justify-end">
+                                                        <input
+                                                            inputMode="decimal"
+                                                            enterKeyHint="done"
+                                                            onKeyDown={e => { if (e.key === 'Enter') e.currentTarget.blur(); }}
+                                                            value={fijado(item.id) ? overrides[item.id] : formatNumber(Math.abs(safeFloat(item.allocation)))}
+                                                            onChange={e => setOverride?.(item.id, e.target.value)}
+                                                            onFocus={e => e.target.select()}
+                                                            className={`w-16 text-right bg-transparent outline-none text-subhead font-semibold tabular-nums rounded-field px-1 ${fijado(item.id) ? 'text-brand bg-brand-soft' : isBuy ? 'text-positive' : isSell ? 'text-negative' : 'text-ink-3'}`}
+                                                        />
+                                                        <span className="text-subhead font-semibold text-ink-3">€</span>
+                                                    </div>
+                                                    <div className="text-caption2 font-bold text-ink-3">{formatUnits(Math.abs(safeFloat(item.unitsToTrade)))} uds</div>
                                                 </div>
-                                                <div className="text-caption2 font-bold text-ink-3">{formatUnits(Math.abs(safeFloat(item.unitsToTrade)))} uds</div>
+                                                <button
+                                                    onClick={() => soloEste(item.id)}
+                                                    aria-label={t('dash.only_this')}
+                                                    title={t('dash.only_this')}
+                                                    className="h-9 w-9 flex items-center justify-center rounded-field text-ink-3 active:bg-surface-3 transition-colors shrink-0"
+                                                >
+                                                    <Target size={15} />
+                                                </button>
                                             </div>
                                         </div>
 
@@ -273,15 +317,35 @@ export const Dashboard = ({
                                                     <td className="p-3 text-center">
                                                         <input className="w-14 h-10 bg-surface-2 text-ink rounded-field px-2 text-center text-subhead font-semibold tabular-nums outline-none focus:bg-surface-3 transition-colors" value={item.target_weight} onChange={e => handleUpdate(item.id, 'target_weight', e.target.value)} onFocus={e => e.target.select()} />
                                                     </td>
+                                                    {/* Editable igual que en móvil: el importe manda
+                                                        sobre el reparto calculado. */}
                                                     <td className="p-3 pr-6 text-right bg-brand-soft/30 whitespace-nowrap">
-                                                        <div className={`inline-flex flex-col items-end`}>
-                                                            <span className={`text-footnote font-semibold font-mono ${isBuy ? 'text-emerald-600 dark:text-emerald-400' : isSell ? 'text-rose-500 dark:text-rose-400' : 'text-ink-3'}`}>
-                                                                {isSell ? '−' : isBuy ? '+' : ''}{formatNumber(Math.abs(safeFloat(item.allocation)))}€
-                                                            </span>
-                                                            <span className="text-caption2 font-bold text-ink-3 flex items-center gap-0.5">
-                                                                {isBuy && <ArrowUpRight size={9} />}{isSell && <ArrowDownRight size={9} />}
-                                                                {formatUnits(Math.abs(safeFloat(item.unitsToTrade)))} uds
-                                                            </span>
+                                                        <div className="inline-flex items-center gap-1.5">
+                                                            <div className="flex flex-col items-end">
+                                                                <div className="flex items-center gap-0.5">
+                                                                    <input
+                                                                        inputMode="decimal"
+                                                                        onKeyDown={e => { if (e.key === 'Enter') e.currentTarget.blur(); }}
+                                                                        value={fijado(item.id) ? overrides[item.id] : formatNumber(Math.abs(safeFloat(item.allocation)))}
+                                                                        onChange={e => setOverride?.(item.id, e.target.value)}
+                                                                        onFocus={e => e.target.select()}
+                                                                        className={`w-16 h-9 text-right bg-transparent outline-none rounded-field px-1 text-footnote font-semibold tabular-nums ${fijado(item.id) ? 'text-brand bg-brand-soft' : isBuy ? 'text-positive' : isSell ? 'text-negative' : 'text-ink-3'}`}
+                                                                    />
+                                                                    <span className="text-footnote font-semibold text-ink-3">€</span>
+                                                                </div>
+                                                                <span className="text-caption2 font-bold text-ink-3 flex items-center gap-0.5">
+                                                                    {isBuy && <ArrowUpRight size={9} />}{isSell && <ArrowDownRight size={9} />}
+                                                                    {formatUnits(Math.abs(safeFloat(item.unitsToTrade)))} uds
+                                                                </span>
+                                                            </div>
+                                                            <button
+                                                                onClick={() => soloEste(item.id)}
+                                                                aria-label={t('dash.only_this')}
+                                                                title={t('dash.only_this')}
+                                                                className="h-8 w-8 flex items-center justify-center rounded-field text-ink-3 hover:text-brand hover:bg-surface-2 transition-colors shrink-0"
+                                                            >
+                                                                <Target size={14} />
+                                                            </button>
                                                         </div>
                                                     </td>
                                                     <td className="p-3 text-right">
