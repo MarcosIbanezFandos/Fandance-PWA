@@ -3,6 +3,7 @@ import { motion } from 'framer-motion';
 import { History, Undo2, Trash2, Inbox } from 'lucide-react';
 import { Card, SectionHeader, Button, Badge, EmptyState, staggerContainer } from '../components/UI';
 import { useGlobal } from '../context/GlobalContext';
+import { MovimientosCsv } from '../components/MovimientosCsv';
 import { formatNumber, safeFloat } from '../utils';
 
 /**
@@ -12,7 +13,7 @@ import { formatNumber, safeFloat } from '../utils';
  * cuánto llevo aportado?") y porque es la fuente que marca los meses del plan
  * de aportación: conviene poder auditarla sin ruido alrededor.
  */
-export const RebalanceHistoryPage = ({ history = [], onUndo, onDelete }) => {
+export const RebalanceHistoryPage = ({ history = [], onUndo, onDelete, csvTxs = [], csvImportadoEn, onBorrarCsv }) => {
     const { t } = useGlobal();
 
     const totalContributed = history.reduce((s, h) => s + safeFloat(h.contribution), 0);
@@ -77,6 +78,9 @@ export const RebalanceHistoryPage = ({ history = [], onUndo, onDelete }) => {
                     </ul>
                 )}
             </Card>
+
+            {/* Todo lo que trae el CSV: compras, dividendos, intereses y gastos. */}
+            <MovimientosCsv txs={csvTxs} importadoEn={csvImportadoEn} onBorrar={onBorrarCsv} />
         </motion.div>
     );
 };
