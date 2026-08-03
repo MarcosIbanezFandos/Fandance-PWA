@@ -35,8 +35,16 @@ export const getPrefs = (user, portfolioId) => {
         // Fecha desde la que tiene sentido dibujar la cartera. Si no se ha
         // fijado, quien llama usa la creación de la cartera.
         inception: p.inception || null,
+        // Aportación preparada para este mes: importes por activo que el
+        // usuario dejó fijados el día 14-15 y confirma cuando se ejecutan.
+        // Se guarda con su mes para que la del mes pasado no reaparezca.
+        pending: (p.pending && typeof p.pending === 'object') ? p.pending : null,
     };
 };
+
+/** Clave de mes en curso, para no arrastrar la aportación del mes anterior. */
+export const mesActual = (d = new Date()) =>
+    `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
 
 /**
  * Guarda de forma incremental: se relee el bloque entero y se sustituye sólo la
@@ -55,6 +63,7 @@ export const savePrefs = async (portfolioId, cambios) => {
         ...(cambios.annualGrowthPct !== undefined ? { growth: Number(cambios.annualGrowthPct) || 0 } : {}),
         ...(cambios.startDate !== undefined ? { start: cambios.startDate || null } : {}),
         ...(cambios.inception !== undefined ? { inception: cambios.inception || null } : {}),
+        ...(cambios.pending !== undefined ? { pending: cambios.pending } : {}),
     };
 
     const { data, error } = await supabase.auth.updateUser({

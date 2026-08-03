@@ -552,9 +552,28 @@ export const ttwror = (evolution) => {
  *
  * Returns { rows, totals }.
  */
-export const buildRebalancePlan = (items, contributionInput, mode = 'contribute') => {
+/**
+ * Reparto de la aportación del mes.
+ *
+ * `overrides` fija el importe de activos concretos: `{ [itemId]: euros }`. Lo
+ * que quede de la aportación se reparte entre los demás con la lógica normal.
+ * Fijar uno y poner el resto a 0 es lo que permite aportar a un solo activo,
+ * que antes era imposible: el reparto siempre tocaba todo.
+ */
+export const buildRebalancePlan = (items, contributionInput, mode = 'contribute', overrides = {}) => {
     const list = Array.isArray(items) ? items : [];
     const contribution = Math.max(0, safeFloat(contributionInput));
+
+    const fijado = (i) => {
+        const v = overrides?.[i.id];
+        return v !== undefined && v !== null && v !== '';
+    };
+    const importeFijo = (i) => safeFloat(overrides?.[i.id]);
+    const libres = list.filter(i => !fijado(i));
+    const sumaFijos = list.filter(fijado).reduce((s, i) => s + importeFijo(i), 0);
+    // Lo fijado manda; el resto se reparte. Si se fija más que la aportación,
+    // no se resta de nadie: se respeta lo escrito y el total sube.
+    const repartible = Math.max(0, contribution - sumaFijos);
 
     const currentTotal = list.reduce((s, i) => s + safeFloat(i.value), 0);
     const futureTotal = currentTotal + contribution;
@@ -568,28 +587,30 @@ export const buildRebalancePlan = (items, contributionInput, mode = 'contribute'
 
     const allocations = new Map(); // id -> € to invest (signed; negative = sell)
 
+    // Lo fijado a mano entra tal cual, sin pasar por el reparto.
+    list.filter(fijado).forEach((i) => allocations.set(i.id, importeFijo(i)));
+
     if (mode === 'full') {
-        list.forEach((i) => {
+        libres.forEach((i) => {
             const targetVal = futureTotal * frac(i);
             allocations.set(i.id, targetVal - safeFloat(i.value));
         });
     } else {
-        // contribute-only: never sell, spend exactly the contribution.
-        const deficits = list.map((i) => Math.max(0, futureTotal * frac(i) - safeFloat(i.value)));
+        // Sólo aportar: nunca vende, y gasta exactamente lo repartible.
+        const deficits = libres.map((i) => Math.max(0, futureTotal * frac(i) - safeFloat(i.value)));
         const sumDef = deficits.reduce((a, b) => a + b, 0);
 
-        if (contribution <= 0) {
-            list.forEach((i) => allocations.set(i.id, 0));
+        if (repartible <= 0) {
+            libres.forEach((i) => allocations.set(i.id, 0));
         } else if (sumDef <= 1e-9) {
-            // Everything already at/above target → split by target weight.
-            list.forEach((i) => allocations.set(i.id, contribution * frac(i)));
-        } else if (sumDef <= contribution) {
-            // Top up every underweight asset, then spread the leftover by weight.
-            const leftover = contribution - sumDef;
-            list.forEach((i, idx) => allocations.set(i.id, deficits[idx] + leftover * frac(i)));
+            const fracLibre = libres.reduce((s, i) => s + frac(i), 0) || 1;
+            libres.forEach((i) => allocations.set(i.id, repartible * (frac(i) / fracLibre)));
+        } else if (sumDef <= repartible) {
+            const leftover = repartible - sumDef;
+            const fracLibre = libres.reduce((s, i) => s + frac(i), 0) || 1;
+            libres.forEach((i, idx) => allocations.set(i.id, deficits[idx] + leftover * (frac(i) / fracLibre)));
         } else {
-            // Not enough cash to fix everything → prioritise the most underweight.
-            list.forEach((i, idx) => allocations.set(i.id, contribution * (deficits[idx] / sumDef)));
+            libres.forEach((i, idx) => allocations.set(i.id, repartible * (deficits[idx] / sumDef)));
         }
     }
 

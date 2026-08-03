@@ -23,7 +23,7 @@ import { Dashboard } from './components/Dashboard';
 import { SimulationView } from './components/SimulationView';
 import { ContributionPlan } from './components/ContributionPlan';
 import { BottomNav } from './components/BottomNav';
-import { buildXray, computeOverlap, computeConcentration, computeDrift, buildPlanStatus, formatNumber } from './utils';
+import { buildXray, computeOverlap, computeConcentration, computeDrift, buildPlanStatus, formatNumber, buildRebalancePlan, safeFloat } from './utils';
 import { Sun, Moon } from 'lucide-react';
 
 /* ---- Datos sintéticos ---- */
@@ -61,6 +61,7 @@ const PLAN = { monthly: 300, annualGrowthPct: 5, startDate: new Date(now.getFull
 function Preview() {
     const [dark, setDark] = useState(false);
     const [view, setView] = useState('home');
+    const [overrides, setOverrides] = useState({});
     const [plan, setPlan] = useState(new URLSearchParams(location.search).has('noplan') ? { monthly: 0, annualGrowthPct: 0 } : PLAN);
 
     React.useEffect(() => { document.documentElement.classList.toggle('dark', dark); }, [dark]);
@@ -98,8 +99,11 @@ function Preview() {
                 />
             ) : view === 'pos' ? (
                 <Dashboard
-                    portfolioItems={ITEMS.map(i => ({ ...i, units_held: 12.5, target_weight: i.targetWeight, current_price: 512.34, allocation: i.targetWeight > i.currentWeight ? 420 : -380, action: i.targetWeight > i.currentWeight ? 'BUY' : 'SELL' }))}
-                    planTotals={{ targetSum: 100, investTotal: 800, unallocated: 0 }}
+                    portfolioItems={buildRebalancePlan(
+                        ITEMS.map(i => ({ ...i, units_held: 12.5, target_weight: i.targetWeight, current_price: 512.34 })),
+                        800, 'contribute', overrides
+                    ).rows}
+                    planTotals={{ targetSum: 100, investTotal: Object.keys(overrides).length ? Object.values(overrides).reduce((s, v) => s + safeFloat(v), 0) : 800, unallocated: 0 }}
                     rebalanceMode="contribute" setRebalanceMode={() => { }}
                     totalValue={79000} riskProfile={7}
                     contribution={800} setContribution={() => { }}
@@ -108,6 +112,9 @@ function Preview() {
                     applyRebalance={() => { }} calculating={false} addAsset={() => { }}
                     searchAsset={() => { }} undoRebalance={() => { }} deleteHistoryItem={() => { }}
                     chartData={[]}
+                    overrides={overrides}
+                    setOverride={(id, v) => setOverrides(o => { const n = { ...o }; if (v === '' || v == null) delete n[id]; else n[id] = safeFloat(v); return n; })}
+                    clearOverrides={() => setOverrides({})}
                 />
             ) : view === 'analisis' ? (
                 <Analysis portfolios={[{ id: 'p1', name: 'Cartera principal' }]} activePortfolioId="p1" />

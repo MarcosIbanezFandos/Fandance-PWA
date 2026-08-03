@@ -7,7 +7,7 @@ import { Routes, Route, useNavigate, Navigate } from 'react-router-dom'
 import { supabase } from './supabaseClient'
 import { safeFloat, buildRebalancePlan, roundTo } from './utils'
 import { isAdmin, applyDefaultTargets, DEFAULT_CONTRIBUTION_PLAN } from './config/allocation'
-import { getPrefs, savePrefs } from './lib/planStore'
+import { getPrefs, savePrefs, mesActual } from './lib/planStore'
 import { AuthScreen } from './components/AuthScreen'
 import { Dashboard } from './components/Dashboard'
 import { SimulationView } from './components/SimulationView'
@@ -177,9 +177,39 @@ function App() {
     }
 
     // --- LOGIC: REBALANCE PLAN ---
+    // Importes fijados a mano por activo. Sólo valen para el mes en curso: si
+    // se guardaron en julio, en agosto se ignoran y vuelve el reparto normal.
+    const pendiente = contributionPlan?.pending
+    const overrides = useMemo(
+        () => (pendiente?.month === mesActual() ? (pendiente.amounts || {}) : {}),
+        [pendiente]
+    )
+
+    const setOverride = useCallback(async (itemId, valor) => {
+        const base = pendiente?.month === mesActual() ? (pendiente.amounts || {}) : {}
+        const next = { ...base }
+        if (valor === '' || valor === null || valor === undefined) delete next[itemId]
+        else next[itemId] = safeFloat(valor)
+        if (!activePortfolio) return
+        try {
+            await savePrefs(activePortfolio.id, { pending: { month: mesActual(), amounts: next } })
+            const { data: { user } } = await supabase.auth.getUser()
+            setPrefsUser(user)
+        } catch (e) { console.error(e) }
+    }, [activePortfolio, pendiente])
+
+    const clearOverrides = useCallback(async () => {
+        if (!activePortfolio) return
+        try {
+            await savePrefs(activePortfolio.id, { pending: null })
+            const { data: { user } } = await supabase.auth.getUser()
+            setPrefsUser(user)
+        } catch (e) { console.error(e) }
+    }, [activePortfolio])
+
     const plan = useMemo(
-        () => buildRebalancePlan(portfolioItems, contribution, rebalanceMode),
-        [portfolioItems, contribution, rebalanceMode]
+        () => buildRebalancePlan(portfolioItems, contribution, rebalanceMode, overrides),
+        [portfolioItems, contribution, rebalanceMode, overrides]
     );
     const tableData = useMemo(
         () => _.orderBy(plan.rows, [r => safeFloat(r.value)], ['desc']),
@@ -428,6 +458,9 @@ function App() {
                             undoRebalance={undoRebalance}
                             deleteHistoryItem={deleteHistoryItem}
                             chartData={chartData}
+                            overrides={overrides}
+                            setOverride={setOverride}
+                            clearOverrides={clearOverrides}
                         />
                     ) : (
                         <div className="flex items-center justify-center h-96 text-ink-3 font-bold bg-surface rounded-card border border-line shadow-card">
