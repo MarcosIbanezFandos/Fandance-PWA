@@ -17,7 +17,7 @@ const TargetAllocationCard = ({ activePortfolio, portfolioItems, handleUpdate, o
             <div className="flex items-center justify-between mb-6 gap-3 flex-wrap">
                 <h3 className="text-footnote font-semibold text-ink-3 flex items-center gap-2"><Target size={14} /> {t('targets.title')}</h3>
                 {activePortfolio && items.length > 0 && (
-                    <div className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-caption1 font-semibold ${balanced ? 'bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600 dark:text-emerald-400' : 'bg-amber-50 dark:bg-amber-900/20 text-amber-600 dark:text-amber-400'}`}>
+                    <div className={`flex items-center gap-1.5 px-3 py-1.5 rounded-control text-caption1 font-semibold ${balanced ? 'bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600 dark:text-emerald-400' : 'bg-amber-50 dark:bg-amber-900/20 text-amber-600 dark:text-amber-400'}`}>
                         {balanced ? <CheckCircle2 size={13} /> : <AlertTriangle size={13} />}
                         {t('targets.sum')}: {formatNumber(sum, 1)}%
                     </div>
@@ -25,9 +25,9 @@ const TargetAllocationCard = ({ activePortfolio, portfolioItems, handleUpdate, o
             </div>
 
             {!activePortfolio ? (
-                <div className="p-6 bg-surface-2 rounded-2xl text-subhead font-bold text-ink-3 text-center">{t('targets.no_portfolio')}</div>
+                <div className="p-6 bg-surface-2 rounded-card text-subhead font-bold text-ink-3 text-center">{t('targets.no_portfolio')}</div>
             ) : items.length === 0 ? (
-                <div className="p-6 bg-surface-2 rounded-2xl text-subhead font-bold text-ink-3 text-center">{t('targets.no_assets')}</div>
+                <div className="p-6 bg-surface-2 rounded-card text-subhead font-bold text-ink-3 text-center">{t('targets.no_assets')}</div>
             ) : (
                 <>
                     <div className="text-caption1 font-bold text-indigo-400 mb-3">{activePortfolio.name}</div>
@@ -35,7 +35,7 @@ const TargetAllocationCard = ({ activePortfolio, portfolioItems, handleUpdate, o
                         {items.map((i) => {
                             const w = safeFloat(i.target_weight);
                             return (
-                                <div key={i.id} className="flex items-center gap-3 p-3 bg-surface-2 rounded-2xl border border-line">
+                                <div key={i.id} className="flex items-center gap-3 p-3 bg-surface-2 rounded-card border border-line">
                                     <div className="flex-1 min-w-0">
                                         <div className="font-bold text-footnote text-ink truncate">{i.asset?.name || i.asset?.ticker}</div>
                                         <div className="text-caption2 font-bold text-indigo-400">{i.asset?.ticker}</div>
@@ -47,7 +47,7 @@ const TargetAllocationCard = ({ activePortfolio, portfolioItems, handleUpdate, o
                                     <div className="relative">
                                         <input
                                             inputMode="decimal"
-                                            className="w-20 bg-surface border border-line-strong rounded-lg p-2 pr-6 text-center text-footnote font-bold focus:ring-2 ring-brand outline-none transition-all text-ink"
+                                            className="w-20 bg-surface border border-line-strong rounded-field p-2 pr-6 text-center text-footnote font-bold focus:ring-2 ring-brand outline-none transition-all text-ink"
                                             value={i.target_weight}
                                             onChange={(e) => handleUpdate(i.id, 'target_weight', e.target.value)}
                                             onFocus={(e) => e.target.select()}
@@ -60,14 +60,14 @@ const TargetAllocationCard = ({ activePortfolio, portfolioItems, handleUpdate, o
                     </div>
 
                     <div className="flex flex-wrap gap-2 mt-5">
-                        <BounceButton onClick={onEqualSplit} className="px-4 py-2.5 bg-surface-2 text-ink-2 rounded-xl font-bold text-caption1 uppercase tracking-wide flex items-center gap-2 hover:bg-slate-200 dark:hover:bg-slate-700">
+                        <BounceButton onClick={onEqualSplit} className="px-4 py-2.5 bg-surface-2 text-ink-2 rounded-control font-bold text-caption1 uppercase tracking-wide flex items-center gap-2 hover:bg-slate-200 dark:hover:bg-slate-700">
                             <Scale size={14} /> {t('targets.equal')}
                         </BounceButton>
-                        <BounceButton onClick={onNormalize} className="px-4 py-2.5 bg-surface-2 text-ink-2 rounded-xl font-bold text-caption1 uppercase tracking-wide flex items-center gap-2 hover:bg-slate-200 dark:hover:bg-slate-700">
+                        <BounceButton onClick={onNormalize} className="px-4 py-2.5 bg-surface-2 text-ink-2 rounded-control font-bold text-caption1 uppercase tracking-wide flex items-center gap-2 hover:bg-slate-200 dark:hover:bg-slate-700">
                             <Target size={14} /> {t('targets.normalize')}
                         </BounceButton>
                         {isAdmin && (
-                            <BounceButton onClick={onApplyDefaults} className="px-4 py-2.5 bg-indigo-600 text-white rounded-xl font-bold text-caption1 uppercase tracking-wide flex items-center gap-2 hover:bg-indigo-500 shadow-md shadow-indigo-500/20">
+                            <BounceButton onClick={onApplyDefaults} className="px-4 py-2.5 bg-indigo-600 text-white rounded-control font-bold text-caption1 uppercase tracking-wide flex items-center gap-2 hover:bg-indigo-500 shadow-card">
                                 <Sparkles size={14} /> Indexa
                             </BounceButton>
                         )}
@@ -97,9 +97,9 @@ export const Settings = ({ session, onLogout, activePortfolio, portfolioItems, h
 
             <GlassCard>
                 <h3 className="text-footnote font-semibold text-ink-3 mb-6">{t('settings.appearance')}</h3>
-                <div className="flex items-center justify-between p-4 bg-surface-2 rounded-2xl border border-line transition-colors">
+                <div className="flex items-center justify-between p-4 bg-surface-2 rounded-card border border-line transition-colors">
                     <div className="flex items-center gap-4">
-                        <div className="p-2 bg-surface rounded-xl shadow-sm text-ink">
+                        <div className="p-2 bg-surface rounded-control shadow-card text-ink">
                             {theme === 'dark' ? <Moon size={20} /> : <Sun size={20} />}
                         </div>
                         <div>
@@ -107,16 +107,16 @@ export const Settings = ({ session, onLogout, activePortfolio, portfolioItems, h
                             <div className="text-caption2 text-ink-3 font-bold uppercase">{theme === 'dark' ? t('settings.dark') : t('settings.light')}</div>
                         </div>
                     </div>
-                    <div className="flex bg-surface p-1 rounded-xl border border-line-strong">
+                    <div className="flex bg-surface p-1 rounded-control border border-line-strong">
                         <button
                             onClick={() => setTheme('light')}
-                            className={`p-2 rounded-lg transition-all ${theme === 'light' ? 'bg-brand-soft text-brand shadow-sm' : 'text-ink-3 hover:text-slate-600 dark:hover:text-slate-200'}`}
+                            className={`p-2 rounded-field transition-all ${theme === 'light' ? 'bg-brand-soft text-brand shadow-card' : 'text-ink-3 hover:text-slate-600 dark:hover:text-slate-200'}`}
                         >
                             <Sun size={16} />
                         </button>
                         <button
                             onClick={() => setTheme('dark')}
-                            className={`p-2 rounded-lg transition-all ${theme === 'dark' ? 'bg-indigo-900 text-indigo-400 shadow-sm' : 'text-ink-3 hover:text-slate-600 dark:hover:text-slate-200'}`}
+                            className={`p-2 rounded-field transition-all ${theme === 'dark' ? 'bg-indigo-900 text-indigo-400 shadow-card' : 'text-ink-3 hover:text-slate-600 dark:hover:text-slate-200'}`}
                         >
                             <Moon size={16} />
                         </button>
@@ -126,9 +126,9 @@ export const Settings = ({ session, onLogout, activePortfolio, portfolioItems, h
 
             <GlassCard>
                 <h3 className="text-footnote font-semibold text-ink-3 mb-6">{t('settings.language')}</h3>
-                <div className="flex items-center justify-between p-4 bg-surface-2 rounded-2xl border border-line mb-4 transition-colors">
+                <div className="flex items-center justify-between p-4 bg-surface-2 rounded-card border border-line mb-4 transition-colors">
                     <div className="flex items-center gap-4">
-                        <div className="p-2 bg-surface rounded-xl shadow-sm text-ink"><Globe size={20} /></div>
+                        <div className="p-2 bg-surface rounded-control shadow-card text-ink"><Globe size={20} /></div>
                         <div>
                             <div className="font-bold text-ink text-subhead">{t('settings.language')}</div>
                             <div className="text-caption2 text-ink-3 font-bold uppercase">{language === 'es' ? 'Español (ES)' : 'English (EN)'}</div>
@@ -146,15 +146,15 @@ export const Settings = ({ session, onLogout, activePortfolio, portfolioItems, h
 
             <GlassCard>
                 <h3 className="text-footnote font-semibold text-ink-3 mb-6">{t('settings.account')}</h3>
-                <div className="p-4 bg-surface-2 rounded-2xl border border-line mb-6 transition-colors">
+                <div className="p-4 bg-surface-2 rounded-card border border-line mb-6 transition-colors">
                     <div className="flex items-center gap-4 mb-4">
-                        <div className="p-2 bg-surface rounded-xl shadow-sm text-ink"><Shield size={20} /></div>
+                        <div className="p-2 bg-surface rounded-control shadow-card text-ink"><Shield size={20} /></div>
                         <div>
                             <div className="font-bold text-ink text-subhead">Current Session</div>
                             <div className="text-caption2 text-ink-3 font-bold uppercase">{session?.user?.email}</div>
                         </div>
                     </div>
-                    <BounceButton onClick={onLogout} className="w-full py-3 bg-surface border border-line-strong text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-900/20 hover:border-rose-200 rounded-xl font-bold text-footnote uppercase flex items-center justify-center gap-2 transition-colors">
+                    <BounceButton onClick={onLogout} className="w-full py-3 bg-surface border border-line-strong text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-900/20 hover:border-rose-200 rounded-control font-bold text-footnote uppercase flex items-center justify-center gap-2 transition-colors">
                         <LogOut size={16} /> {t('settings.logout')}
                     </BounceButton>
                 </div>
@@ -162,7 +162,7 @@ export const Settings = ({ session, onLogout, activePortfolio, portfolioItems, h
 
             <GlassCard>
                 <h3 className="text-footnote font-semibold text-ink-3 mb-6">{t('settings.about')}</h3>
-                <div className="p-6 bg-brand-soft rounded-2xl border border-indigo-100 mb-6">
+                <div className="p-6 bg-brand-soft rounded-card border border-indigo-100 mb-6">
                     <h4 className="text-title3 font-semibold text-indigo-900 mb-2">About Fandance</h4>
                     <p className="text-subhead text-indigo-700/80 mb-4 leading-relaxed font-medium">
                         Fandance is a professional portfolio rebalancing tool designed for individual investors.

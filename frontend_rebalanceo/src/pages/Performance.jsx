@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import api from '../api'
 import { motion } from 'framer-motion';
-import { Loader2, TrendingUp, TrendingDown, Wallet, PiggyBank, Percent, Receipt, Info, ArrowUpRight, ArrowDownRight, Upload, RefreshCw, CheckCircle2 } from 'lucide-react';
+import { Loader2, TrendingUp, TrendingDown, Receipt, Info, Upload, RefreshCw, CheckCircle2 } from 'lucide-react';
 import { AreaChart, Area, ResponsiveContainer, YAxis, XAxis, Tooltip } from 'recharts';
 import { GlassCard, staggerContainer, fadeInUp } from '../components/UI';
 import { Dropdown } from '../components/Dropdown';
@@ -41,7 +41,7 @@ const StatRow = ({ label, value, badge, borderTop, borderBottom, bold, tooltip }
             {tooltip && (
                 <span className="group relative">
                     <Info size={12} className="text-ink-3 cursor-help" />
-                    <span className="pointer-events-none absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-48 rounded-lg bg-slate-900 px-3 py-2 text-caption2 font-medium text-slate-200 opacity-0 group-hover:opacity-100 transition-opacity shadow-xl z-50">{tooltip}</span>
+                    <span className="pointer-events-none absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-48 rounded-field bg-slate-900 px-3 py-2 text-caption2 font-medium text-slate-200 opacity-0 group-hover:opacity-100 transition-opacity shadow-card z-50">{tooltip}</span>
                 </span>
             )}
         </div>
@@ -193,10 +193,10 @@ export const Performance = ({ portfolios, activePortfolioId }) => {
                     options={portfolios.map(p => ({ value: p.id, label: p.name }))}
                     placeholder="—"
                 />
-                <div className="flex bg-surface-2 p-1 rounded-xl flex-wrap justify-center">
+                <div className="flex bg-surface-2 p-1 rounded-control flex-wrap justify-center">
                     {PERIODS.map(opt => (
                         <button key={opt.id} onClick={() => setPeriod(opt.id)}
-                            className={`px-3 py-1.5 rounded-lg text-footnote font-semibold transition-all ${period === opt.id ? 'bg-surface text-brand shadow-sm' : 'text-ink-3 hover:text-slate-600 dark:hover:text-slate-300'}`}>
+                            className={`px-3 py-1.5 rounded-field text-footnote font-semibold transition-all ${period === opt.id ? 'bg-surface text-brand shadow-card' : 'text-ink-3 hover:text-slate-600 dark:hover:text-slate-300'}`}>
                             {opt.label}
                         </button>
                     ))}
@@ -232,9 +232,9 @@ export const Performance = ({ portfolios, activePortfolioId }) => {
                     {hasCsv ? (
                         /* ── Compact mode: data imported, show a discrete chip ── */
                         <motion.div variants={fadeInUp}>
-                            <div className="flex items-center justify-between gap-3 px-5 py-3 bg-surface rounded-2xl border border-line shadow-sm">
+                            <div className="flex items-center justify-between gap-3 px-5 py-3 bg-surface rounded-card border border-line shadow-card">
                                 <div className="flex items-center gap-3 min-w-0">
-                                    <div className="p-2 bg-emerald-50 dark:bg-emerald-900/20 rounded-xl">
+                                    <div className="p-2 bg-emerald-50 dark:bg-emerald-900/20 rounded-control">
                                         <CheckCircle2 size={16} className="text-emerald-500" />
                                     </div>
                                     <div className="min-w-0">
@@ -250,7 +250,7 @@ export const Performance = ({ portfolios, activePortfolioId }) => {
                                 <div className="flex items-center gap-2 shrink-0">
                                     <label
                                         htmlFor="csv-upload-input"
-                                        className="inline-flex items-center gap-1.5 px-3 py-2 bg-surface-2 hover:bg-indigo-50 dark:hover:bg-indigo-900/20 text-ink-3 hover:text-indigo-600 dark:hover:text-indigo-400 rounded-xl text-caption2 font-semibold uppercase tracking-wide cursor-pointer transition-all"
+                                        className="inline-flex items-center gap-1.5 px-3 py-2 bg-surface-2 hover:bg-indigo-50 dark:hover:bg-indigo-900/20 text-ink-3 hover:text-indigo-600 dark:hover:text-indigo-400 rounded-control text-caption2 font-semibold uppercase tracking-wide cursor-pointer transition-all"
                                     >
                                         <RefreshCw size={12} /> {t('tr.update')}
                                     </label>
@@ -285,15 +285,15 @@ export const Performance = ({ portfolios, activePortfolioId }) => {
 
                                         {/* Steps */}
                                         <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-6">
-                                            <div className="flex items-start gap-3 p-4 bg-surface/70 rounded-2xl backdrop-blur-sm border border-line">
-                                                <div className="w-7 h-7 shrink-0 bg-indigo-500 rounded-xl flex items-center justify-center text-white text-footnote font-semibold">1</div>
+                                            <div className="flex items-start gap-3 p-4 bg-surface/70 rounded-card backdrop-blur-sm border border-line">
+                                                <div className="w-7 h-7 shrink-0 bg-indigo-500 rounded-control flex items-center justify-center text-white text-footnote font-semibold">1</div>
                                                 <div>
                                                     <div className="text-footnote font-semibold text-ink">{t('tr.step1_title')}</div>
                                                     <div className="text-caption2 font-medium text-ink-3 mt-0.5">{t('tr.step1_desc')}</div>
                                                 </div>
                                             </div>
-                                            <div className="flex items-start gap-3 p-4 bg-surface/70 rounded-2xl backdrop-blur-sm border border-line">
-                                                <div className="w-7 h-7 shrink-0 bg-indigo-500 rounded-xl flex items-center justify-center text-white text-footnote font-semibold">2</div>
+                                            <div className="flex items-start gap-3 p-4 bg-surface/70 rounded-card backdrop-blur-sm border border-line">
+                                                <div className="w-7 h-7 shrink-0 bg-indigo-500 rounded-control flex items-center justify-center text-white text-footnote font-semibold">2</div>
                                                 <div>
                                                     <div className="text-footnote font-semibold text-ink">{t('tr.step2_title')}</div>
                                                     <div className="text-caption2 font-medium text-ink-3 mt-0.5">{t('tr.step2_desc')}</div>
@@ -350,7 +350,7 @@ export const Performance = ({ portfolios, activePortfolioId }) => {
                                         <div className="text-caption2 font-semibold text-ink-3">TIR</div>
                                         <span className="group relative">
                                             <Info size={11} className="text-ink-3 cursor-help" />
-                                            <span className="pointer-events-none absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-44 rounded-lg bg-slate-900 px-3 py-2 text-caption2 font-medium text-slate-200 opacity-0 group-hover:opacity-100 transition-opacity shadow-xl z-50">{t('perf.tir_hint')}</span>
+                                            <span className="pointer-events-none absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-44 rounded-field bg-slate-900 px-3 py-2 text-caption2 font-medium text-slate-200 opacity-0 group-hover:opacity-100 transition-opacity shadow-card z-50">{t('perf.tir_hint')}</span>
                                         </span>
                                     </div>
                                     <div className={`text-title2 font-semibold tabular-nums ${periodMetrics.tir !== null && periodMetrics.tir >= 0 ? 'text-emerald-600 dark:text-emerald-400' : periodMetrics.tir !== null ? 'text-rose-500 dark:text-rose-400' : 'text-ink-3'}`}>
@@ -362,7 +362,7 @@ export const Performance = ({ portfolios, activePortfolioId }) => {
                                         <div className="text-caption2 font-semibold text-ink-3">{t('perf.ttwror')}</div>
                                         <span className="group relative">
                                             <Info size={11} className="text-ink-3 cursor-help" />
-                                            <span className="pointer-events-none absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-44 rounded-lg bg-slate-900 px-3 py-2 text-caption2 font-medium text-slate-200 opacity-0 group-hover:opacity-100 transition-opacity shadow-xl z-50">{t('perf.ttwror_hint')}</span>
+                                            <span className="pointer-events-none absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-44 rounded-field bg-slate-900 px-3 py-2 text-caption2 font-medium text-slate-200 opacity-0 group-hover:opacity-100 transition-opacity shadow-card z-50">{t('perf.ttwror_hint')}</span>
                                         </span>
                                     </div>
                                     <div className={`text-title2 font-semibold tabular-nums`}>
@@ -442,7 +442,7 @@ export const Performance = ({ portfolios, activePortfolioId }) => {
                     )}
 
                     {!hasCsv && !history.length && (
-                        <div className="text-center text-ink-3 font-bold py-10 px-6 bg-surface rounded-[2rem] border border-line">{t('perf.no_data')}</div>
+                        <div className="text-center text-ink-3 font-bold py-10 px-6 bg-surface rounded-card border border-line">{t('perf.no_data')}</div>
                     )}
 
                     {/* Evolution chart */}

@@ -75,6 +75,9 @@
 
   html {
     -webkit-tap-highlight-color: transparent;
+    /* pan-y: se permite desplazar en vertical y nada más. Esto es lo que
+       bloquea el pinch en navegadores que no son Safari. */
+    touch-action: pan-y;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
     /* Safari amplía el texto al girar el móvil si no se fija. */
@@ -178,6 +181,10 @@ html, body {
   height: 100%;
   overflow: hidden;
   overscroll-behavior: none;
+  /* Ningún desplazamiento lateral del conjunto: si algo se sale de ancho, se
+     recorta ahí en vez de mover la pantalla entera. */
+  max-width: 100vw;
+  overflow-x: hidden;
 }
 
 #root {
@@ -187,6 +194,7 @@ html, body {
 /* El único scroller de la app, con inercia y sin encadenar el rebote. */
 .app-scroll {
   overflow-y: auto;
+  overflow-x: hidden;
   overscroll-behavior-y: contain;
   -webkit-overflow-scrolling: touch;
   scrollbar-width: none;

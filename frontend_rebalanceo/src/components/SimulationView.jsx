@@ -261,7 +261,7 @@ export const SimulationView = ({
                         </GlassCard>
                     </>
                 ) : (
-                    <div className="h-full flex flex-col items-center justify-center text-ink-3 border-2 border-dashed border-line rounded-[2.5rem] py-20">
+                    <div className="h-full flex flex-col items-center justify-center text-ink-3 border-2 border-dashed border-line rounded-card py-20">
                         <FlaskConical size={48} className="mb-4 opacity-50" />
                         <div className="text-subhead font-bold text-center mt-4">{t('sim.empty')}</div>
                     </div>

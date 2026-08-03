@@ -1,6 +1,6 @@
 import React, { useState, useRef, useCallback } from 'react';
 import Papa from 'papaparse';
-import { Upload, CheckCircle2, AlertTriangle, Loader2, X, FileUp } from 'lucide-react';
+import { CheckCircle2, AlertTriangle, Loader2, X, FileUp } from 'lucide-react';
 import { useGlobal } from '../context/GlobalContext';
 import { xirr, safeFloat } from '../utils';
 
@@ -96,7 +96,7 @@ export const TRCsvParser = ({ currentValue, onParsed, onClear, hasData, compact 
                 role="button"
                 tabIndex={0}
                 onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') inputRef.current?.click(); }}
-                className={`w-full cursor-pointer rounded-2xl border-2 border-dashed p-6 text-center transition-all duration-200 ${dragging
+                className={`w-full cursor-pointer rounded-card border-2 border-dashed p-6 text-center transition-all duration-200 ${dragging
  ? 'border-indigo-500 bg-brand-soft/80 scale-[1.01]'
  : 'border-line hover:border-indigo-400 hover:bg-indigo-50/30 dark:hover:bg-indigo-900/10 bg-surface/60'}`}
             >
@@ -106,7 +106,7 @@ export const TRCsvParser = ({ currentValue, onParsed, onClear, hasData, compact 
                     </div>
                 ) : (
                     <>
-                        <div className="inline-flex items-center justify-center w-12 h-12 bg-brand-soft rounded-2xl mb-3">
+                        <div className="inline-flex items-center justify-center w-12 h-12 bg-brand-soft rounded-card mb-3">
                             <FileUp size={22} className="text-brand" />
                         </div>
                         <div className="text-subhead font-semibold text-ink">{t('tr.drop')}</div>
@@ -116,7 +116,7 @@ export const TRCsvParser = ({ currentValue, onParsed, onClear, hasData, compact 
             </div>
 
             {fileName && !error && !busy && (
-                <div className="mt-3 flex items-center justify-between gap-3 px-4 py-2.5 rounded-xl bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-100 dark:border-emerald-900/30">
+                <div className="mt-3 flex items-center justify-between gap-3 px-4 py-2.5 rounded-control bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-100 dark:border-emerald-900/30">
                     <div className="flex items-center gap-2 min-w-0">
                         <CheckCircle2 size={14} className="text-emerald-500 shrink-0" />
                         <span className="text-caption1 font-bold text-emerald-700 dark:text-emerald-300 truncate">{fileName}</span>
@@ -133,7 +133,7 @@ export const TRCsvParser = ({ currentValue, onParsed, onClear, hasData, compact 
             )}
 
             {error && (
-                <div className="mt-3 flex items-center gap-2 px-4 py-2.5 rounded-xl bg-amber-50 dark:bg-amber-900/20 border border-amber-100 dark:border-amber-900/30">
+                <div className="mt-3 flex items-center gap-2 px-4 py-2.5 rounded-control bg-amber-50 dark:bg-amber-900/20 border border-amber-100 dark:border-amber-900/30">
                     <AlertTriangle size={14} className="text-amber-500 shrink-0" />
                     <span className="text-caption1 font-bold text-amber-700 dark:text-amber-300">{error}</span>
                 </div>
