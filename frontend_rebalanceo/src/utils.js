@@ -833,7 +833,18 @@ export const planAmountFor = (plan, date = new Date()) => {
  * ese mes se aportó al menos lo previsto, cuenta como cumplido. Pedirle al
  * usuario que confirme algo que la app ya sabe es trabajo que sobra.
  */
-export const buildPlanStatus = ({ plan, history = [], months = 12, now = new Date() }) => {
+/**
+ * Meses que faltan hasta la fecha objetivo del plan (0 si no hay o ya pasó).
+ */
+export const mesesHastaObjetivo = (plan, now = new Date()) => {
+    if (!plan?.targetDate) return 0;
+    const fin = new Date(plan.targetDate);
+    if (Number.isNaN(fin.getTime())) return 0;
+    const m = (fin.getFullYear() - now.getFullYear()) * 12 + (fin.getMonth() - now.getMonth());
+    return Math.max(0, m);
+};
+
+export const buildPlanStatus = ({ plan, history = [], months = 12, ahead = 0, now = new Date() }) => {
     if (!plan || safeFloat(plan.monthly) <= 0) {
         return { rows: [], currentMonth: null, streak: 0, doneCount: 0, contributedTotal: 0, plannedTotal: 0 };
     }
@@ -873,6 +884,23 @@ export const buildPlanStatus = ({ plan, history = [], months = 12, now = new Dat
             partial: contributed > 0 && contributed < planned - tolerance,
             isCurrent,
             isFuture,
+        });
+    }
+
+    // Meses que aún no han llegado. Se muestran con su importe previsto: saber
+    // que en marzo tocan 315 € es la mitad del valor de tener un plan.
+    const futuros = Math.min(ahead, mesesHastaObjetivo(plan, now) || ahead);
+    for (let i = 1; i <= futuros; i++) {
+        const d = new Date(now.getFullYear(), now.getMonth() + i, 1);
+        rows.push({
+            key: monthKey(d),
+            date: d,
+            planned: planAmountFor(plan, d),
+            contributed: 0,
+            done: false,
+            partial: false,
+            isCurrent: false,
+            isFuture: true,
         });
     }
 
