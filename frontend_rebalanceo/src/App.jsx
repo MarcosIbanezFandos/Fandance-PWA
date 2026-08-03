@@ -8,6 +8,9 @@ import { supabase } from './supabaseClient'
 import { safeFloat, buildRebalancePlan, roundTo } from './utils'
 import { isAdmin, applyDefaultTargets, DEFAULT_CONTRIBUTION_PLAN } from './config/allocation'
 import { getPrefs, savePrefs, mesActual } from './lib/planStore'
+import { guardarTxs, leerTxs, borrarTxs, mesesConAportacion, leerDescarte, guardarDescarte } from './lib/csvStore'
+import { debeAvisar, mesClave } from './lib/recordatorio'
+import { RecordatorioCsv } from './components/RecordatorioCsv'
 import { AuthScreen } from './components/AuthScreen'
 import { Dashboard } from './components/Dashboard'
 import { SimulationView } from './components/SimulationView'
@@ -104,6 +107,37 @@ function App() {
             setPrefsUser(user)
         } catch (e) { console.error(e) }
     }, [activePortfolio])
+
+    // Movimientos del CSV de Trade Republic. Viven en localStorage, no en el
+    // servidor: son datos financieros personales y no hacen falta fuera del móvil.
+    const [csvTxs, setCsvTxs] = useState(null)
+    const [avisoCerrado, setAvisoCerrado] = useState(false)
+
+    useEffect(() => {
+        setAvisoCerrado(false)
+        setCsvTxs(activePortfolio ? leerTxs(activePortfolio.id) : null)
+    }, [activePortfolio])
+
+    // El aviso sólo aparece cuando la aportación del mes ya está ejecutada y no
+    // consta en el CSV guardado. Cerrarlo lo silencia hasta el mes siguiente.
+    const aviso = useMemo(() => {
+        if (!activePortfolio || avisoCerrado) return { avisar: false, pendientes: [] }
+        return debeAvisar({
+            mesesConAportacion: mesesConAportacion(csvTxs?.txs || []),
+            descartadoHasta: leerDescarte(activePortfolio.id),
+        })
+    }, [activePortfolio, csvTxs, avisoCerrado])
+
+    const cerrarAviso = () => {
+        if (activePortfolio) guardarDescarte(activePortfolio.id, mesClave(new Date()))
+        setAvisoCerrado(true)
+    }
+
+    const olvidarCsv = () => {
+        if (!activePortfolio) return
+        borrarTxs(activePortfolio.id)
+        setCsvTxs(null)
+    }
 
     // UI State
     const [query, setQuery] = useState('')
@@ -258,7 +292,13 @@ function App() {
     // Vuelca las unidades leídas del CSV de Trade Republic sobre la cartera.
     // A diferencia de persistItem, aquí los fallos se propagan: el importador
     // sólo puede decir "actualizado" si el backend lo confirmó.
-    const aplicarImportacionTR = async (cambios) => {
+    const aplicarImportacionTR = async (cambios, contexto = {}) => {
+        // El CSV se guarda aunque no cambie ninguna unidad: es lo que alimenta
+        // el histórico de movimientos y silencia el aviso del mes.
+        if (contexto.movimientos && activePortfolio) {
+            setCsvTxs(guardarTxs(activePortfolio.id, contexto.movimientos));
+            setAvisoCerrado(true);
+        }
         if (!cambios?.length) return;
         const porId = new Map(cambios.map(c => [c.id, safeFloat(c.unidades)]));
 
@@ -427,6 +467,7 @@ function App() {
         }))).flatten().value().filter(x => x.value > 0);
 
     return (
+        <>
         <Routes>
             <Route element={
                 <MainLayout
@@ -523,6 +564,9 @@ function App() {
                         history={rebalanceHistory}
                         onUndo={undoRebalance}
                         onDelete={deleteHistoryItem}
+                        csvTxs={csvTxs?.txs || []}
+                        csvImportadoEn={csvTxs?.importadoEn}
+                        onBorrarCsv={olvidarCsv}
                     />
                 } />
                 <Route path="/settings" element={
@@ -540,6 +584,18 @@ function App() {
                 } />
             </Route>
         </Routes>
+
+        {/* Recordatorio del CSV. Fuera de <Routes> para que aparezca esté donde
+            esté el usuario cuando entra tras la ejecución del plan. */}
+        <RecordatorioCsv
+            abierto={aviso.avisar}
+            pendientes={aviso.pendientes}
+            portfolioItems={portfolioItems}
+            rebalanceHistory={rebalanceHistory}
+            onAplicar={aplicarImportacionTR}
+            onCerrar={cerrarAviso}
+        />
+        </>
     )
 }
 

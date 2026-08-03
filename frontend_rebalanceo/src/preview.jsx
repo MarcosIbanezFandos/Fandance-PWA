@@ -23,6 +23,10 @@ import { Dashboard } from './components/Dashboard';
 import { SimulationView } from './components/SimulationView';
 import { ContributionPlan } from './components/ContributionPlan';
 import { BottomNav } from './components/BottomNav';
+import { RebalanceHistoryPage } from './pages/RebalanceHistoryPage';
+import { RecordatorioCsv } from './components/RecordatorioCsv';
+import Papa from 'papaparse';
+import { parseTradeRepublicRows } from './lib/trImport';
 import { buildXray, computeOverlap, computeConcentration, computeDrift, buildPlanStatus, formatNumber, buildRebalancePlan, safeFloat } from './utils';
 import { Sun, Moon } from 'lucide-react';
 
@@ -58,10 +62,41 @@ const HISTORY = [0, 1, 2, 4, 5].map(back => ({
 
 const PLAN = { monthly: 300, annualGrowthPct: 5, startDate: new Date(now.getFullYear() - 1, now.getMonth(), 1).toISOString().slice(0, 10) };
 
+/* Movimientos sintéticos, generados como CSV y leídos por el parser real:
+   así el banco de pruebas ejercita el mismo camino que la app. */
+const CSV_DEMO = (() => {
+    const cab = 'datetime,date,account_type,category,type,asset_class,name,symbol,shares,price,amount,fee,tax,currency,description,transaction_id';
+    const filas = [];
+    let n = 0;
+    const activos = [
+        ['iShares Core S&P 500', 'IE00B5BMR087', 520],
+        ['iShares Core MSCI World', 'IE00B4L5Y983', 95],
+        ['US Aggregate Bond', 'IE00B44CGS96', 98],
+    ];
+    for (let atras = 0; atras < 6; atras++) {
+        const d = new Date(now.getFullYear(), now.getMonth() - atras, 4);
+        const f = d.toISOString().slice(0, 10);
+        for (const [nombre, isin, precio] of activos) {
+            const uds = (100 / precio).toFixed(4);
+            filas.push(`${f}T09:05:00Z,${f},SECURITIES,TRADING,BUY,ETF,${nombre},${isin},${uds},${precio},-100.00,0,0,EUR,Savings plan execution,tx${++n}`);
+        }
+        // Un dividendo y un gasto de tarjeta para ver los dos colores.
+        const f2 = new Date(now.getFullYear(), now.getMonth() - atras, 18).toISOString().slice(0, 10);
+        filas.push(`${f2}T10:00:00Z,${f2},SECURITIES,CASH,DIVIDEND,ETF,US Aggregate Bond,IE00B44CGS96,,,12.40,0,1.86,EUR,Dividend payment,tx${++n}`);
+        filas.push(`${f2}T20:11:00Z,${f2},CASH,CASH,CARD_TRANSACTION,,Mercadona,,,,-38.72,0,0,EUR,Card payment,tx${++n}`);
+    }
+    const { data } = Papa.parse([cab, ...filas].join('\n'), {
+        header: true, skipEmptyLines: true,
+        transformHeader: (h) => String(h || '').trim().toLowerCase(),
+    });
+    return parseTradeRepublicRows(data);
+})();
+
 function Preview() {
     const [dark, setDark] = useState(false);
     const [view, setView] = useState('home');
     const [overrides, setOverrides] = useState({});
+    const [avisoAbierto, setAvisoAbierto] = useState(false);
     const [plan, setPlan] = useState(new URLSearchParams(location.search).has('noplan') ? { monthly: 0, annualGrowthPct: 0 } : PLAN);
 
     React.useEffect(() => { document.documentElement.classList.toggle('dark', dark); }, [dark]);
@@ -83,7 +118,9 @@ function Preview() {
                         { value: 'sim', label: 'Simul.' },
                         { value: 'analisis', label: 'Análisis' },
                         { value: 'calc', label: 'Cálculos' },
+                        { value: 'movs', label: 'Histor.' },
                     ]} />
+                    <Button variant="secondary" size="sm" onClick={() => setAvisoAbierto(true)}>Aviso</Button>
                     <Button variant="secondary" size="sm" icon={dark ? Sun : Moon} onClick={() => setDark(d => !d)} />
                 </div>
             </header>
@@ -116,6 +153,13 @@ function Preview() {
                     setOverride={(id, v) => setOverrides(o => { const n = { ...o }; if (v === '' || v == null) delete n[id]; else n[id] = safeFloat(v); return n; })}
                     clearOverrides={() => setOverrides({})}
                     onImportarTR={async (c) => console.log('aplicar', c)}
+                />
+            ) : view === 'movs' ? (
+                <RebalanceHistoryPage
+                    history={HISTORY}
+                    csvTxs={CSV_DEMO}
+                    csvImportadoEn={new Date().toISOString()}
+                    onBorrarCsv={() => { }}
                 />
             ) : view === 'analisis' ? (
                 <Analysis portfolios={[{ id: 'p1', name: 'Cartera principal' }]} activePortfolioId="p1" />
@@ -182,6 +226,15 @@ function Preview() {
                     <ContributionPlan plan={plan} onSave={setPlan} history={HISTORY} />
                 </div>
             )}
+
+            <RecordatorioCsv
+                abierto={avisoAbierto}
+                pendientes={[`${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`]}
+                portfolioItems={ITEMS}
+                rebalanceHistory={HISTORY}
+                onAplicar={async () => setAvisoAbierto(false)}
+                onCerrar={() => setAvisoAbierto(false)}
+            />
 
             <BottomNav
                 onLogout={() => { }}

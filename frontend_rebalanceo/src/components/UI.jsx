@@ -94,7 +94,9 @@ export const Button = React.forwardRef(({
   >
     {loading ? <Loader2 size={size === 'sm' ? 14 : 16} className="animate-spin" />
       : Icon && <Icon size={size === 'sm' ? 14 : 16} strokeWidth={2.25} />}
-    {size !== 'icon' && children}
+    {/* Los botones de icono también pintan sus hijos: descartarlos dejaba
+        mudos los que pasan el icono como hijo en vez de por la prop. */}
+    {children}
     {IconRight && !loading && <IconRight size={size === 'sm' ? 14 : 16} strokeWidth={2.25} />}
   </button>
 ));

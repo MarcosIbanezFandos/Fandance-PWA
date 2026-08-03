@@ -57,6 +57,7 @@ export const ImportarTR = ({ portfolioItems = [], rebalanceHistory = [], onAplic
 
                     setAnalisis({
                         txs: txs.length,
+                        movimientos: txs,
                         aportaciones,
                         nuevas: aportacionesNuevas(aportaciones, rebalanceHistory),
                         cambios, sinEmparejar, soloEnCsv,
@@ -71,10 +72,13 @@ export const ImportarTR = ({ portfolioItems = [], rebalanceHistory = [], onAplic
     }, [portfolioItems, rebalanceHistory, t]);
 
     const aplicar = async () => {
-        if (!analisis?.cambios.length || !onAplicar) return;
+        if (!analisis || !onAplicar) return;
         setAplicando(true);
         try {
-            await onAplicar(analisis.cambios.map(c => ({ id: c.item.id, unidades: c.nuevas })));
+            await onAplicar(
+                analisis.cambios.map(c => ({ id: c.item.id, unidades: c.nuevas })),
+                { movimientos: analisis.movimientos, aportaciones: analisis.aportaciones },
+            );
             setHecho(true);
             setAnalisis(null);
         } catch (e) {
@@ -181,8 +185,8 @@ export const ImportarTR = ({ portfolioItems = [], rebalanceHistory = [], onAplic
                     )}
 
                     <div className="flex gap-2">
-                        <Button onClick={aplicar} loading={aplicando} disabled={!analisis.cambios.length}>
-                            {t('sync.apply')}
+                        <Button onClick={aplicar} loading={aplicando}>
+                            {analisis.cambios.length ? t('sync.apply') : t('sync.save_only')}
                         </Button>
                         <Button variant="ghost" onClick={() => setAnalisis(null)}>{t('plan.cancel')}</Button>
                     </div>
