@@ -18,3 +18,8 @@ comment on column public.portfolios.plan_start      is 'Primer mes del plan; ant
 
 -- Las políticas RLS existentes de `portfolios` ya cubren estas columnas: se
 -- filtran por user_id a nivel de fila, no de columna.
+
+-- PostgREST cachea el esquema: sin esto, las columnas existen en Postgres pero
+-- la API sigue respondiendo "no encuentro la columna" hasta que le llega el
+-- aviso. Es el motivo habitual de que una migración "aplicada" no funcione.
+NOTIFY pgrst, 'reload schema';

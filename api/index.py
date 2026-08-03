@@ -497,11 +497,57 @@ def set_contribution_plan(data: ContributionPlanInput, user_id: str = Standard):
     try:
         supabase.table("portfolios").update(payload).eq("id", data.portfolio_id).execute()
     except Exception as e:
-        # Las columnas llegan por migración (supabase/contribution_plan.sql). Sin
-        # ella el guardado falla, y decirlo es más útil que un 500 opaco.
-        print(f"CONTRIBUTION PLAN ERROR: {e}")
-        raise HTTPException(501, "Falta la migración contribution_plan.sql en la base de datos")
+        detalle = str(e)
+        print(f"CONTRIBUTION PLAN ERROR: {detalle}")
+        # Mapear CUALQUIER excepción a "falta la migración" hacía que un fallo
+        # distinto se presentara como un problema que el usuario ya había
+        # resuelto, y no había forma de avanzar. Se distinguen los dos casos.
+        #
+        # PGRST204 / 42703 = la columna no existe *para PostgREST*. Eso pasa
+        # tanto si falta la migración como si está aplicada pero su caché de
+        # esquema no se ha recargado, que es el tropiezo habitual en Supabase.
+        if "PGRST204" in detalle or "42703" in detalle or "schema cache" in detalle.lower():
+            raise HTTPException(
+                501,
+                "La base de datos no reconoce las columnas del plan. Ejecuta "
+                "supabase/contribution_plan.sql y, si ya lo hiciste, recarga el "
+                "esquema con:  NOTIFY pgrst, 'reload schema';",
+            )
+        raise HTTPException(500, f"No se pudo guardar el plan: {detalle[:200]}")
     return {"msg": "OK", **payload}
+
+
+@app.get("/api/portfolios/plan_diagnostico")
+def plan_diagnostico(user_id: str = Standard):
+    """Dice si las columnas del plan son visibles y por qué no lo son.
+
+    Existe porque desde el móvil no hay forma de distinguir "no ejecuté la
+    migración" de "la ejecuté pero PostgREST aún no la ve", y son arreglos
+    distintos.
+    """
+    try:
+        res = (supabase.table("portfolios")
+               .select("id, plan_monthly, plan_growth_pct, plan_start")
+               .eq("user_id", user_id).limit(1).execute())
+        return {
+            "columnas_visibles": True,
+            "carteras": len(res.data or []),
+            "mensaje": "Las columnas del plan son visibles. El guardado debería funcionar.",
+        }
+    except Exception as e:
+        detalle = str(e)
+        cache = "PGRST204" in detalle or "schema cache" in detalle.lower()
+        return {
+            "columnas_visibles": False,
+            "causa": "cache" if cache else "migracion",
+            "mensaje": (
+                "Las columnas existen pero PostgREST no las ve todavía. "
+                "Ejecuta en el SQL editor:  NOTIFY pgrst, 'reload schema';"
+                if cache else
+                "Faltan las columnas. Ejecuta supabase/contribution_plan.sql."
+            ),
+            "detalle": detalle[:300],
+        }
 
 @app.get("/api/assets/search")
 def search_assets(

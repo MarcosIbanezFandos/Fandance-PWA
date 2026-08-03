@@ -87,11 +87,10 @@ function App() {
             setActivePortfolio(p => (p ? { ...p, ...patch } : p))
             setPortfolios(list => list.map(p => (p.id === activePortfolio.id ? { ...p, ...patch } : p)))
         } catch (e) {
-            setPlanError(
-                e?.response?.status === 501
-                    ? 'Falta ejecutar supabase/contribution_plan.sql en tu base de datos.'
-                    : 'No se pudo guardar el plan.'
-            )
+            // El servidor ya distingue "falta la migración" de "PostgREST no ve
+            // las columnas todavía", y son arreglos distintos: repetir aquí un
+            // mensaje fijo tapaba esa diferencia.
+            setPlanError(e?.response?.data?.detail || 'No se pudo guardar el plan.')
         } finally {
             setPlanSaving(false)
         }
