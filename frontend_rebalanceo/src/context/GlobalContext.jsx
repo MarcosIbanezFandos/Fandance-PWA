@@ -321,6 +321,7 @@ export const GlobalProvider = ({ children }) => {
                 'header.positions': 'Posiciones',
                 // --- Inicio ---
                 'home.net_worth': 'Patrimonio',
+                'home.since': 'Desde',
                 'home.value': 'Valor',
                 'home.no_history': 'Sin histórico todavía',
                 'home.act_targets': 'Tus pesos objetivo no suman 100%',
@@ -697,6 +698,7 @@ export const GlobalProvider = ({ children }) => {
                 'header.positions': 'Positions',
                 // --- Home ---
                 'home.net_worth': 'Net worth',
+                'home.since': 'Since',
                 'home.value': 'Value',
                 'home.no_history': 'No history yet',
                 'home.act_targets': 'Your target weights do not add up to 100%',

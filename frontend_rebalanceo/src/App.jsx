@@ -7,6 +7,7 @@ import { Routes, Route, useNavigate, Navigate } from 'react-router-dom'
 import { supabase } from './supabaseClient'
 import { safeFloat, buildRebalancePlan, roundTo } from './utils'
 import { isAdmin, applyDefaultTargets, DEFAULT_CONTRIBUTION_PLAN } from './config/allocation'
+import { getPrefs, savePrefs } from './lib/planStore'
 import { AuthScreen } from './components/AuthScreen'
 import { Dashboard } from './components/Dashboard'
 import { SimulationView } from './components/SimulationView'
@@ -52,14 +53,22 @@ function App() {
     const [planSaving, setPlanSaving] = useState(false)
     const [planError, setPlanError] = useState(null)
 
-    const contributionPlan = useMemo(() => {
+    // Las preferencias por cartera (plan de aportación e inicio) viven en los
+    // metadatos del usuario, no en columnas nuevas: así no hace falta ninguna
+    // migración manual en Supabase para que la app funcione.
+    const [prefsUser, setPrefsUser] = useState(null)
+    const prefsSource = prefsUser || session?.user || null
+
+    const contributionPlan = useMemo(
+        () => (activePortfolio ? getPrefs(prefsSource, activePortfolio.id) : null),
+        [prefsSource, activePortfolio]
+    )
+
+    // Desde cuándo dibujar la cartera. Si no se ha fijado, su fecha de creación.
+    const portfolioInception = useMemo(() => {
         if (!activePortfolio) return null
-        return {
-            monthly: safeFloat(activePortfolio.plan_monthly),
-            annualGrowthPct: safeFloat(activePortfolio.plan_growth_pct),
-            startDate: activePortfolio.plan_start || null,
-        }
-    }, [activePortfolio])
+        return contributionPlan?.inception || activePortfolio.created_at || null
+    }, [activePortfolio, contributionPlan])
 
     // Sugerencia con la que se precarga el formulario si la cartera no tiene
     // plan. Es sólo el punto de partida del editor; hasta que no se guarda, no
@@ -72,28 +81,28 @@ function App() {
     const saveContributionPlan = useCallback(async (next) => {
         if (!activePortfolio) return
         setPlanSaving(true); setPlanError(null)
-        const patch = {
-            plan_monthly: next.monthly,
-            plan_growth_pct: next.annualGrowthPct,
-            plan_start: next.startDate,
-        }
         try {
-            await api.put(`${import.meta.env.VITE_API_URL}/portfolios/contribution_plan`, {
-                portfolio_id: activePortfolio.id,
+            await savePrefs(activePortfolio.id, {
                 monthly: next.monthly,
-                annual_growth_pct: next.annualGrowthPct,
-                start_date: next.startDate,
+                annualGrowthPct: next.annualGrowthPct,
+                startDate: next.startDate,
             })
-            setActivePortfolio(p => (p ? { ...p, ...patch } : p))
-            setPortfolios(list => list.map(p => (p.id === activePortfolio.id ? { ...p, ...patch } : p)))
+            const { data: { user } } = await supabase.auth.getUser()
+            setPrefsUser(user)
         } catch (e) {
-            // El servidor ya distingue "falta la migración" de "PostgREST no ve
-            // las columnas todavía", y son arreglos distintos: repetir aquí un
-            // mensaje fijo tapaba esa diferencia.
-            setPlanError(e?.response?.data?.detail || 'No se pudo guardar el plan.')
+            setPlanError(e?.message || 'No se pudo guardar el plan.')
         } finally {
             setPlanSaving(false)
         }
+    }, [activePortfolio])
+
+    const saveInception = useCallback(async (fecha) => {
+        if (!activePortfolio) return
+        try {
+            await savePrefs(activePortfolio.id, { inception: fecha })
+            const { data: { user } } = await supabase.auth.getUser()
+            setPrefsUser(user)
+        } catch (e) { console.error(e) }
     }, [activePortfolio])
 
     // UI State
@@ -390,6 +399,8 @@ function App() {
                         onSavePlan={saveContributionPlan}
                         planSaving={planSaving}
                         planError={planError}
+                        inception={portfolioInception}
+                        onSaveInception={saveInception}
                     />
                 } />
                 <Route path="/posiciones" element={
