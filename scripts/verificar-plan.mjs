@@ -145,11 +145,16 @@ if (list.status !== 200 || !Array.isArray(list.data) || !list.data.length) {
 
 const p = list.data[0];
 const tieneColumnas = ['plan_monthly', 'plan_growth_pct', 'plan_start'].every(c => c in p);
-check(
-    'Columnas del plan presentes (migración aplicada)',
-    tieneColumnas,
-    tieneColumnas ? 'plan_monthly, plan_growth_pct, plan_start' : 'faltan → ejecuta supabase/contribution_plan.sql'
-);
+check('Columnas del plan presentes', tieneColumnas,
+    tieneColumnas ? 'plan_monthly, plan_growth_pct, plan_start' : 'no llegan en la respuesta');
+
+// Distingue "falta la migración" de "está aplicada pero PostgREST no la ve":
+// son arreglos distintos y desde la app no había forma de saber cuál era.
+if (!tieneColumnas) {
+    const diag = await api('/portfolios/plan_diagnostico');
+    console.log(`     ↳ ${diag.data?.mensaje || `HTTP ${diag.status}`}`);
+    if (diag.data?.detalle) console.log(`     ↳ ${diag.data.detalle}`);
+}
 
 // Se guardan los valores originales para restaurarlos al final.
 const original = {
