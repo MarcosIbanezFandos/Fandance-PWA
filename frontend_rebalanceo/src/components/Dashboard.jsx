@@ -5,6 +5,7 @@ import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer } from 'recharts';
 import { GlassCard, Card, StatTile, CountUp, BounceButton, NumericField, Segmented, fadeInUp, staggerContainer } from './UI';
 import { safeFloat, formatNumber, formatUnits } from '../utils';
 import { useGlobal } from '../context/GlobalContext';
+import { ImportarTR } from './ImportarTR';
 import _ from 'lodash';
 
 const TYPE_DOT = {
@@ -17,7 +18,7 @@ export const Dashboard = ({
     totalValue, riskProfile, contribution, setContribution,
     rebalanceHistory, searchResults, isSearching, query, setQuery,
     handleUpdate, deleteItem, applyRebalance, calculating, addAsset, searchAsset, undoRebalance, deleteHistoryItem,
-    chartData, overrides = {}, setOverride, clearOverrides
+    chartData, overrides = {}, setOverride, clearOverrides, onImportarTR
 }) => {
     const { t } = useGlobal();
 
@@ -124,6 +125,18 @@ export const Dashboard = ({
                         </AnimatePresence>
                     </div>
                 </motion.div>
+
+                {/* Sincronización con el bróker. Va antes del plan porque el
+                    reparto sólo tiene sentido sobre las unidades reales. */}
+                {onImportarTR && (
+                    <motion.div variants={fadeInUp}>
+                        <ImportarTR
+                            portfolioItems={portfolioItems}
+                            rebalanceHistory={rebalanceHistory}
+                            onAplicar={onImportarTR}
+                        />
+                    </motion.div>
+                )}
 
                 {/* PLAN CARD — full width */}
                 <motion.div variants={fadeInUp}>

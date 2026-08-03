@@ -255,6 +255,30 @@ function App() {
         }).catch(() => {});
     }
 
+    // Vuelca las unidades leídas del CSV de Trade Republic sobre la cartera.
+    // A diferencia de persistItem, aquí los fallos se propagan: el importador
+    // sólo puede decir "actualizado" si el backend lo confirmó.
+    const aplicarImportacionTR = async (cambios) => {
+        if (!cambios?.length) return;
+        const porId = new Map(cambios.map(c => [c.id, safeFloat(c.unidades)]));
+
+        const actualizados = portfolioItems.map(i => {
+            if (!porId.has(i.id)) return i;
+            const u = porId.get(i.id);
+            return { ...i, units_held: u, value: roundTo(u * safeFloat(i.current_price), 2) };
+        });
+
+        await Promise.all(actualizados
+            .filter(i => porId.has(i.id))
+            .map(i => api.put(`${import.meta.env.VITE_API_URL}/portfolio/update`, {
+                item_id: i.id,
+                units_held: safeFloat(i.units_held),
+                target_weight: safeFloat(i.target_weight),
+            })));
+
+        setPortfolioItems(actualizados);
+    };
+
     // Set every asset to the same target weight (adds up to 100%).
     const setEqualTargets = () => {
         if (!portfolioItems.length) return;
@@ -458,6 +482,7 @@ function App() {
                             undoRebalance={undoRebalance}
                             deleteHistoryItem={deleteHistoryItem}
                             chartData={chartData}
+                            onImportarTR={aplicarImportacionTR}
                             overrides={overrides}
                             setOverride={setOverride}
                             clearOverrides={clearOverrides}

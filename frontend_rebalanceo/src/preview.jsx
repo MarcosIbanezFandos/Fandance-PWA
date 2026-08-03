@@ -115,6 +115,7 @@ function Preview() {
                     overrides={overrides}
                     setOverride={(id, v) => setOverrides(o => { const n = { ...o }; if (v === '' || v == null) delete n[id]; else n[id] = safeFloat(v); return n; })}
                     clearOverrides={() => setOverrides({})}
+                    onImportarTR={async (c) => console.log('aplicar', c)}
                 />
             ) : view === 'analisis' ? (
                 <Analysis portfolios={[{ id: 'p1', name: 'Cartera principal' }]} activePortfolioId="p1" />
