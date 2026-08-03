@@ -137,3 +137,45 @@ export const aportacionesNuevas = (aportaciones, historial = []) => {
     );
     return aportaciones.filter(a => !yaRegistradas.has(a.fecha));
 };
+
+/* ------------------------------------------------------------------ *
+ *  Emparejar con las posiciones de la app
+ * ------------------------------------------------------------------ */
+
+const normalizarNombre = (s) => String(s || '')
+    .toLowerCase()
+    .normalize('NFD').replace(/[̀-ͯ]/g, '')   // sin acentos
+    .replace(/\(.*?\)/g, ' ')                            // fuera "(Acc)", "(Dist)"
+    .replace(/\b(ucits|etf|acc|dist|usd|eur|plc|fund[s]?|ishares|vanguard|amundi|xtrackers|spdr|invesco)\b/g, ' ')
+    .replace(/[^a-z0-9]+/g, ' ')
+    .trim();
+
+/**
+ * Cruza cada posición de la cartera con su línea del CSV.
+ *
+ * Primero por ISIN, que es identificador único y no admite ambigüedad. Si el
+ * activo se dio de alta con un ticker en vez del ISIN, se recurre al nombre
+ * normalizado —quitando acentos, sufijos de clase y la gestora— porque en la
+ * práctica es lo que coincide: la app y Trade Republic llaman igual al fondo.
+ */
+export const emparejarPosiciones = (items = [], posCsv = []) => {
+    const porIsin = new Map(posCsv.map(p => [String(p.isin).toUpperCase(), p]));
+    const porNombre = new Map(posCsv.map(p => [normalizarNombre(p.nombre), p]));
+
+    const emparejadas = [];
+    const sinEmparejar = [];
+
+    for (const it of items) {
+        const ticker = String(it.asset?.ticker || '').toUpperCase();
+        const nombre = normalizarNombre(it.asset?.name);
+        const m = porIsin.get(ticker) || porNombre.get(nombre) || null;
+        if (m) emparejadas.push({ item: it, csv: m, via: porIsin.get(ticker) ? 'isin' : 'nombre' });
+        else sinEmparejar.push(it);
+    }
+
+    // Lo que hay en el CSV y no está dado de alta en la cartera.
+    const usados = new Set(emparejadas.map(e => e.csv.isin));
+    const soloEnCsv = posCsv.filter(p => !usados.has(p.isin));
+
+    return { emparejadas, sinEmparejar, soloEnCsv };
+};
