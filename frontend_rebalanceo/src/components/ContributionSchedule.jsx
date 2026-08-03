@@ -39,7 +39,7 @@ export const ContributionSchedule = ({ monthly, annualGrowthPct = 0, months }) =
             </div>
 
             {rows.length === 0 ? (
-                <div className="rounded-2xl border border-dashed border-line px-4 py-6 text-center">
+                <div className="rounded-card border border-dashed border-line px-4 py-6 text-center">
                     <p className="text-caption1 font-bold text-ink-3">{t('sched.empty')}</p>
                 </div>
             ) : (
@@ -50,9 +50,9 @@ export const ContributionSchedule = ({ monthly, annualGrowthPct = 0, months }) =
                             return (
                                 <div
                                     key={r.month}
-                                    className={`shrink-0 snap-start min-w-[88px] rounded-2xl px-3 py-2.5 border transition-colors ${last && rows.length > 1
- ? 'bg-brand-soft border-brand/25'
- : 'bg-surface-2 border-transparent'}`}
+                                    className={`shrink-0 snap-start min-w-[88px] rounded-card px-3 py-2.5 border transition-colors ${last && rows.length > 1
+                                ? 'bg-brand-soft border-brand/25'
+                                : 'bg-surface-2 border-transparent'}`}
                                 >
                                     <div className={`text-caption2 font-semibold ${last && rows.length > 1 ? 'text-brand' : 'text-slate-400'}`}>
                                         {byYear ? `${t('sched.year')} ${r.year}` : `${t('sched.month')} ${r.month}`}

@@ -57,7 +57,7 @@ export const ProfileView = ({ session, onUpdateUser }) => {
                         <input type="password" value={password} onChange={e=>setPassword(e.target.value)} placeholder="Dejar vacío para mantener la actual" className="w-full h-12 px-3.5 bg-surface-2 rounded-field outline-none text-body text-ink placeholder:text-ink-3 focus:bg-surface-3 transition-colors"/>
                     </div>
 
-                    <BounceButton onClick={handleUpdate} disabled={loading} className="w-full bg-slate-900 hover:bg-indigo-600 text-white py-4 rounded-xl font-semibold uppercase text-footnote shadow-xl hover:shadow-indigo-200 mt-4">
+                    <BounceButton onClick={handleUpdate} disabled={loading} className="w-full bg-slate-900 hover:bg-indigo-600 text-white py-4 rounded-control font-semibold uppercase text-footnote shadow-card hover: mt-4">
                         {loading ? <Loader2 className="animate-spin mx-auto"/> : 'Guardar Cambios'}
                     </BounceButton>
                 </div>

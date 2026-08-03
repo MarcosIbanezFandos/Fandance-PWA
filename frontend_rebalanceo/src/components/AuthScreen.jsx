@@ -38,7 +38,7 @@ export const AuthScreen = ({ onLogin }) => {
         className="bg-surface p-8 md:p-10 rounded-card shadow-card max-w-sm w-full border border-line"
       >
         <motion.div variants={fadeInUp} className="text-center mb-7">
-          <div className="inline-flex w-14 h-14 rounded-2xl bg-brand items-center justify-center mb-4 text-white">
+          <div className="inline-flex w-14 h-14 rounded-card bg-brand items-center justify-center mb-4 text-white">
             <TrendingUp size={26} strokeWidth={2.5} />
           </div>
           <h1 className="text-title1 font-bold tracking-tight">

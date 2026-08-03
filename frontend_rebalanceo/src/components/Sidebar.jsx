@@ -76,7 +76,7 @@ export const Sidebar = ({
       <div className="p-4 lg:p-5 min-h-0 flex flex-col">
         {/* Marca */}
         <div className="flex items-center gap-2.5 mb-7 px-1 md:justify-center lg:justify-start">
-          <div className="w-9 h-9 rounded-xl bg-brand flex items-center justify-center shrink-0">
+          <div className="w-9 h-9 rounded-control bg-brand flex items-center justify-center shrink-0">
             <TrendingUp size={19} className="text-white" strokeWidth={2.5} />
           </div>
           <h1 className="text-body font-bold tracking-tight text-ink md:hidden lg:block">
@@ -179,7 +179,7 @@ const PortfolioItem = ({ portfolio, isActive, onClick, onRename, onDuplicate, on
         onClick={(e) => { e.stopPropagation(); setMenuOpen(v => !v); }}
         aria-label="Opciones"
         className={cn(
-            'p-1.5 rounded-lg text-ink-3 hover:text-ink hover:bg-surface-3 transition-all shrink-0',
+            'p-1.5 rounded-field text-ink-3 hover:text-ink hover:bg-surface-3 transition-all shrink-0',
             menuOpen ? 'opacity-100' : 'opacity-0 group-hover:opacity-100 focus-visible:opacity-100'
         )}
       >
@@ -202,7 +202,7 @@ const MenuAction = ({ icon: Icon, label, onClick, danger = false }) => (
   <button
     onClick={(e) => { e.stopPropagation(); onClick(); }}
     className={cn(
-        'w-full text-left px-2.5 py-2 rounded-lg text-footnote font-semibold flex gap-2 items-center transition-colors',
+        'w-full text-left px-2.5 py-2 rounded-field text-footnote font-semibold flex gap-2 items-center transition-colors',
         danger ? 'text-negative hover:bg-negative-soft' : 'text-ink-2 hover:bg-surface-2 hover:text-ink'
     )}
   >

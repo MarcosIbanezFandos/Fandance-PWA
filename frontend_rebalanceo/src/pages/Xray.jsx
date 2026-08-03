@@ -5,7 +5,7 @@ import {
     Loader2, Search, Globe2, Coins, PieChart, Layers, Building2, Map,
     ChevronDown, Info, SearchX, Inbox,
 } from 'lucide-react';
-import { Card, SectionHeader, Button, Badge, StatTile, ProgressBar, EmptyState, Skeleton } from '../components/UI';
+import { Card, SectionHeader, Button, Badge, StatTile, ProgressBar, EmptyState, Skeleton, Disclosure } from '../components/UI';
 import { Dropdown } from '../components/Dropdown';
 import { useGlobal } from '../context/GlobalContext';
 import { safeFloat, formatNumber, buildXray } from '../utils';
@@ -16,8 +16,9 @@ const prettySector = (s) => {
     return s.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
 };
 
-const PAGE_SIZE = 50;
-const BREAKDOWN_PREVIEW = 8;
+// Diez caben en pantalla sin desplazar; el resto se pide.
+const PAGE_SIZE = 10;
+const BREAKDOWN_PREVIEW = 5;
 
 /* ------------------------------------------------------------------ *
  *  Desglose por dimensión (países, sectores, divisas, regiones)
@@ -257,13 +258,14 @@ export const Xray = ({ portfolios, activePortfolioId }) => {
                             {/* Límite real de la fuente de datos: mejor decirlo que dejar
                                 que el usuario cuente 10 empresas por fondo y no entienda. */}
                             {hasFunds && (
-                                <div className="mt-4 flex items-start gap-3 p-4 rounded-card bg-warning-soft border border-warning/25">
-                                    <Info size={16} className="text-warning shrink-0 mt-0.5" strokeWidth={2.25} />
-                                    <div className="min-w-0">
-                                        <p className="text-footnote font-bold text-ink mb-1">{t('xray.coverage')}</p>
-                                        <p className="text-footnote font-medium text-ink-2 leading-relaxed">{t('xray.coverage_note')}</p>
-                                    </div>
-                                </div>
+                                <Disclosure
+                                    className="mt-3"
+                                    icon={Info}
+                                    tone="warning"
+                                    title={t('xray.coverage')}
+                                >
+                                    {t('xray.coverage_note')}
+                                </Disclosure>
                             )}
                         </div>
 

@@ -85,7 +85,7 @@ const InlineSelect = ({ value, options, onChange, label }) => {
                         animate={{ opacity: 1, y: 0, scale: 1 }}
                         exit={{ opacity: 0, y: -4, scale: 0.98 }}
                         transition={{ duration: 0.12 }}
-                        className="absolute z-[70] left-0 mt-2 w-max min-w-[160px] max-w-[240px] bg-surface border border-line rounded-2xl shadow-2xl overflow-hidden py-1.5"
+                        className="absolute z-[70] left-0 mt-2 w-max min-w-[160px] max-w-[240px] bg-surface border border-line rounded-card shadow-pop overflow-hidden py-1.5"
                     >
                         {options.map(o => {
                             const active = o.value === value;
@@ -113,7 +113,7 @@ const InlineSelect = ({ value, options, onChange, label }) => {
 };
 
 const MetricTile = ({ title, state, valueCls, note, warn, t }) => (
-    <div className="flex-1 min-w-[150px] rounded-2xl bg-surface border border-line px-4 py-3">
+    <div className="flex-1 min-w-[150px] rounded-card bg-surface border border-line px-4 py-3">
         <div className="flex items-center gap-1.5">
             <span className="text-caption2 font-semibold text-ink-3">{title}</span>
             {warn && <Info size={12} className="text-amber-500 shrink-0" />}
@@ -178,14 +178,14 @@ export const BenchmarkCompare = ({ holdings, period }) => {
     let relativeSection = null;
     if (hasHoldings && selected.length === 0) {
         relativeSection = (
-            <div className="mt-5 rounded-[1.5rem] border border-dashed border-line px-5 py-6 text-center">
+            <div className="mt-5 rounded-card border border-dashed border-line px-5 py-6 text-center">
                 <p className="text-footnote font-bold text-ink-3">{t('bench.rel_empty')}</p>
             </div>
         );
     } else if (hasHoldings && !loading && data && activeRef) {
         const unavailable = beta.kind !== 'value' && corr.kind !== 'value';
         relativeSection = (
-            <div className="mt-5 rounded-[1.5rem] bg-surface-2/70 border border-line p-5">
+            <div className="mt-5 rounded-card bg-surface-2/70 border border-line p-5">
                 <div className="flex items-center gap-2">
                     <Activity size={15} className="text-ink-3" />
                     <h4 className="text-footnote font-semibold text-ink-2">{t('bench.rel_title')}</h4>
@@ -246,7 +246,7 @@ export const BenchmarkCompare = ({ holdings, period }) => {
                     const on = selected.includes(b.ticker);
                     return (
                         <button key={b.ticker} onClick={() => toggle(b.ticker)}
-                            className={`px-3 py-1.5 rounded-xl text-caption1 font-semibold uppercase tracking-wide transition-all border ${on ? 'text-white border-transparent' : 'bg-surface-2 text-ink-3 border-line hover:text-slate-700 dark:hover:text-slate-200'}`}
+                            className={`px-3 py-1.5 rounded-control text-caption1 font-semibold uppercase tracking-wide transition-all border ${on ? 'text-white border-transparent' : 'bg-surface-2 text-ink-3 border-line hover:text-slate-700 dark:hover:text-slate-200'}`}
                             style={on ? { backgroundColor: colorFor(b.ticker) } : undefined}>
                             {b.label}
                         </button>

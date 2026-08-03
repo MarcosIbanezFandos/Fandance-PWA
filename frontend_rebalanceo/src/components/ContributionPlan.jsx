@@ -154,7 +154,7 @@ export const ContributionPlan = ({ plan, planDefaults = null, onSave, history = 
                         initial={{ opacity: 0, scale: 0.9 }}
                         animate={{ opacity: 1, scale: 1 }}
                         className={cn(
-                            'shrink-0 w-[3.25rem] rounded-xl border p-2 text-center transition-colors',
+                            'shrink-0 w-[3.25rem] rounded-control border p-2 text-center transition-colors',
                             r.done ? 'bg-positive-soft border-positive/30'
                             : r.partial ? 'bg-warning-soft border-warning/30'
                             : r.isCurrent ? 'bg-surface-2 border-brand/40'

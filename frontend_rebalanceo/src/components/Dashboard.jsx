@@ -1,8 +1,8 @@
 import React from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Wallet, Activity, ListFilter, Plus, Search, Loader2, ArrowUpRight, ArrowDownRight, Trash2, Calendar, RotateCcw, PlusCircle, History as HistoryIcon, AlertTriangle, CheckCircle2 } from 'lucide-react';
+import { Search, Loader2, ArrowUpRight, ArrowDownRight, Trash2, Calendar, RotateCcw, PlusCircle, History as HistoryIcon, AlertTriangle, CheckCircle2 } from 'lucide-react';
 import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer } from 'recharts';
-import { GlassCard, CountUp, BounceButton, NumericField, Segmented, fadeInUp, staggerContainer } from './UI';
+import { GlassCard, Card, StatTile, CountUp, BounceButton, NumericField, Segmented, fadeInUp, staggerContainer } from './UI';
 import { safeFloat, formatNumber, formatUnits } from '../utils';
 import { useGlobal } from '../context/GlobalContext';
 import _ from 'lodash';
@@ -63,61 +63,46 @@ export const Dashboard = ({
 
     return (
         <motion.div initial="hidden" animate="visible" variants={staggerContainer} className="space-y-8">
-            {/* 1. KPI GRID — 2 columns on phones, 4 on desktop */}
-            <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-6">
-                <GlassCard className="!p-4 md:!p-6">
-                    <div className="text-caption2 md:text-caption2 font-semibold text-ink-3 mb-1 pr-8">{t('kpi.total_value')}</div>
-                    <div className="text-title2 md:text-largetitle font-semibold text-ink tabular-nums"><CountUp value={totalValue} suffix=" €" /></div>
-                    <div className="mt-1 md:mt-2 text-caption2 md:text-caption2 font-semibold text-ink-3 truncate">{t('kpi.current_capital')}</div>
-                    <div className="absolute top-3 right-3 md:top-6 md:right-6 p-2 md:p-3 bg-surface-2 rounded-lg md:rounded-xl text-brand"><Wallet size={18} /></div>
-                </GlassCard>
-
-                <GlassCard className="!p-4 md:!p-6">
-                    <div className="text-caption2 md:text-caption2 font-semibold text-ink-3 mb-1 pr-8">{t('kpi.risk')}</div>
-                    <div className={`text-title2 md:text-largetitle font-semibold tabular-nums ${getRiskColor(riskProfile)}`}>{riskProfile}/10</div>
-                    <div className="text-caption2 md:text-footnote font-bold text-ink-3 mt-1 truncate">{riskProfile >= 8 ? t('kpi.aggressive') : riskProfile <= 4 ? t('kpi.conservative') : t('kpi.moderate')}</div>
-                    <div className={`absolute top-3 right-3 md:top-6 md:right-6 p-2 md:p-3 rounded-lg md:rounded-xl ${riskProfile >= 8 ? 'bg-rose-50 dark:bg-rose-900/30 text-rose-600 dark:text-rose-400' : 'bg-surface-2 text-ink-2'}`}><Activity size={18} /></div>
-                </GlassCard>
-
-                <GlassCard className="!p-4 md:!p-6 flex flex-col justify-between">
-                    <div>
-                        <div className="text-caption2 md:text-caption2 font-semibold text-ink-3 mb-1 pr-8">{t('kpi.contribution')}</div>
-                        <div className="flex items-center">
-                            <input
-                                inputMode="decimal"
-                                enterKeyHint="done"
-                                onKeyDown={e => { if (e.key === "Enter") e.currentTarget.blur(); }}
-                                className="text-title2 md:text-largetitle font-semibold text-ink w-16 md:w-32 bg-transparent outline-none tabular-nums"
-                                value={contribution}
-                                onChange={e => setContribution(e.target.value)}
-                                onFocus={e => e.target.select()}
-                            />
-                            <span className="text-body md:text-title2 text-ink-3 font-bold">€</span>
-                        </div>
-                        <div className="mt-1 md:mt-2 text-caption2 md:text-caption2 font-semibold text-ink-3">EUR / mes</div>
+            {/* Resumen. Las pastillas de color superpuestas en cada esquina
+                aportaban ruido y ninguna información: el dato ya está escrito. */}
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+                <StatTile label={t('kpi.total_value')} value={<CountUp value={totalValue} suffix=" €" />} />
+                <StatTile
+                    label={t('kpi.risk')}
+                    value={`${riskProfile}/10`}
+                    tone={riskProfile >= 8 ? 'negative' : riskProfile <= 4 ? 'positive' : 'default'}
+                    sub={riskProfile >= 8 ? t('kpi.aggressive') : riskProfile <= 4 ? t('kpi.conservative') : t('kpi.moderate')}
+                />
+                <Card className="!p-3.5 md:!p-4">
+                    <span className="block text-footnote text-ink-2 mb-1.5">{t('kpi.contribution')}</span>
+                    <div className="flex items-baseline gap-1">
+                        <input
+                            inputMode="decimal"
+                            enterKeyHint="done"
+                            onKeyDown={e => { if (e.key === 'Enter') e.currentTarget.blur(); }}
+                            className="min-w-0 flex-1 text-title2 font-semibold text-ink bg-transparent outline-none tabular-nums"
+                            value={contribution}
+                            onChange={e => setContribution(e.target.value)}
+                            onFocus={e => e.target.select()}
+                        />
+                        <span className="text-title2 font-medium text-ink-3 shrink-0">€</span>
                     </div>
-                    <div className="absolute top-3 right-3 md:top-6 md:right-6 p-2 md:p-3 bg-brand-soft text-brand rounded-lg md:rounded-xl"><Plus size={18} /></div>
-                </GlassCard>
-
-                <GlassCard className="!p-4 md:!p-6">
-                    <div className="text-caption2 md:text-caption2 font-semibold text-ink-3 mb-1 pr-8">{t('kpi.composition')}</div>
-                    <div className="text-title2 md:text-largetitle font-semibold text-ink tabular-nums">{portfolioItems.length}</div>
-                    <div className="text-caption2 md:text-caption2 font-bold text-ink-3 mt-1 truncate">{assetSummary}</div>
-                    <div className="absolute top-3 right-3 md:top-6 md:right-6 p-2 md:p-3 bg-emerald-50 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400 rounded-lg md:rounded-xl"><ListFilter size={18} /></div>
-                </GlassCard>
+                    <span className="block text-caption1 text-ink-3 mt-0.5">{t('kpi.per_month')}</span>
+                </Card>
+                <StatTile label={t('kpi.composition')} value={portfolioItems.length} sub={assetSummary} />
             </div>
 
             {/* 2. SEARCH — full width */}
             <motion.div variants={fadeInUp} className="relative z-50">
-                    <div className="bg-surface p-6 rounded-[2rem] shadow-sm relative z-50 border border-line">
-                        <div className="relative flex items-center bg-surface-2 rounded-2xl p-3 border border-line focus-within:border-indigo-500 focus-within:ring-4 focus-within:ring-brand/10 transition-all">
-                            <Search className="text-ink-3 mr-3" size={20} />
+                    <div className="bg-surface p-4 rounded-card shadow-card relative z-50">
+                        <div className="relative flex items-center gap-2 bg-surface-2 rounded-control px-3.5 h-11 focus-within:bg-surface-3 transition-colors">
+                            <Search className="text-ink-3 shrink-0" size={17} strokeWidth={2} />
                             <input className="bg-transparent w-full outline-none text-body text-ink placeholder:text-ink-3" enterKeyHint="search" onKeyDown={e => { if (e.key === "Enter") e.currentTarget.blur(); }} placeholder={t('dash.search')} value={query} onChange={e => { setQuery(e.target.value); searchAsset(e.target.value) }} />
                             {isSearching && <Loader2 className="animate-spin text-brand" size={18} />}
                         </div>
                         <AnimatePresence>
                             {searchResults.length > 0 && (
-                                <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} className="absolute top-full left-0 right-0 mt-3 bg-surface rounded-2xl shadow-2xl border border-line max-h-80 overflow-y-auto z-[100]">
+                                <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} className="absolute top-full left-0 right-0 mt-3 bg-surface rounded-card shadow-pop border border-line max-h-80 overflow-y-auto z-[100]">
                                     {searchResults.map(r => (
                                         <div key={r.ticker} onClick={() => addAsset(r)} className="p-4 hover:bg-indigo-50 dark:hover:bg-slate-700 cursor-pointer flex justify-between items-center border-b border-line last:border-0 transition-colors">
                                             <div><div className="font-bold text-footnote text-ink">{r.name}</div><div className="text-caption2 font-semibold text-brand">{r.ticker} • {r.type_display}</div></div>
@@ -132,7 +117,7 @@ export const Dashboard = ({
 
                 {/* PLAN CARD — full width */}
                 <motion.div variants={fadeInUp}>
-                    <div className="bg-surface rounded-[2.5rem] shadow-sm border border-line overflow-hidden">
+                    <div className="bg-surface rounded-card shadow-card border border-line overflow-hidden">
                         {/* Header: mode toggle + targets badge */}
                         <div className="p-5 md:p-6 border-b border-line flex flex-col lg:flex-row lg:items-center justify-between gap-4">
                             <div>
@@ -142,7 +127,7 @@ export const Dashboard = ({
                                     {rebalanceMode === 'contribute' ? t('dash.mode_contribute_hint') : t('dash.mode_full_hint')}
                                 </p>
                             </div>
-                            <div className={`shrink-0 rounded-2xl px-4 py-3 border ${targetsBalanced ? 'bg-emerald-50 dark:bg-emerald-900/20 border-emerald-100 dark:border-emerald-900/40' : 'bg-amber-50 dark:bg-amber-900/20 border-amber-100 dark:border-amber-900/40'}`}>
+                            <div className={`shrink-0 rounded-card px-4 py-3 border ${targetsBalanced ? 'bg-emerald-50 dark:bg-emerald-900/20 border-emerald-100 dark:border-emerald-900/40' : 'bg-amber-50 dark:bg-amber-900/20 border-amber-100 dark:border-amber-900/40'}`}>
                                 <div className="flex items-center gap-2">
                                     {targetsBalanced ? <CheckCircle2 size={15} className="text-emerald-500" /> : <AlertTriangle size={15} className="text-amber-500" />}
                                     <span className="text-caption2 font-semibold text-ink-3">{t('dash.target_sum')}</span>
@@ -334,7 +319,7 @@ export const Dashboard = ({
                                     <span className="text-amber-500">{t('dash.unallocated')}: {formatNumber(unallocated)}€</span>
                                 )}
                             </div>
-                            <BounceButton onClick={applyRebalance} disabled={calculating || portfolioItems.length === 0} className="bg-brand hover:bg-indigo-600 dark:hover:bg-indigo-500 text-white px-8 py-4 rounded-2xl font-semibold text-footnote shadow-xl hover:shadow-indigo-200 dark:hover:shadow-indigo-900/50">
+                            <BounceButton onClick={applyRebalance} disabled={calculating || portfolioItems.length === 0} className="bg-brand hover:bg-indigo-600 dark:hover:bg-indigo-500 text-white px-8 py-4 rounded-card font-semibold text-footnote shadow-card hover: dark:hover:">
                                 {calculating ? <Loader2 className="animate-spin" /> : (rebalanceMode === 'contribute' ? t('dash.apply_contribute') : t('dash.apply_full'))}
                             </BounceButton>
                         </div>
@@ -400,14 +385,14 @@ export const Dashboard = ({
                     {/* HISTORY LOG */}
                     <AnimatePresence>
                         {rebalanceHistory.length > 0 && (
-                            <motion.div variants={staggerContainer} initial="hidden" animate="visible" className="bg-surface p-8 rounded-[2.5rem] shadow-sm border border-line">
+                            <motion.div variants={staggerContainer} initial="hidden" animate="visible" className="bg-surface p-8 rounded-card shadow-card border border-line">
                                 <h3 className="text-footnote font-semibold text-ink-3 mb-6 flex items-center gap-2"><HistoryIcon size={14} /> {t('dash.history')}</h3>
                                 <div className="space-y-4">
                                     {rebalanceHistory.map(h => (
-                                        <motion.div key={h.id} variants={fadeInUp} className="group border border-line rounded-2xl overflow-hidden hover:shadow-md transition-all">
+                                        <motion.div key={h.id} variants={fadeInUp} className="group border border-line rounded-card overflow-hidden hover:shadow-card transition-all">
                                             <div className="flex justify-between items-center p-5 bg-surface-2/60">
                                                 <div className="flex items-center gap-4">
-                                                    <div className="p-3 bg-surface rounded-xl border border-line text-ink-3"><Calendar size={16} /></div>
+                                                    <div className="p-3 bg-surface rounded-control border border-line text-ink-3"><Calendar size={16} /></div>
                                                     <div>
                                                         <div className="text-footnote font-semibold text-ink">{new Date(h.created_at).toLocaleDateString()}</div>
                                                         <div className="text-caption2 font-bold text-ink-3 ">{new Date(h.created_at).toLocaleTimeString()}</div>
@@ -419,14 +404,14 @@ export const Dashboard = ({
                                                         <div className="text-caption2 font-bold text-ink-3 ">{t('dash.contribution_short')}</div>
                                                     </div>
                                                     <div className="flex gap-1">
-                                                        <button onClick={() => undoRebalance(h.id)} className="p-2 hover:brightness-95 rounded-xl text-ink-3 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors" title="Undo"><RotateCcw size={18} /></button>
-                                                        <button onClick={() => deleteHistoryItem(h.id)} className="p-2 hover:bg-rose-100 dark:hover:bg-rose-900/50 rounded-xl text-ink-3 hover:text-rose-600 dark:hover:text-rose-400 transition-colors" title="Delete"><Trash2 size={18} /></button>
+                                                        <button onClick={() => undoRebalance(h.id)} className="p-2 hover:brightness-95 rounded-control text-ink-3 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors" title="Undo"><RotateCcw size={18} /></button>
+                                                        <button onClick={() => deleteHistoryItem(h.id)} className="p-2 hover:bg-rose-100 dark:hover:bg-rose-900/50 rounded-control text-ink-3 hover:text-rose-600 dark:hover:text-rose-400 transition-colors" title="Delete"><Trash2 size={18} /></button>
                                                     </div>
                                                 </div>
                                             </div>
                                             <div className="p-5 bg-surface border-t border-line grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
                                                 {h.items?.map(i => (
-                                                    <div key={i.id} className="text-caption2 bg-surface-2 p-3 rounded-xl flex justify-between items-center border border-line">
+                                                    <div key={i.id} className="text-caption2 bg-surface-2 p-3 rounded-control flex justify-between items-center border border-line">
                                                         <div>
                                                             <div className="font-bold text-ink truncate w-24">{i.asset_name}</div>
                                                             <div className="font-mono text-ink-3">{i.ticker}</div>

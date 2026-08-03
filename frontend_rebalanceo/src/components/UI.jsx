@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { motion } from 'framer-motion';
-import { Loader2 } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { Loader2, ChevronDown } from 'lucide-react';
 import { cn } from '../lib/cn';
 
 /* ---------------------------------------------------------------- *
@@ -264,9 +264,9 @@ export const NumericField = React.forwardRef(({
     <label className={cn('block', className)}>
       {label && <span className="block text-footnote text-ink-2 mb-1.5">{label}</span>}
       <span className={cn(
-        'flex items-center gap-2 h-12 px-3.5 rounded-field bg-surface-2',
-        'transition-colors duration-150 focus-within:bg-surface-3',
-        disabled && 'opacity-50'
+          'flex items-center gap-2 h-12 px-3.5 rounded-field bg-surface-2',
+          'transition-colors duration-150 focus-within:bg-surface-3',
+          disabled && 'opacity-50'
       )}>
         <input
           ref={ref}
@@ -285,10 +285,10 @@ export const NumericField = React.forwardRef(({
           // contenga, que es lo que dejaba la vista a medio recolocar.
           onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); e.currentTarget.blur(); } }}
           className={cn(
-            'w-full h-full bg-transparent outline-none border-0 p-0',
-            'text-title3 font-semibold tabular-nums text-ink',
-            'placeholder:text-ink-3 placeholder:font-normal',
-            align === 'right' && 'text-right'
+              'w-full h-full bg-transparent outline-none border-0 p-0',
+              'text-title3 font-semibold tabular-nums text-ink',
+              'placeholder:text-ink-3 placeholder:font-normal',
+              align === 'right' && 'text-right'
           )}
           {...rest}
         />
@@ -368,7 +368,7 @@ export const ProgressBar = ({ pct = 0, tone = 1, className = '', height = 'h-2' 
 );
 
 export const Skeleton = ({ className = '' }) => (
-  <div className={cn('relative overflow-hidden bg-surface-2 rounded-lg', className)}>
+  <div className={cn('relative overflow-hidden bg-surface-2 rounded-field', className)}>
     <div className="absolute inset-0 -translate-x-full animate-shimmer bg-gradient-to-r from-transparent via-black/[0.04] dark:via-white/[0.06] to-transparent" />
   </div>
 );
@@ -381,6 +381,47 @@ export const EmptyState = ({ icon: Icon, title, hint, action, className = '' }) 
     {action && <div className="mt-5">{action}</div>}
   </div>
 );
+
+/**
+ * Detalle plegable. Para notas y advertencias que importan pero que no deben
+ * ocupar sitio hasta que alguien pregunte: una explicación siempre desplegada
+ * se convierte en ruido y deja de leerse.
+ */
+export const Disclosure = ({ icon: Icon, title, children, tone = 'neutral', defaultOpen = false, className = '' }) => {
+  const [open, setOpen] = useState(defaultOpen);
+  const tones = {
+    neutral: 'text-ink-2',
+    warning: 'text-warning',
+    brand: 'text-brand',
+  };
+  return (
+    <div className={cn('rounded-card bg-surface-2', className)}>
+      <button
+        type="button"
+        onClick={() => setOpen(o => !o)}
+        aria-expanded={open}
+        className="w-full flex items-center gap-2.5 px-4 min-h-tap text-left active:opacity-60 transition-opacity"
+      >
+        {Icon && <Icon size={16} className={cn('shrink-0', tones[tone])} strokeWidth={2} />}
+        <span className={cn('flex-1 text-footnote font-medium truncate', tones[tone])}>{title}</span>
+        <ChevronDown size={16} className={cn('text-ink-3 shrink-0 transition-transform duration-200', open && 'rotate-180')} />
+      </button>
+      <AnimatePresence initial={false}>
+        {open && (
+          <motion.div
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: 'auto', opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            transition={{ duration: 0.2, ease: [0.16, 1, 0.3, 1] }}
+            className="overflow-hidden"
+          >
+            <div className="px-4 pb-3.5 text-footnote text-ink-2 leading-relaxed">{children}</div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
+  );
+};
 
 /* ---------------------------------------------------------------- *
  *  Contador animado

@@ -66,7 +66,7 @@ export const NewsView = ({ portfolios, activePortfolioId }) => {
             {newsData.aggregate && (
                 <GlassCard className="flex flex-col md:flex-row items-center justify-between gap-6 !p-8">
                     <div className="flex items-center gap-4">
-                        <div className={`p-4 rounded-2xl ${getBadge(newsData.aggregate.color)}`}>
+                        <div className={`p-4 rounded-card ${getBadge(newsData.aggregate.color)}`}>
                             <TrendingUp size={32} />
                         </div>
                         <div>
@@ -98,7 +98,7 @@ export const NewsView = ({ portfolios, activePortfolioId }) => {
                             <div key={ticker} className="space-y-6">
                                 <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-line pb-4">
                                     <div className="flex items-center gap-3">
-                                        <div className="w-10 h-10 bg-brand text-white rounded-xl flex items-center justify-center font-semibold text-subhead shadow-lg">
+                                        <div className="w-10 h-10 bg-brand text-white rounded-control flex items-center justify-center font-semibold text-subhead shadow-card">
                                             {ticker.substring(0, 2)}
                                         </div>
                                         <div>
@@ -108,7 +108,7 @@ export const NewsView = ({ portfolios, activePortfolioId }) => {
                                     </div>
 
                                     {sentiment && (
-                                        <div className={`flex items-center gap-3 px-4 py-2 rounded-xl ${getBadge(sentiment.color)}`}>
+                                        <div className={`flex items-center gap-3 px-4 py-2 rounded-control ${getBadge(sentiment.color)}`}>
                                             <div className="text-right">
                                                 <div className="text-caption2 font-semibold opacity-80">{t('news.rsi')}</div>
                                                 <div className="text-subhead font-semibold">{sentiment.label} ({sentiment.score})</div>
