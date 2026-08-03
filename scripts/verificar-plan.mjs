@@ -135,52 +135,44 @@ if (!authRes.ok || !auth.access_token) {
 token = auth.access_token;
 check('Inicio de sesión', true, `usuario ${String(auth.user?.id || '').slice(0, 8)}…`);
 
-console.log('\n── Migración y lectura ──');
+console.log('\n── Carteras ──');
 const list = await api('/portfolios/list');
 check('GET /portfolios/list', list.status === 200, `HTTP ${list.status}`);
 if (list.status !== 200 || !Array.isArray(list.data) || !list.data.length) {
     console.error('\nSin carteras que probar. Crea una en la app y repite.');
     process.exit(1);
 }
-
 const p = list.data[0];
-const tieneColumnas = ['plan_monthly', 'plan_growth_pct', 'plan_start'].every(c => c in p);
-check('Columnas del plan presentes', tieneColumnas,
-    tieneColumnas ? 'plan_monthly, plan_growth_pct, plan_start' : 'no llegan en la respuesta');
 
-// Distingue "falta la migración" de "está aplicada pero PostgREST no la ve":
-// son arreglos distintos y desde la app no había forma de saber cuál era.
-if (!tieneColumnas) {
-    const diag = await api('/portfolios/plan_diagnostico');
-    console.log(`     ↳ ${diag.data?.mensaje || `HTTP ${diag.status}`}`);
-    if (diag.data?.detalle) console.log(`     ↳ ${diag.data.detalle}`);
-}
-
-// Se guardan los valores originales para restaurarlos al final.
-const original = {
-    monthly: Number(p.plan_monthly) || 0,
-    growth: Number(p.plan_growth_pct) || 0,
-    start: p.plan_start || null,
+console.log('\n── Plan de aportación (metadatos del usuario) ──');
+// El plan vive en user_metadata, no en columnas: se escribe con la sesión del
+// propio usuario y no necesita ninguna migración.
+const meta = async (body) => {
+    const res = await fetch(`${SB}/auth/v1/user`, {
+        method: 'PUT',
+        headers: { apikey: cfg.SUPABASE_ANON_KEY, Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+    });
+    return { status: res.status, data: await res.json().catch(() => ({})) };
+};
+const leerUser = async () => {
+    const res = await fetch(`${SB}/auth/v1/user`, {
+        headers: { apikey: cfg.SUPABASE_ANON_KEY, Authorization: `Bearer ${token}` },
+    });
+    return res.json().catch(() => ({}));
 };
 
-console.log('\n── Guardado del plan ──');
-const put = await api('/portfolios/contribution_plan', {
-    method: 'PUT',
-    body: {
-        portfolio_id: p.id,
-        monthly: 300,
-        annual_growth_pct: 15,
-        start_date: new Date().toISOString().slice(0, 10),
-    },
-});
-check('PUT /portfolios/contribution_plan', put.status === 200,
-    put.status === 501 ? 'falta la migración' : `HTTP ${put.status}`);
+const antes = (await leerUser())?.user_metadata?.portfolio_prefs || {};
+const original = antes[p.id] || null;
 
-const relist = await api('/portfolios/list');
-const after = (relist.data || []).find(x => x.id === p.id) || {};
-const persiste = Number(after.plan_monthly) === 300 && Number(after.plan_growth_pct) === 15;
-check('El plan persiste tras releer', persiste,
-    `monthly=${after.plan_monthly} growth=${after.plan_growth_pct}`);
+const guardado = await meta({
+    data: { portfolio_prefs: { ...antes, [p.id]: { monthly: 300, growth: 15, start: new Date().toISOString().slice(0, 10) } } },
+});
+check('Guardar plan', guardado.status === 200, `HTTP ${guardado.status}`);
+
+const releido = (await leerUser())?.user_metadata?.portfolio_prefs?.[p.id] || {};
+check('El plan persiste tras releer', Number(releido.monthly) === 300 && Number(releido.growth) === 15,
+    `monthly=${releido.monthly} growth=${releido.growth}`);
 
 console.log('\n── MAX acotado al inicio de la cartera ──');
 const chart = await api('/portfolio/history_chart', {
@@ -199,17 +191,13 @@ if (hist.length) {
 }
 
 console.log('\n── Rechazo de entradas inválidas ──');
-const inj = await api('/portfolios/contribution_plan', {
-    method: 'PUT',
-    body: { portfolio_id: "'; DROP TABLE portfolios;--", monthly: 300, annual_growth_pct: 15 },
+// El endpoint del plan ya no existe; se prueba contra uno que sí recibe un id
+// de cartera, que es donde importa que el borde valide.
+const inj = await api('/portfolio/history_chart', {
+    method: 'POST',
+    body: { portfolio_id: "'; DROP TABLE portfolios;--", period: '1mo' },
 });
 check('Id malformado rechazado', inj.status === 422, `HTTP ${inj.status} (se espera 422)`);
-
-const rango = await api('/portfolios/contribution_plan', {
-    method: 'PUT',
-    body: { portfolio_id: p.id, monthly: -50, annual_growth_pct: 15 },
-});
-check('Aporte negativo rechazado', rango.status === 422, `HTTP ${rango.status} (se espera 422)`);
 
 const ajeno = await api('/portfolio/history_chart', {
     method: 'POST',
@@ -217,18 +205,11 @@ const ajeno = await api('/portfolio/history_chart', {
 });
 check('Cartera ajena/inexistente rechazada', ajeno.status === 404, `HTTP ${ajeno.status} (se espera 404)`);
 
-console.log('\n── Restaurando el plan original ──');
-const restore = await api('/portfolios/contribution_plan', {
-    method: 'PUT',
-    body: {
-        portfolio_id: p.id,
-        monthly: original.monthly,
-        annual_growth_pct: original.growth,
-        start_date: original.start,
-    },
+console.log('\n── Restaurando ──');
+const restaurado = await meta({
+    data: { portfolio_prefs: original ? { ...antes, [p.id]: original } : antes },
 });
-check('Plan original restaurado', restore.status === 200,
-    `monthly=${original.monthly} growth=${original.growth}`);
+check('Estado original restaurado', restaurado.status === 200, `HTTP ${restaurado.status}`);
 
 const fallos = results.filter(r => !r.ok);
 console.log(`\n── Resultado: ${results.length - fallos.length}/${results.length} correctos ──`);

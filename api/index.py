@@ -1,4 +1,5 @@
 import os
+import time as _time
 import urllib.parse
 import math
 from fastapi import Depends, FastAPI, HTTPException, Query
@@ -87,26 +88,52 @@ def current_user_id(
 # un error de configuración. Revisa los logs si ves este mensaje.
 _RATE_LIMIT_WARNED = False
 
+# Reserva en memoria para cuando la función de Postgres no está creada. No es
+# global —cada instancia serverless lleva su propio contador— así que un cliente
+# repartido entre instancias podría superar el límite. Aun así frena el caso
+# real: alguien martilleando desde un sitio suele caer en la instancia caliente.
+# Es una red, no un sustituto de supabase/rate_limits.sql.
+_MEM_HITS: Dict[str, List[float]] = {}
+_MEM_MAX_KEYS = 5000
+
+
+def _rate_limit_memoria(clave: str, limite: int, ventana: int) -> bool:
+    ahora = _time.time()
+    hits = [t for t in _MEM_HITS.get(clave, []) if ahora - t < ventana]
+    if len(hits) >= limite:
+        _MEM_HITS[clave] = hits
+        return False
+    hits.append(ahora)
+    _MEM_HITS[clave] = hits
+    # Poda: sin esto el diccionario crece sin fin en una instancia longeva.
+    if len(_MEM_HITS) > _MEM_MAX_KEYS:
+        for k in [k for k, v in _MEM_HITS.items() if not v or ahora - v[-1] > 3600][:1000]:
+            _MEM_HITS.pop(k, None)
+    return True
+
 
 def enforce_rate_limit(user_id: str, bucket: str, limit: int, window_seconds: int) -> None:
     global _RATE_LIMIT_WARNED
-    if supabase is None:
-        return
-    try:
-        res = supabase.rpc(
-            "check_rate_limit",
-            {
-                "p_key": f"{bucket}:{user_id}",
-                "p_limit": limit,
-                "p_window_seconds": window_seconds,
-            },
-        ).execute()
-        allowed = res.data
-    except Exception as e:
-        if not _RATE_LIMIT_WARNED:
-            print(f"RATE LIMIT no disponible ({e}). ¿Ejecutaste supabase/rate_limits.sql?")
-            _RATE_LIMIT_WARNED = True
-        return
+    clave = f"{bucket}:{user_id}"
+    allowed = None
+
+    if supabase is not None:
+        try:
+            res = supabase.rpc(
+                "check_rate_limit",
+                {"p_key": clave, "p_limit": limit, "p_window_seconds": window_seconds},
+            ).execute()
+            allowed = res.data
+        except Exception as e:
+            if not _RATE_LIMIT_WARNED:
+                print(f"RATE LIMIT sin función en BD ({e}). Usando contador en memoria; "
+                      f"ejecuta supabase/rate_limits.sql para uno global.")
+                _RATE_LIMIT_WARNED = True
+
+    # Antes, si la función no existía se dejaba pasar todo: en la práctica la
+    # app quedaba sin ninguna limitación y nadie se enteraba.
+    if allowed is None:
+        allowed = _rate_limit_memoria(clave, limit, window_seconds)
 
     if allowed is False:
         raise HTTPException(
@@ -209,13 +236,6 @@ class DuplicatePortfolioInput(BaseModel):
     portfolio_id: Uuid
     new_name: Name
 
-class ContributionPlanInput(BaseModel):
-    portfolio_id: Uuid
-    # 0 desactiva el plan sin borrar el resto de ajustes.
-    monthly: float = Field(ge=0, le=1e7)
-    annual_growth_pct: float = Field(ge=-100, le=100)
-    start_date: Optional[str] = None
-
 class AddAssetInput(BaseModel):
     portfolio_id: Uuid
     ticker: Ticker
@@ -239,6 +259,10 @@ class HistoryInput(BaseModel):
     portfolio_id: Uuid
     period: Period = "1mo"
     ticker: Optional[Ticker] = None
+    # Inicio real de la cartera (ISO). El usuario puede haber empezado a
+    # invertir antes de registrarla aquí, así que su creación no siempre es la
+    # fecha correcta para "MAX".
+    inception: Optional[str] = None
 
 class SimulationInput(BaseModel):
     portfolio_ids: List[Uuid] = Field(min_length=1, max_length=20)
@@ -261,8 +285,9 @@ class BenchmarkInput(BaseModel):
     holdings: List[dict] = Field(max_length=200)   # [{ticker, units}]
     benchmarks: List[Ticker] = Field(default=[], max_length=6)
     period: Period = "1y"
-    # Sólo se usa para acotar "max" al inicio real de la cartera.
+    # Sólo se usan para acotar "max" al inicio real de la cartera.
     portfolio_id: Optional[Uuid] = None
+    inception: Optional[str] = None
 
 # --- DATA FETCHING ---
 def get_asset_metadata(ticker: str):
@@ -480,74 +505,6 @@ def update_contribution(
     assert_owns_portfolio(user_id, portfolio_id)
     supabase.table("portfolios").update({"last_contribution": amount}).eq("id", portfolio_id).execute()
     return {"msg": "Updated"}
-
-# --- PLAN DE APORTACIONES ---
-# El plan sólo guarda la *intención* (cuánto y con qué subida anual). Si un mes
-# se ha cumplido o no se deduce de rebalance_history, que ya registra lo
-# aportado de verdad: preguntárselo al usuario sería pedirle un dato que la app
-# ya tiene, y abriría la puerta a que el plan y la realidad se contradigan.
-@app.put("/api/portfolios/contribution_plan")
-def set_contribution_plan(data: ContributionPlanInput, user_id: str = Standard):
-    assert_owns_portfolio(user_id, data.portfolio_id)
-    payload = {
-        "plan_monthly": data.monthly,
-        "plan_growth_pct": data.annual_growth_pct,
-        "plan_start": data.start_date,
-    }
-    try:
-        supabase.table("portfolios").update(payload).eq("id", data.portfolio_id).execute()
-    except Exception as e:
-        detalle = str(e)
-        print(f"CONTRIBUTION PLAN ERROR: {detalle}")
-        # Mapear CUALQUIER excepción a "falta la migración" hacía que un fallo
-        # distinto se presentara como un problema que el usuario ya había
-        # resuelto, y no había forma de avanzar. Se distinguen los dos casos.
-        #
-        # PGRST204 / 42703 = la columna no existe *para PostgREST*. Eso pasa
-        # tanto si falta la migración como si está aplicada pero su caché de
-        # esquema no se ha recargado, que es el tropiezo habitual en Supabase.
-        if "PGRST204" in detalle or "42703" in detalle or "schema cache" in detalle.lower():
-            raise HTTPException(
-                501,
-                "La base de datos no reconoce las columnas del plan. Ejecuta "
-                "supabase/contribution_plan.sql y, si ya lo hiciste, recarga el "
-                "esquema con:  NOTIFY pgrst, 'reload schema';",
-            )
-        raise HTTPException(500, f"No se pudo guardar el plan: {detalle[:200]}")
-    return {"msg": "OK", **payload}
-
-
-@app.get("/api/portfolios/plan_diagnostico")
-def plan_diagnostico(user_id: str = Standard):
-    """Dice si las columnas del plan son visibles y por qué no lo son.
-
-    Existe porque desde el móvil no hay forma de distinguir "no ejecuté la
-    migración" de "la ejecuté pero PostgREST aún no la ve", y son arreglos
-    distintos.
-    """
-    try:
-        res = (supabase.table("portfolios")
-               .select("id, plan_monthly, plan_growth_pct, plan_start")
-               .eq("user_id", user_id).limit(1).execute())
-        return {
-            "columnas_visibles": True,
-            "carteras": len(res.data or []),
-            "mensaje": "Las columnas del plan son visibles. El guardado debería funcionar.",
-        }
-    except Exception as e:
-        detalle = str(e)
-        cache = "PGRST204" in detalle or "schema cache" in detalle.lower()
-        return {
-            "columnas_visibles": False,
-            "causa": "cache" if cache else "migracion",
-            "mensaje": (
-                "Las columnas existen pero PostgREST no las ve todavía. "
-                "Ejecuta en el SQL editor:  NOTIFY pgrst, 'reload schema';"
-                if cache else
-                "Faltan las columnas. Ejecuta supabase/contribution_plan.sql."
-            ),
-            "detalle": detalle[:300],
-        }
 
 @app.get("/api/assets/search")
 def search_assets(
@@ -775,6 +732,25 @@ def get_rebalance_history(portfolio_id: str, user_id: str = Standard):
     except: return []
 
 # --- CHART & NEWS ---
+def _parse_inception(valor):
+    """Fecha de inicio enviada por el cliente, sin zona horaria y validada."""
+    if not valor:
+        return None
+    try:
+        d = pd.to_datetime(valor)
+        try:
+            d = d.tz_localize(None)
+        except (TypeError, AttributeError):
+            d = d.tz_convert(None) if getattr(d, "tzinfo", None) else d
+        # Una fecha absurda (futuro, o anterior a que existieran los mercados
+        # electrónicos) se ignora en vez de vaciar el gráfico.
+        if d > pd.Timestamp.utcnow().tz_localize(None) or d < pd.Timestamp("1970-01-01"):
+            return None
+        return d
+    except Exception:
+        return None
+
+
 _INCEPTION_CACHE = {}
 
 def _portfolio_inception(portfolio_id):
@@ -859,7 +835,7 @@ def get_chart_data(data: HistoryInput, user_id: str = External):
         # Apple dentro dibujaba una curva desde 1980: técnicamente es el
         # histórico de Apple, pero no es el patrimonio de nadie.
         if data.period == "max":
-            inception = _portfolio_inception(data.portfolio_id)
+            inception = _parse_inception(data.inception) or _portfolio_inception(data.portfolio_id)
             if inception is not None:
                 total_series = total_series[total_series.index >= inception]
 
@@ -978,7 +954,6 @@ def run_sim(data: SimulationInput, user_id: str = Heavy):
     return results
 
 # --- PORTFOLIO X-RAY (look-through) ---
-import time as _time
 
 # Exchange-suffix -> (country, currency)
 _SUFFIX = {
@@ -1284,7 +1259,7 @@ def portfolio_benchmark(data: BenchmarkInput, user_id: str = External):
         # los porcentajes saldrían medidos desde ahí.
         if data.period == "max" and data.portfolio_id:
             assert_owns_portfolio(user_id, data.portfolio_id)
-            inception = _portfolio_inception(data.portfolio_id)
+            inception = _parse_inception(data.inception) or _portfolio_inception(data.portfolio_id)
             if inception is not None:
                 df = df[df.index >= inception]
                 raw = raw[raw.index >= inception]

@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { AreaChart, Area, ResponsiveContainer, YAxis, Tooltip } from 'recharts';
 import {
-    Scale, ScanSearch, Newspaper, History, Target,
+    Scale, ScanSearch, Newspaper, History, Target, CalendarDays,
     ArrowRight, CheckCircle2, Inbox, TrendingUp, TrendingDown,
 } from 'lucide-react';
 import api from '../api';
@@ -31,6 +31,7 @@ const PERIODS = [
 export const Home = ({
     portfolios = [], activePortfolio, portfolioItems = [], totalValue = 0,
     rebalanceHistory = [], plan, planDefaults, onSavePlan, planSaving, planError,
+    inception, onSaveInception,
 }) => {
     const { t } = useGlobal();
     const [period, setPeriod] = useState('1y');
@@ -49,6 +50,9 @@ export const Home = ({
             try {
                 const r = await api.post(`${import.meta.env.VITE_API_URL}/portfolio/history_chart`, {
                     portfolio_id: pid, period,
+                    // Sólo importa en MAX: dice desde cuándo existe la cartera
+                    // de verdad, que puede ser antes de registrarla aquí.
+                    inception: period === 'max' ? inception : undefined,
                 });
                 if (cancelled) return;
                 setEvolution(formatSeriesDates(r?.data?.history));
@@ -62,7 +66,7 @@ export const Home = ({
         };
         load();
         return () => { cancelled = true; };
-    }, [pid, period]);
+    }, [pid, period, inception]);
 
     const drift = useMemo(() => computeDrift(portfolioItems), [portfolioItems]);
     const positive = changePct >= 0;
@@ -143,6 +147,22 @@ export const Home = ({
                     </div>
                     <Segmented size="sm" value={period} onChange={setPeriod} options={PERIODS} />
                 </div>
+
+                {period === 'max' && onSaveInception && (
+                    <div className="px-5 md:px-6 mt-2.5">
+                        <label className="flex items-center gap-2 text-footnote text-ink-2">
+                            <CalendarDays size={14} className="text-ink-3 shrink-0" />
+                            <span className="shrink-0">{t('home.since')}</span>
+                            <input
+                                type="date"
+                                value={(inception || '').slice(0, 10)}
+                                max={new Date().toISOString().slice(0, 10)}
+                                onChange={(e) => onSaveInception(e.target.value)}
+                                className="bg-surface-2 rounded-field px-2.5 h-9 text-footnote text-ink outline-none focus:bg-surface-3 transition-colors"
+                            />
+                        </label>
+                    </div>
+                )}
 
                 <div className={cn("mt-3", evolution.length > 1 || loading ? "h-44 md:h-52" : "h-24")}>
                     {loading ? (
