@@ -1,15 +1,18 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, lazy, Suspense } from 'react';
 import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { AreaChart, Area, ResponsiveContainer, YAxis, Tooltip } from 'recharts';
 import {
     Scale, ScanSearch, Newspaper, History, Target, CalendarDays,
     ArrowRight, CheckCircle2, Inbox, TrendingUp, TrendingDown,
 } from 'lucide-react';
 import api from '../api';
-import { Card, SectionHeader, Button, Badge, Segmented, EmptyState, Skeleton, staggerContainer } from '../components/UI';
+import { Card, SectionHeader, Button, Badge, Segmented, EmptyState, Skeleton, ChartSkeleton, staggerContainer } from '../components/UI';
 import { ContributionPlan } from '../components/ContributionPlan';
 import { useGlobal } from '../context/GlobalContext';
+
+// El gráfico llega después de la primera pintura: recharts pesa más que
+// todo el código de la app y no debe retrasar lo que ya se puede leer.
+const AreaEvolucion = lazy(() => import('../components/charts/AreaEvolucion').then(m => ({ default: m.AreaEvolucion })));
 import {
     safeFloat, formatNumber, formatSeriesDates, computeDrift, driftBand, driftSeverity,
 } from '../utils';
@@ -169,33 +172,9 @@ export const Home = ({
                     {loading ? (
                         <div className="px-5 pb-5"><Skeleton className="h-full w-full" /></div>
                     ) : evolution.length > 1 ? (
-                        <ResponsiveContainer width="100%" height="100%">
-                            <AreaChart data={evolution} margin={{ top: 4, right: 0, left: 0, bottom: 0 }}>
-                                <defs>
-                                    <linearGradient id="homeGrad" x1="0" y1="0" x2="0" y2="1">
-                                        <stop offset="0%" stopColor={`rgb(var(${positive ? '--c-positive' : '--c-negative'}))`} stopOpacity={0.22} />
-                                        <stop offset="100%" stopColor={`rgb(var(${positive ? '--c-positive' : '--c-negative'}))`} stopOpacity={0} />
-                                    </linearGradient>
-                                </defs>
-                                <YAxis domain={['auto', 'auto']} hide />
-                                <Tooltip
-                                    contentStyle={{
-                                        borderRadius: '12px', border: '1px solid rgb(var(--c-line))',
-                                        background: 'rgb(var(--c-surface))', padding: '8px 10px',
-                                        boxShadow: '0 8px 24px -12px rgb(15 23 42 / .25)',
-                                    }}
-                                    labelStyle={{ fontSize: '11px', color: 'rgb(var(--c-ink-3))', fontWeight: 600 }}
-                                    itemStyle={{ fontSize: '13px', color: 'rgb(var(--c-ink))', fontWeight: 700, padding: 0 }}
-                                    formatter={(v) => [`${formatNumber(v)} €`, t('home.value')]}
-                                    labelFormatter={(l, p) => p?.[0]?.payload?.full || l}
-                                />
-                                <Area
-                                    type="monotone" dataKey="value"
-                                    stroke={`rgb(var(${positive ? '--c-positive' : '--c-negative'}))`}
-                                    strokeWidth={2} fill="url(#homeGrad)"
-                                />
-                            </AreaChart>
-                        </ResponsiveContainer>
+<Suspense fallback={<ChartSkeleton height="h-full" />}>
+                            <AreaEvolucion data={evolution} positive={positive} etiquetaValor={t('home.value')} />
+                        </Suspense>
                     ) : (
                         <div className="h-full flex items-center justify-center text-footnote font-medium text-ink-3">
                             {t('home.no_history')}

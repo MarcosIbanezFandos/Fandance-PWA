@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useCallback } from 'react'
+import React, { useState, useEffect, useMemo, useCallback, lazy, Suspense } from 'react'
 import api from './api'
 import _ from 'lodash'
 import { Loader2 } from 'lucide-react'
@@ -11,17 +11,21 @@ import { getPrefs, savePrefs, mesActual, planGuardadoAActivo } from './lib/planS
 import { guardarTxs, leerTxs, borrarTxs, mesesConAportacion, leerDescarte, guardarDescarte } from './lib/csvStore'
 import { debeAvisar, mesClave } from './lib/recordatorio'
 import { RecordatorioCsv } from './components/RecordatorioCsv'
+import { PageSkeleton } from './components/UI'
 import { AuthScreen } from './components/AuthScreen'
 import { Dashboard } from './components/Dashboard'
-import { SimulationView } from './components/SimulationView'
-import { NewsView } from './components/NewsView'
 import { MainLayout } from './layouts/MainLayout'
-import { Analysis } from './pages/Analysis'
+
+// Cada pantalla viaja en su propio trozo: entrar en la app no debería
+// descargar el análisis, la radiografía ni las simulaciones.
+const SimulationView = lazy(() => import('./components/SimulationView').then(m => ({ default: m.SimulationView })))
+const NewsView = lazy(() => import('./components/NewsView').then(m => ({ default: m.NewsView })))
+const Analysis = lazy(() => import('./pages/Analysis').then(m => ({ default: m.Analysis })))
+const Performance = lazy(() => import('./pages/Performance').then(m => ({ default: m.Performance })))
+const RebalanceHistoryPage = lazy(() => import('./pages/RebalanceHistoryPage').then(m => ({ default: m.RebalanceHistoryPage })))
+const Xray = lazy(() => import('./pages/Xray').then(m => ({ default: m.Xray })))
+const Settings = lazy(() => import('./pages/Settings').then(m => ({ default: m.Settings })))
 import { Home } from './pages/Home'
-import { Performance } from './pages/Performance'
-import { RebalanceHistoryPage } from './pages/RebalanceHistoryPage'
-import { Xray } from './pages/Xray'
-import { Settings } from './pages/Settings'
 
 const TYPE_COLORS = {
     'Stock': ['#3b82f6', '#60a5fa', '#93c5fd', '#2563eb', '#1d4ed8'],
@@ -508,6 +512,7 @@ function App() {
 
     return (
         <>
+        <Suspense fallback={<PageSkeleton />}>
         <Routes>
             <Route element={
                 <MainLayout
@@ -630,6 +635,7 @@ function App() {
                 } />
             </Route>
         </Routes>
+        </Suspense>
 
         {/* Recordatorio del CSV. Fuera de <Routes> para que aparezca esté donde
             esté el usuario cuando entra tras la ejecución del plan. */}

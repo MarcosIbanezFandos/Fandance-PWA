@@ -427,6 +427,60 @@ export const Skeleton = ({ className = '' }) => (
   </div>
 );
 
+
+/**
+ * Hueco con forma de gráfica de área.
+ *
+ * Un spinner centrado no dice cuánto va a ocupar lo que viene, así que la
+ * página da un salto al llegar el dato. Esto ocupa exactamente el sitio del
+ * gráfico y dibuja su silueta, de modo que el relleno no mueve nada.
+ */
+export const ChartSkeleton = ({ height = 'h-48', className = '', barras = false }) => (
+  <div className={cn('relative overflow-hidden rounded-card bg-surface-2', height, className)}>
+    <div className="absolute inset-0 -translate-x-full animate-shimmer bg-gradient-to-r from-transparent via-black/[0.04] dark:via-white/[0.06] to-transparent z-10" />
+    {barras ? (
+      <div className="absolute inset-0 flex items-end gap-1.5 p-4">
+        {[38, 55, 44, 68, 52, 76, 61, 88].map((h, i) => (
+          <div key={i} className="flex-1 rounded-t-sm bg-surface-3" style={{ height: `${h}%` }} />
+        ))}
+      </div>
+    ) : (
+      // La silueta es la de una serie temporal cualquiera: sube con dientes.
+      // No representa datos, sólo evita que el hueco se lea como un error.
+      <svg className="absolute inset-0 w-full h-full" viewBox="0 0 100 40" preserveAspectRatio="none" aria-hidden="true">
+        <path
+          d="M0,32 L12,28 L25,30 L37,22 L50,25 L62,16 L75,18 L87,9 L100,12 L100,40 L0,40 Z"
+          className="fill-surface-3"
+        />
+      </svg>
+    )}
+  </div>
+);
+
+/** Hueco con forma de anillo, para los gráficos de reparto. */
+export const DonutSkeleton = ({ size = 'h-44 w-44', className = '' }) => (
+  <div className={cn('relative overflow-hidden rounded-full bg-surface-2', size, className)}>
+    <div className="absolute inset-0 -translate-x-full animate-shimmer bg-gradient-to-r from-transparent via-black/[0.04] dark:via-white/[0.06] to-transparent" />
+    <div className="absolute inset-[22%] rounded-full bg-surface" />
+  </div>
+);
+
+/** Hueco de una pantalla entera mientras llega su trozo de código. */
+export const PageSkeleton = () => (
+  <div className="space-y-5">
+    <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+      {[0, 1, 2, 3].map(i => <Skeleton key={i} className="h-[4.75rem] rounded-card" />)}
+    </div>
+    <div className="bg-surface rounded-card shadow-card p-4 md:p-5 space-y-3">
+      <Skeleton className="h-4 w-40" />
+      <ChartSkeleton />
+    </div>
+    <div className="bg-surface rounded-card shadow-card p-4 md:p-5 space-y-2.5">
+      {[0, 1, 2].map(i => <Skeleton key={i} className="h-11" />)}
+    </div>
+  </div>
+);
+
 export const EmptyState = ({ icon: Icon, title, hint, action, className = '' }) => (
   <div className={cn('flex flex-col items-center justify-center text-center py-12 px-6', className)}>
     {Icon && <Icon size={40} className="text-ink-3 mb-3.5" strokeWidth={1.5} />}

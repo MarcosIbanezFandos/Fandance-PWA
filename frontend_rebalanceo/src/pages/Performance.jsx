@@ -7,7 +7,7 @@ import { AreaChart, Area, ResponsiveContainer, YAxis, XAxis, Tooltip } from 'rec
 import { GlassCard, staggerContainer, fadeInUp } from '../components/UI';
 import { Dropdown } from '../components/Dropdown';
 import { BenchmarkCompare } from '../components/BenchmarkCompare';
-import { Card, SectionHeader, Button, EmptyState } from '../components/UI';
+import { Card, SectionHeader, Button, EmptyState, ChartSkeleton, Skeleton } from '../components/UI';
 import { leerTxs } from '../lib/csvStore';
 import { aFormatoMetricas, primeraCompra } from '../lib/trImport';
 import { useGlobal } from '../context/GlobalContext';
@@ -208,7 +208,7 @@ export const Performance = ({ portfolios, activePortfolioId }) => {
             {!pid ? (
                 <div className="text-center text-ink-3 font-bold py-16">{t('perf.select_portfolio')}</div>
             ) : loading ? (
-                <div className="h-64 flex items-center justify-center"><Loader2 className="animate-spin text-brand" /></div>
+                <ChartSkeleton height="h-64" />
             ) : (
                 <>
                     {/* HERO: value + gain */}

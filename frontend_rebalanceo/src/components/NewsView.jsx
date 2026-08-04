@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import api from '../api'
 import { Loader2, ExternalLink, Calendar, TrendingUp } from 'lucide-react';
-import { GlassCard, staggerContainer } from './UI';
+import { GlassCard, staggerContainer, Skeleton } from './UI';
 import { motion } from 'framer-motion';
 import { useGlobal } from '../context/GlobalContext';
 
@@ -85,7 +85,15 @@ export const NewsView = ({ portfolios, activePortfolioId }) => {
             )}
 
             {loading ? (
-                <div className="flex justify-center py-20"><Loader2 className="animate-spin text-brand" size={40} /></div>
+                <div className="space-y-3">
+                    {[0, 1, 2, 3].map(i => (
+                        <div key={i} className="bg-surface rounded-card shadow-card p-4 space-y-2.5">
+                            <Skeleton className="h-3.5 w-24" />
+                            <Skeleton className="h-4 w-full" />
+                            <Skeleton className="h-4 w-3/5" />
+                        </div>
+                    ))}
+                </div>
             ) : Object.keys(newsData.news).length === 0 ? (
                 <div className="text-center py-20 text-ink-3 font-bold">{t('news.none')}</div>
             ) : (
