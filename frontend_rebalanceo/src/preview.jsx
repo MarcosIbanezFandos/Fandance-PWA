@@ -25,6 +25,7 @@ import { ContributionPlan } from './components/ContributionPlan';
 import { BottomNav } from './components/BottomNav';
 import { RebalanceHistoryPage } from './pages/RebalanceHistoryPage';
 import { Settings } from './pages/Settings';
+import { Mas } from './pages/Mas';
 import { RecordatorioCsv } from './components/RecordatorioCsv';
 import Papa from 'papaparse';
 import { parseTradeRepublicRows } from './lib/trImport';
@@ -150,6 +151,7 @@ function Preview() {
                         { value: 'calc', label: 'Cálculos' },
                         { value: 'movs', label: 'Histor.' },
                         { value: 'ajustes', label: 'Ajustes' },
+                        { value: 'mas', label: 'Más' },
                     ]} />
                     <Button variant="secondary" size="sm" onClick={() => setAvisoAbierto(true)}>Aviso</Button>
                     <Button variant="secondary" size="sm" icon={dark ? Sun : Moon} onClick={() => setDark(d => !d)} />
@@ -194,6 +196,13 @@ function Preview() {
                     minOperacion={100}
                     onCambiarMinOperacion={(v) => console.log('minimo', v)}
                     onImportarTR={async (c) => console.log('aplicar', c)}
+                />
+            ) : view === 'mas' ? (
+                <Mas
+                    portfolios={[{ id: 'p1', name: 'Cartera principal' }, { id: 'p2', name: 'Indexada' }]}
+                    activePortfolio={{ id: 'p1', name: 'Cartera principal' }}
+                    setActivePortfolio={() => { }}
+                    onLogout={() => { }}
                 />
             ) : view === 'ajustes' ? (
                 <Settings
@@ -300,12 +309,7 @@ function Preview() {
                 onCerrar={() => setAvisoAbierto(false)}
             />
 
-            <BottomNav
-                onLogout={() => { }}
-                portfolios={[{ id: 'p1', name: 'Cartera principal' }]}
-                activePortfolio={{ id: 'p1', name: 'Cartera principal' }}
-                setActivePortfolio={() => { }}
-            />
+            <BottomNav />
         </div>
     );
 }

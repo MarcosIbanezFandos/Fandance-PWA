@@ -167,24 +167,32 @@ const normalizarNombre = (s) => String(s || '')
     .trim();
 
 /**
- * Cuánto puede separarse el precio del activo en la app del precio medio pagado
- * según el CSV antes de considerar que no son el mismo instrumento.
+ * A partir de qué diferencia se deja de creer al proveedor de cotizaciones.
  *
- * El precio medio de compra y el precio de hoy difieren por el mercado, y en
- * unos años esa diferencia puede ser grande. Pero un múltiplo de 2 no lo
- * explica el mercado: lo explica que sean clases de participación distintas, o
- * divisas distintas. Ahí es mejor no emparejar que inflar el patrimonio.
+ * Se compara el precio que la app tiene para el activo con el último al que el
+ * bróker ejecutó de verdad. El mercado mueve los precios, pero no los duplica
+ * de una semana para otra: una diferencia así significa que la app tiene el
+ * activo dado de alta con otro ticker, otra clase de participación u otra
+ * divisa.
+ *
+ * En ese caso NO se descarta el emparejamiento —el usuario tiene ese fondo y
+ * quiere verlo— sino que se marca para valorarlo con el precio del bróker, que
+ * es el único que se corresponde con lo que posee.
  */
-export const DESVIO_PRECIO_MAXIMO = 1.0;
+export const DESVIO_PRECIO_MAXIMO = 0.25;
 
-const precioCompatible = (item, pos) => {
+const precioDiscrepa = (item, pos) => {
     const precioApp = safeFloat(item?.current_price);
-    const precioCsv = pos?.unidades > 0 ? pos.coste / pos.unidades : 0;
-    // Sin precio en alguno de los dos lados no hay nada que comprobar.
-    if (precioApp <= 0 || precioCsv <= 0) return true;
+    const precioCsv = pos?.ultimoPrecio > 0
+        ? pos.ultimoPrecio
+        : (pos?.unidades > 0 ? pos.coste / pos.unidades : 0);
+    // Sin precio en alguno de los dos lados no hay nada que comparar; que la
+    // app no tenga cotización ya es motivo suficiente para usar la del CSV.
+    if (precioCsv <= 0) return false;
+    if (precioApp <= 0) return true;
     const mayor = Math.max(precioApp, precioCsv);
     const menor = Math.min(precioApp, precioCsv);
-    return (mayor / menor) - 1 <= DESVIO_PRECIO_MAXIMO;
+    return (mayor / menor) - 1 > DESVIO_PRECIO_MAXIMO;
 };
 
 /**
@@ -205,7 +213,6 @@ export const emparejarPosiciones = (items = [], posCsv = []) => {
     // Una línea del CSV no puede alimentar a dos activos de la app: sería
     // contar el mismo dinero dos veces.
     const yaAsignadas = new Set();
-    const descartadas = [];
 
     for (const it of items) {
         const ticker = String(it.asset?.ticker || '').toUpperCase();
@@ -215,23 +222,22 @@ export const emparejarPosiciones = (items = [], posCsv = []) => {
 
         if (!m || yaAsignadas.has(m.isin)) { sinEmparejar.push(it); continue; }
 
-        // El ISIN es identificador único y no admite discusión. Un cruce por
-        // nombre, en cambio, se comprueba contra el precio antes de aceptarlo.
-        if (!porIsinM && !precioCompatible(it, m)) {
-            descartadas.push({ item: it, csv: m });
-            sinEmparejar.push(it);
-            continue;
-        }
-
         yaAsignadas.add(m.isin);
-        emparejadas.push({ item: it, csv: m, via: porIsinM ? 'isin' : 'nombre' });
+        emparejadas.push({
+            item: it,
+            csv: m,
+            via: porIsinM ? 'isin' : 'nombre',
+            // Si la cotización de la app no se parece a lo que se pagó, la
+            // posición se valora con el precio del bróker.
+            precioDiscrepa: precioDiscrepa(it, m),
+        });
     }
 
     // Lo que hay en el CSV y no está dado de alta en la cartera.
     const usados = new Set(emparejadas.map(e => e.csv.isin));
     const soloEnCsv = posCsv.filter(p => !usados.has(p.isin));
 
-    return { emparejadas, sinEmparejar, soloEnCsv, descartadas };
+    return { emparejadas, sinEmparejar, soloEnCsv };
 };
 
 /* ------------------------------------------------------------------ *

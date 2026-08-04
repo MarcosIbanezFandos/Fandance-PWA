@@ -46,7 +46,7 @@ export const ImportarTR = ({ portfolioItems = [], aportacionesPrevias = [], onAp
 
                     const aportaciones = detectarAportaciones(txs);
                     const posCsv = posicionesDesdeCsv(txs);
-                    const { emparejadas, sinEmparejar, soloEnCsv, descartadas } = emparejarPosiciones(portfolioItems, posCsv);
+                    const { emparejadas, sinEmparejar, soloEnCsv } = emparejarPosiciones(portfolioItems, posCsv);
 
                     // Sólo se ofrecen los cambios reales: si las unidades ya
                     // coinciden, no hay nada que aplicar.
@@ -61,21 +61,20 @@ export const ImportarTR = ({ portfolioItems = [], aportacionesPrevias = [], onAp
 
                     // Precio al que el bróker ejecutó cada activo, para poder
                     // valorar la posición aunque el mercado no dé cotización.
+                    // `preferir` marca los activos que hay que valorar con el
+                    // precio del bróker porque la cotización de la app es de
+                    // otro instrumento.
                     const precios = {};
                     for (const e of emparejadas) {
                         if (e.csv.ultimoPrecio > 0) {
-                            precios[e.item.id] = { precio: e.csv.ultimoPrecio, fecha: e.csv.ultimaFecha };
+                            precios[e.item.id] = {
+                                precio: e.csv.ultimoPrecio,
+                                fecha: e.csv.ultimaFecha,
+                                preferir: !!e.precioDiscrepa,
+                            };
                         }
                     }
-
-                    // Activos cuya cotización no cuadra con lo que se pagó: casi
-                    // siempre es que están dados de alta con otro ticker.
-                    const precioRaro = emparejadas.filter(e => {
-                        const app = safeFloat(e.item.current_price);
-                        const csv = e.csv.ultimoPrecio;
-                        if (app <= 0 || csv <= 0) return false;
-                        return Math.max(app, csv) / Math.min(app, csv) - 1 > 0.15;
-                    });
+                    const precioRaro = emparejadas.filter(e => e.precioDiscrepa);
 
                     setAnalisis({
                         precios, precioRaro,
@@ -85,7 +84,6 @@ export const ImportarTR = ({ portfolioItems = [], aportacionesPrevias = [], onAp
                         aportaciones,
                         nuevas: aportacionesNuevas(aportaciones, aportacionesPrevias),
                         cambios, sinEmparejar, soloEnCsv,
-                        descartadas,
                     });
                 } catch (e) {
                     console.error(e);
@@ -218,17 +216,6 @@ export const ImportarTR = ({ portfolioItems = [], aportacionesPrevias = [], onAp
                                         {e.item.asset?.name}: {formatNumber(safeFloat(e.item.current_price), 2)} €
                                         {' → '}{formatNumber(e.csv.ultimoPrecio, 2)} €
                                     </li>
-                                ))}
-                            </ul>
-                        </Disclosure>
-                    )}
-
-                    {analisis.descartadas?.length > 0 && (
-                        <Disclosure icon={AlertTriangle} tone="warning" title={t('sync.price_mismatch')}>
-                            <p>{t('sync.price_mismatch_hint')}</p>
-                            <ul className="mt-1.5 space-y-0.5">
-                                {analisis.descartadas.map(d => (
-                                    <li key={d.item.id}>{d.item.asset?.name} ↔ {d.csv.nombre}</li>
                                 ))}
                             </ul>
                         </Disclosure>
