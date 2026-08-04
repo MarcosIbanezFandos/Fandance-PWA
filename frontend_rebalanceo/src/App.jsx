@@ -29,6 +29,7 @@ const RebalanceHistoryPage = lazy(() => import('./pages/RebalanceHistoryPage').t
 const Xray = lazy(() => import('./pages/Xray').then(m => ({ default: m.Xray })))
 const Settings = lazy(() => import('./pages/Settings').then(m => ({ default: m.Settings })))
 import { Home } from './pages/Home'
+import { Mas } from './pages/Mas'
 
 const TYPE_COLORS = {
     'Stock': ['#3b82f6', '#60a5fa', '#93c5fd', '#2563eb', '#1d4ed8'],
@@ -376,9 +377,11 @@ function App() {
     const itemsValorados = useMemo(() => {
         const respaldo = contributionPlan?.preciosCsv || {}
         return portfolioItems.map(i => {
-            if (safeFloat(i.current_price) > 0) return i
             const alt = respaldo[i.id]
             if (!alt?.precio) return i
+            // Se usa el precio del bróker si la app no tiene cotización, o si la
+            // que tiene es de otro instrumento (`preferir`).
+            if (safeFloat(i.current_price) > 0 && !alt.preferir) return i
             return {
                 ...i,
                 current_price: alt.precio,
@@ -719,6 +722,14 @@ function App() {
                 <Route path="/performance" element={<Navigate to="/rendimiento" replace />} />
                 <Route path="/news" element={<Navigate to="/noticias" replace />} />
 
+                <Route path="/mas" element={
+                    <Mas
+                        portfolios={portfolios}
+                        activePortfolio={activePortfolio}
+                        setActivePortfolio={setActivePortfolio}
+                        onLogout={cerrarSesion}
+                    />
+                } />
                 <Route path="/analisis" element={<Analysis portfolios={portfolios} activePortfolioId={activePortfolio?.id} />} />
                 <Route path="/simulacion" element={
                     <SimulationView

@@ -66,12 +66,7 @@ export const MainLayout = (props) => {
             </main>
 
             {/* Mobile bottom navigation */}
-            <BottomNav
-                onLogout={props.onLogout}
-                portfolios={props.portfolios}
-                activePortfolio={props.activePortfolio}
-                setActivePortfolio={props.setActivePortfolio}
-            />
+            <BottomNav />
         </div>
     );
 };
