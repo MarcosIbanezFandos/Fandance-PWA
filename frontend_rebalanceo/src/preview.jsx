@@ -16,7 +16,7 @@ if (new URLSearchParams(location.search).has('static')) {
 }
 import './index.css';
 import { GlobalProvider } from './context/GlobalContext';
-import { Card, Button, Segmented } from './components/UI';
+import { Card, Button, Segmented, ChartSkeleton, DonutSkeleton, PageSkeleton, Skeleton } from './components/UI';
 import { Home } from './pages/Home';
 import { Analysis } from './pages/Analysis';
 import { Dashboard } from './components/Dashboard';
@@ -160,7 +160,11 @@ function Preview() {
                     query="" setQuery={() => { }} handleUpdate={() => { }} deleteItem={() => { }}
                     applyRebalance={() => { }} calculating={false} addAsset={() => { }}
                     searchAsset={() => { }} undoRebalance={() => { }} deleteHistoryItem={() => { }}
-                    chartData={[]}
+                    chartData={[
+                        { name: 'iShares Core S&P 500', value: 42000, fill: '#10b981' },
+                        { name: 'iShares Core MSCI World', value: 28000, fill: '#34d399' },
+                        { name: 'US Aggregate Bond', value: 9000, fill: '#f59e0b' },
+                    ]}
                     overrides={overrides}
                     setOverride={(id, v) => setOverrides(o => { const n = { ...o }; if (v === '' || v == null) delete n[id]; else n[id] = safeFloat(v); return n; })}
                     clearOverrides={() => setOverrides({})}
@@ -233,6 +237,15 @@ function Preview() {
                                 </li>
                             ))}
                         </ul>
+                    </Card>
+
+                    <Card>
+                        <h2 className="label-caps mb-3">Huecos de carga</h2>
+                        <div className="space-y-4">
+                            <ChartSkeleton />
+                            <ChartSkeleton height="h-32" barras />
+                            <div className="flex justify-center"><DonutSkeleton /></div>
+                        </div>
                     </Card>
 
                     <ContributionPlan plan={plan} onSave={setPlan} history={HISTORY} savedPlans={plan.savedPlans || []}

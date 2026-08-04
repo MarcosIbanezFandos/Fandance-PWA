@@ -3,7 +3,7 @@ import api from '../api'
 import { AnimatePresence, motion } from 'framer-motion';
 import { Loader2, Scale, Activity, ChevronDown, Check, Info } from 'lucide-react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
-import { GlassCard } from './UI';
+import { GlassCard, ChartSkeleton } from './UI';
 import { useGlobal } from '../context/GlobalContext';
 import { safeFloat, formatNumber } from '../utils';
 
@@ -255,7 +255,7 @@ export const BenchmarkCompare = ({ holdings, period }) => {
             </div>
 
             {loading ? (
-                <div className="h-72 flex items-center justify-center"><Loader2 className="animate-spin text-brand" /></div>
+                <ChartSkeleton height="h-72" />
             ) : !data || !data.series || data.series.length === 0 ? (
                 <>
                     <div className="h-40 flex items-center justify-center text-subhead font-bold text-ink-3">

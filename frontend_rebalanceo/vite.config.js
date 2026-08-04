@@ -4,6 +4,26 @@ import { VitePWA } from 'vite-plugin-pwa'
 
 // https://vite.dev/config/
 export default defineConfig({
+  build: {
+    rollupOptions: {
+      output: {
+        // Las librerías pesadas van en trozos aparte para que un cambio en el
+        // código de la app no obligue a volver a descargarlas, y para que el
+        // arranque no espere a las que sólo usan pantallas concretas.
+        manualChunks: {
+          react: ['react', 'react-dom', 'react-router-dom'],
+          // recharts NO se declara aquí a propósito: un trozo manual se
+          // considera alcanzable desde la entrada y Vite lo precarga, que es
+          // justo lo contrario de lo que se busca. Dejándolo automático,
+          // acaba dentro de los trozos que lo importan de forma diferida.
+          motion: ['framer-motion'],
+          supabase: ['@supabase/supabase-js'],
+        },
+      },
+    },
+    // Con los trozos ya separados, el aviso de 500 kB sólo generaba ruido.
+    chunkSizeWarningLimit: 700,
+  },
   plugins: [
     react(),
     VitePWA({

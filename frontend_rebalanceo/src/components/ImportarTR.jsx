@@ -1,5 +1,4 @@
 import React, { useRef, useState, useCallback } from 'react';
-import Papa from 'papaparse';
 import { FileUp, Check, AlertTriangle, Loader2, ArrowRight } from 'lucide-react';
 import { Card, SectionHeader, Button, Badge, Disclosure } from './UI';
 import { useGlobal } from '../context/GlobalContext';
@@ -28,9 +27,12 @@ export const ImportarTR = ({ portfolioItems = [], rebalanceHistory = [], onAplic
     const [aplicando, setAplicando] = useState(false);
     const [hecho, setHecho] = useState(false);
 
-    const procesar = useCallback((file) => {
+    // papaparse se trae sólo cuando hay un CSV que leer. Es la única pantalla
+    // que lo usa y no tiene por qué pesar en el arranque de la app.
+    const procesar = useCallback(async (file) => {
         if (!file) return;
         setError(''); setHecho(false); setOcupado(true);
+        const { default: Papa } = await import('papaparse');
         Papa.parse(file, {
             header: true,
             skipEmptyLines: true,

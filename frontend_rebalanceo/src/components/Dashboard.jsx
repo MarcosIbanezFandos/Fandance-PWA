@@ -1,11 +1,13 @@
-import React from 'react';
+import React, { lazy, Suspense } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Search, Loader2, ArrowUpRight, ArrowDownRight, Trash2, Calendar, RotateCcw, PlusCircle, History as HistoryIcon, AlertTriangle, CheckCircle2, Target, Undo2 } from 'lucide-react';
-import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer } from 'recharts';
-import { GlassCard, Card, StatTile, CountUp, BounceButton, NumericField, Segmented, fadeInUp, staggerContainer } from './UI';
+import { GlassCard, Card, StatTile, CountUp, BounceButton, NumericField, Segmented, DonutSkeleton, fadeInUp, staggerContainer } from './UI';
 import { safeFloat, formatNumber, formatUnits } from '../utils';
 import { useGlobal } from '../context/GlobalContext';
 import { ImportarTR } from './ImportarTR';
+
+// Igual que en Inicio: el reparto se dibuja cuando llega recharts, no antes.
+const DonutReparto = lazy(() => import('./charts/DonutReparto').then(m => ({ default: m.DonutReparto })));
 import _ from 'lodash';
 
 const TYPE_DOT = {
@@ -412,25 +414,9 @@ export const Dashboard = ({
                             <div className="w-full h-[160px] md:h-[175px] flex items-center justify-center mt-3">
                                 {chartData.length > 0 ? (
                                     <div className="relative w-full h-full">
-                                        <ResponsiveContainer width="100%" height="100%">
-                                            <PieChart>
-                                                <Pie 
-                                                    data={chartData} 
-                                                    cx="50%" cy="100%" 
-                                                    startAngle={180} endAngle={0}
-                                                    innerRadius={104} outerRadius={140}
-                                                    paddingAngle={2} dataKey="value" stroke="none" cornerRadius={4}
-                                                >
-                                                    {chartData.map((e, i) => <Cell key={i} fill={e.fill} />)}
-                                                </Pie>
-                                                <Tooltip
-                                                    contentStyle={{ borderRadius: '16px', border: 'none', boxShadow: '0 10px 30px -5px rgba(0,0,0,0.2)', fontWeight: 'bold', background: '#0f172a', color: '#fff' }}
-                                                    itemStyle={{ color: '#fff', fontSize: '13px' }}
-                                                    labelStyle={{ display: 'none' }}
-                                                    formatter={(val, name) => [`${formatNumber(val)} €`, name]}
-                                                />
-                                            </PieChart>
-                                        </ResponsiveContainer>
+<Suspense fallback={<div className="h-full grid place-items-end justify-center"><DonutSkeleton size="h-[130px] w-[260px] !rounded-t-full !rounded-b-none" /></div>}>
+                                            <DonutReparto data={chartData} />
+                                        </Suspense>
                                         <div className="absolute bottom-1 left-0 w-full text-center pointer-events-none px-4">
                                             <div className="text-caption2 font-semibold text-ink-3">{t('kpi.total_value')}</div>
                                             <div className="text-title1 font-semibold text-ink tracking-tight tabular-nums">{formatNumber(totalValue)} €</div>
