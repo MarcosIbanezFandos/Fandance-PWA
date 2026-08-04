@@ -7,7 +7,7 @@ import { Routes, Route, useNavigate, Navigate } from 'react-router-dom'
 import { supabase } from './supabaseClient'
 import { safeFloat, buildRebalancePlan, roundTo } from './utils'
 import { isAdmin, applyDefaultTargets, DEFAULT_CONTRIBUTION_PLAN } from './config/allocation'
-import { getPrefs, savePrefs, mesActual } from './lib/planStore'
+import { getPrefs, savePrefs, mesActual, planGuardadoAActivo } from './lib/planStore'
 import { guardarTxs, leerTxs, borrarTxs, mesesConAportacion, leerDescarte, guardarDescarte } from './lib/csvStore'
 import { debeAvisar, mesClave } from './lib/recordatorio'
 import { RecordatorioCsv } from './components/RecordatorioCsv'
@@ -89,6 +89,8 @@ function App() {
                 monthly: next.monthly,
                 annualGrowthPct: next.annualGrowthPct,
                 startDate: next.startDate,
+                targetDate: next.targetDate,
+                frequency: next.frequency,
             })
             const { data: { user } } = await supabase.auth.getUser()
             setPrefsUser(user)
@@ -98,6 +100,44 @@ function App() {
             setPlanSaving(false)
         }
     }, [activePortfolio])
+
+    const refrescarPrefs = useCallback(async () => {
+        const { data: { user } } = await supabase.auth.getUser()
+        setPrefsUser(user)
+    }, [])
+
+    const guardarPlanConNombre = useCallback(async (nombre, datos) => {
+        if (!activePortfolio) return
+        // Mismo nombre sustituye, no duplica: renombrar a mano una lista de
+        // planes casi iguales es justo lo que se quiere evitar.
+        const previos = (contributionPlan?.savedPlans || []).filter(g => g.name !== nombre)
+        const nuevo = {
+            id: `${Date.now()}`,
+            name: nombre,
+            monthly: datos.monthly,
+            growth: datos.annualGrowthPct,
+            start: datos.startDate || null,
+            target: datos.targetDate || null,
+            freq: datos.frequency || 'monthly',
+        }
+        try {
+            await savePrefs(activePortfolio.id, { savedPlans: [...previos, nuevo] })
+            await refrescarPrefs()
+        } catch (e) { setPlanError(e?.message || 'No se pudo guardar el plan.') }
+    }, [activePortfolio, contributionPlan, refrescarPrefs])
+
+    const borrarPlanGuardado = useCallback(async (id) => {
+        if (!activePortfolio) return
+        const quedan = (contributionPlan?.savedPlans || []).filter(g => g.id !== id)
+        try {
+            await savePrefs(activePortfolio.id, { savedPlans: quedan })
+            await refrescarPrefs()
+        } catch (e) { setPlanError(e?.message || 'No se pudo borrar el plan.') }
+    }, [activePortfolio, contributionPlan, refrescarPrefs])
+
+    const cargarPlanGuardado = useCallback((g) => {
+        saveContributionPlan(planGuardadoAActivo(g))
+    }, [saveContributionPlan])
 
     const saveInception = useCallback(async (fecha) => {
         if (!activePortfolio) return
@@ -496,6 +536,9 @@ function App() {
                         planError={planError}
                         inception={portfolioInception}
                         onSaveInception={saveInception}
+                        onGuardarPlanConNombre={guardarPlanConNombre}
+                        onBorrarPlanGuardado={borrarPlanGuardado}
+                        onCargarPlanGuardado={cargarPlanGuardado}
                     />
                 } />
                 <Route path="/posiciones" element={
@@ -554,6 +597,9 @@ function App() {
                         planSaving={planSaving}
                         planError={planError}
                         rebalanceHistory={rebalanceHistory}
+                        onGuardarPlanConNombre={guardarPlanConNombre}
+                        onBorrarPlanGuardado={borrarPlanGuardado}
+                        onCargarPlanGuardado={cargarPlanGuardado}
                     />
                 } />
                 <Route path="/rendimiento" element={<Performance portfolios={portfolios} activePortfolioId={activePortfolio?.id} />} />

@@ -15,8 +15,15 @@ import { supabase } from '../supabaseClient';
  *
  * Forma:
  *   user_metadata.portfolio_prefs = {
- *     "<portfolio_id>": { monthly, growth, start, inception }
+ *     "<portfolio_id>": {
+ *       monthly, growth, start, target, freq, inception, pending,
+ *       saved: [{ id, name, monthly, growth, start, target, freq }]
+ *     }
  *   }
+ *
+ * `saved` son los planes con nombre. Caben aquí porque son cuatro números y
+ * una etiqueta; los movimientos del CSV, que sí son voluminosos, van a
+ * localStorage precisamente para no engordar el token.
  */
 const CLAVE = 'portfolio_prefs';
 
@@ -32,6 +39,11 @@ export const getPrefs = (user, portfolioId) => {
         monthly: Number(p.monthly) || 0,
         annualGrowthPct: Number(p.growth) || 0,
         startDate: p.start || null,
+        // Hasta cuándo se aporta. Alimenta los meses futuros de la tarjeta y
+        // el horizonte por defecto de las simulaciones.
+        targetDate: p.target || null,
+        // 'monthly' | 'quarterly' | 'biannual'
+        frequency: p.freq || 'monthly',
         // Fecha desde la que tiene sentido dibujar la cartera. Si no se ha
         // fijado, quien llama usa la creación de la cartera.
         inception: p.inception || null,
@@ -39,8 +51,18 @@ export const getPrefs = (user, portfolioId) => {
         // usuario dejó fijados el día 14-15 y confirma cuando se ejecutan.
         // Se guarda con su mes para que la del mes pasado no reaparezca.
         pending: (p.pending && typeof p.pending === 'object') ? p.pending : null,
+        savedPlans: Array.isArray(p.saved) ? p.saved : [],
     };
 };
+
+/** Un plan guardado, ya normalizado para usarse como plan activo. */
+export const planGuardadoAActivo = (g) => ({
+    monthly: Number(g?.monthly) || 0,
+    annualGrowthPct: Number(g?.growth) || 0,
+    startDate: g?.start || null,
+    targetDate: g?.target || null,
+    frequency: g?.freq || 'monthly',
+});
 
 /** Clave de mes en curso, para no arrastrar la aportación del mes anterior. */
 export const mesActual = (d = new Date()) =>
@@ -62,6 +84,9 @@ export const savePrefs = async (portfolioId, cambios) => {
         ...(cambios.monthly !== undefined ? { monthly: Number(cambios.monthly) || 0 } : {}),
         ...(cambios.annualGrowthPct !== undefined ? { growth: Number(cambios.annualGrowthPct) || 0 } : {}),
         ...(cambios.startDate !== undefined ? { start: cambios.startDate || null } : {}),
+        ...(cambios.targetDate !== undefined ? { target: cambios.targetDate || null } : {}),
+        ...(cambios.frequency !== undefined ? { freq: cambios.frequency || 'monthly' } : {}),
+        ...(cambios.savedPlans !== undefined ? { saved: cambios.savedPlans } : {}),
         ...(cambios.inception !== undefined ? { inception: cambios.inception || null } : {}),
         ...(cambios.pending !== undefined ? { pending: cambios.pending } : {}),
     };

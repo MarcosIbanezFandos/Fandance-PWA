@@ -305,6 +305,58 @@ NumericField.displayName = 'NumericField';
 /* ---------------------------------------------------------------- *
  *  Presentación de datos
  * ---------------------------------------------------------------- */
+
+/**
+ * Slider de rango con la lectura encima.
+ *
+ * El `<input type=range>` a pelo sólo dice una posición; lo que interesa aquí
+ * es a qué equivale esa posición —qué año, qué fecha—, así que el valor
+ * traducido va grande y arriba. La marca opcional señala un punto de
+ * referencia sobre la pista (por ejemplo, la fecha objetivo del plan).
+ */
+export const Slider = ({
+  value, onChange, min = 0, max = 100, step = 1,
+  label, valueLabel, subLabel, marca = null, marcaTitulo = '', className = '',
+}) => {
+  const pct = max > min ? ((value - min) / (max - min)) * 100 : 0;
+  // La marca se esconde cuando el pulgar ya está encima: dibujarla ahí sólo
+  // añade una raya dentro del círculo blanco y no informa de nada nuevo.
+  const cerca = marca != null && Math.abs(marca - value) <= (max - min) * 0.02;
+  const pctMarca = marca != null && max > min && !cerca
+    ? Math.min(100, Math.max(0, ((marca - min) / (max - min)) * 100))
+    : null;
+
+  return (
+    <div className={className}>
+      <div className="flex justify-between items-baseline mb-1.5 gap-3">
+        <span className="text-subhead text-ink">{label}</span>
+        <span className="text-title3 font-semibold text-brand tabular-nums">{valueLabel}</span>
+      </div>
+
+      <div className="relative">
+        <input
+          type="range" min={min} max={max} step={step} value={value}
+          onChange={(e) => onChange(Number(e.target.value))}
+          className="slider-app relative z-0"
+          style={{ '--relleno': `${pct}%` }}
+          aria-label={label}
+        />
+        {pctMarca != null && (
+          // Va por encima de la pista —que es opaca y la taparía— pero sin
+          // capturar toques: es una referencia, no un control.
+          <span
+            className="absolute z-10 top-[11px] w-0.5 h-1.5 rounded-full bg-ink-3 pointer-events-none"
+            style={{ left: `calc(${pctMarca}% + ${(50 - pctMarca) * 0.28}px)` }}
+            title={marcaTitulo}
+          />
+        )}
+      </div>
+
+      {subLabel && <div className="text-caption1 text-ink-3 mt-0.5">{subLabel}</div>}
+    </div>
+  );
+};
+
 export const Badge = ({ children, tone = 'neutral', className = '' }) => {
   const tones = {
     neutral: 'bg-surface-2 text-ink-2 border-line',
