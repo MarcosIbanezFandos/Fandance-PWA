@@ -60,7 +60,16 @@ const HISTORY = [0, 1, 2, 4, 5].map(back => ({
     contribution: back === 2 ? 120 : 300,
 }));
 
-const PLAN = { monthly: 300, annualGrowthPct: 5, startDate: new Date(now.getFullYear() - 1, now.getMonth(), 1).toISOString().slice(0, 10) };
+const PLAN = {
+    monthly: 300, annualGrowthPct: 5,
+    startDate: new Date(now.getFullYear() - 1, now.getMonth(), 1).toISOString().slice(0, 10),
+    targetDate: new Date(now.getFullYear() + 6, now.getMonth(), 1).toISOString().slice(0, 10),
+    frequency: 'monthly',
+    savedPlans: [
+        { id: 'g1', name: 'Agresivo', monthly: 500, growth: 8, freq: 'monthly', target: null },
+        { id: 'g2', name: 'Trimestral', monthly: 900, growth: 0, freq: 'quarterly', target: null },
+    ],
+};
 
 /* Movimientos sintéticos, generados como CSV y leídos por el parser real:
    así el banco de pruebas ejercita el mismo camino que la app. */
@@ -133,6 +142,9 @@ function Preview() {
                     planDefaults={{ monthly: 300, annualGrowthPct: 15 }}
                     onSavePlan={setPlan}
                     rebalanceHistory={HISTORY}
+                    onGuardarPlanConNombre={(n, d) => setPlan(p => ({ ...p, ...d, savedPlans: [...(p.savedPlans||[]), { id: String(Date.now()), name: n, monthly: d.monthly, growth: d.annualGrowthPct, freq: d.frequency, target: d.targetDate }] }))}
+                    onBorrarPlanGuardado={(id) => setPlan(p => ({ ...p, savedPlans: (p.savedPlans||[]).filter(g => g.id !== id) }))}
+                    onCargarPlanGuardado={(g) => setPlan(p => ({ ...p, monthly: g.monthly, annualGrowthPct: g.growth, frequency: g.freq, targetDate: g.target }))}
                 />
             ) : view === 'pos' ? (
                 <Dashboard
@@ -223,7 +235,8 @@ function Preview() {
                         </ul>
                     </Card>
 
-                    <ContributionPlan plan={plan} onSave={setPlan} history={HISTORY} />
+                    <ContributionPlan plan={plan} onSave={setPlan} history={HISTORY} savedPlans={plan.savedPlans || []}
+                        onGuardarConNombre={() => {}} onBorrarGuardado={() => {}} onCargarGuardado={() => {}} />
                 </div>
             )}
 

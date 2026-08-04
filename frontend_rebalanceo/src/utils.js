@@ -822,8 +822,24 @@ export const planAmountFor = (plan, date = new Date()) => {
     const start = plan.startDate ? new Date(plan.startDate) : new Date();
     const m = monthsBetween(start, date);
     if (m < 0) return 0;
+    // Con periodicidad trimestral o semestral, los meses intermedios no tocan.
+    // Devolver 0 —y no el importe— es lo que impide que se cuenten como meses
+    // incumplidos en el seguimiento.
+    if (m % pasoPlan(plan) !== 0) return 0;
     const annualFactor = Math.max(0, 1 + safeFloat(plan.annualGrowthPct) / 100);
     return Math.round(safeFloat(plan.monthly) * Math.pow(Math.pow(annualFactor, 1 / 12), m));
+};
+
+/** Cada cuántos meses toca aportar. */
+export const PERIODICIDADES = { monthly: 1, quarterly: 3, biannual: 6 };
+export const pasoPlan = (plan) => PERIODICIDADES[plan?.frequency] || 1;
+
+/** ¿Toca aportar en ese mes? */
+export const esMesDeAporte = (plan, date = new Date()) => {
+    if (!plan || safeFloat(plan.monthly) <= 0) return false;
+    const start = plan.startDate ? new Date(plan.startDate) : new Date();
+    const m = monthsBetween(start, date);
+    return m >= 0 && m % pasoPlan(plan) === 0;
 };
 
 /**
@@ -875,13 +891,17 @@ export const buildPlanStatus = ({ plan, history = [], months = 12, ahead = 0, no
         // redondeo, no un incumplimiento real: un 5% por debajo sigue siendo
         // parcial, que es justo lo que hay que ver.
         const tolerance = Math.max(1, planned * 0.01);
+        const toca = esMesDeAporte(plan, d);
         rows.push({
             key: monthKey(d),
             date: d,
             planned,
             contributed,
             done: planned > 0 && contributed >= planned - tolerance,
-            partial: contributed > 0 && contributed < planned - tolerance,
+            partial: toca && contributed > 0 && contributed < planned - tolerance,
+            // Los meses en que no toca aportar no son un incumplimiento: se
+            // pintan aparte para no leerse como huecos del plan.
+            noAplica: !toca,
             isCurrent,
             isFuture,
         });
@@ -899,6 +919,7 @@ export const buildPlanStatus = ({ plan, history = [], months = 12, ahead = 0, no
             contributed: 0,
             done: false,
             partial: false,
+            noAplica: !esMesDeAporte(plan, d),
             isCurrent: false,
             isFuture: true,
         });

@@ -213,3 +213,70 @@ html, body {
     transition-duration: 0.01ms !important;
   }
 }
+
+/* ------------------------------------------------------------------ *
+ *  Slider
+ *  El range del navegador trae un pulgar diminuto y una pista gris que
+ *  no dice hasta dónde has llegado. Aquí: pista rellena hasta la
+ *  posición y pulgar de 28px, que es lo que se puede arrastrar con el
+ *  dedo sin apuntar.
+ * ------------------------------------------------------------------ */
+.slider-app {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 100%;
+  height: 28px;
+  background: transparent;
+  cursor: pointer;
+}
+
+.slider-app::-webkit-slider-runnable-track {
+  height: 6px;
+  border-radius: 999px;
+  background: linear-gradient(
+    to right,
+    rgb(var(--c-brand)) var(--relleno, 0%),
+    rgb(var(--c-surface-3)) var(--relleno, 0%)
+  );
+}
+
+.slider-app::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 28px;
+  height: 28px;
+  margin-top: -11px;
+  border-radius: 999px;
+  background: #fff;
+  border: 1px solid rgb(var(--c-line));
+  box-shadow: 0 1px 3px rgb(0 0 0 / 0.16), 0 4px 10px rgb(0 0 0 / 0.10);
+  transition: transform 120ms ease;
+}
+
+.slider-app:active::-webkit-slider-thumb { transform: scale(1.08); }
+
+.slider-app::-moz-range-track {
+  height: 6px;
+  border-radius: 999px;
+  background: rgb(var(--c-surface-3));
+}
+
+.slider-app::-moz-range-progress {
+  height: 6px;
+  border-radius: 999px;
+  background: rgb(var(--c-brand));
+}
+
+.slider-app::-moz-range-thumb {
+  width: 26px;
+  height: 26px;
+  border-radius: 999px;
+  background: #fff;
+  border: 1px solid rgb(var(--c-line));
+  box-shadow: 0 1px 3px rgb(0 0 0 / 0.16), 0 4px 10px rgb(0 0 0 / 0.10);
+}
+
+.slider-app:focus-visible::-webkit-slider-thumb {
+  outline: 2px solid rgb(var(--c-brand));
+  outline-offset: 2px;
+}
