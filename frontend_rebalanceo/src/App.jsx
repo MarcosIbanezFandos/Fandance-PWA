@@ -11,6 +11,7 @@ import { getPrefs, savePrefs, mesActual, planGuardadoAActivo } from './lib/planS
 import { guardarTxs, leerTxs, borrarTxs, mesesConAportacion, leerDescarte, guardarDescarte, borrarTodoElCsv } from './lib/csvStore'
 import { debeAvisar, mesClave } from './lib/recordatorio'
 import { aportadoPorMes, detectarAportaciones } from './lib/trImport'
+import { evaluarReajuste } from './lib/reglasReajuste'
 import { RecordatorioCsv } from './components/RecordatorioCsv'
 import { PageSkeleton } from './components/UI'
 import { AuthScreen } from './components/AuthScreen'
@@ -143,6 +144,30 @@ function App() {
     const cargarPlanGuardado = useCallback((g) => {
         saveContributionPlan(planGuardadoAActivo(g))
     }, [saveContributionPlan])
+
+    // Volatilidad del mercado. Se consulta una vez por sesión: el VIX no se
+    // mueve tanto como para justificar pedirlo en cada render, y si falla se
+    // sigue con la banda normal.
+    const [vixAlto, setVixAlto] = useState(false)
+    useEffect(() => {
+        if (!session) return
+        api.get(`${import.meta.env.VITE_API_URL}/mercado/volatilidad`)
+            .then(r => setVixAlto(!!r.data?.alto))
+            .catch(() => setVixAlto(false))
+    }, [session])
+
+    // Mínimo por operación: 100 € es el de Indexa. Se puede bajar si el bróker
+    // ejecuta plan automático sobre todos los fondos cada mes, como hace Trade
+    // Republic, donde partir la aportación no cuesta comisiones.
+    const minOperacion = contributionPlan?.minOperacion ?? 100
+
+    const guardarMinOperacion = useCallback(async (valor) => {
+        if (!activePortfolio) return
+        try {
+            await savePrefs(activePortfolio.id, { minOperacion: valor })
+            await refrescarPrefs()
+        } catch (e) { setPlanError(e?.message || 'No se pudo guardar el mínimo.') }
+    }, [activePortfolio, refrescarPrefs])
 
     const saveInception = useCallback(async (fecha) => {
         if (!activePortfolio) return
@@ -309,12 +334,18 @@ function App() {
     }, [activePortfolio])
 
     const plan = useMemo(
-        () => buildRebalancePlan(portfolioItems, contribution, rebalanceMode, overrides),
-        [portfolioItems, contribution, rebalanceMode, overrides]
+        () => buildRebalancePlan(portfolioItems, contribution, rebalanceMode, overrides, minOperacion),
+        [portfolioItems, contribution, rebalanceMode, overrides, minOperacion]
     );
     const tableData = useMemo(
         () => _.orderBy(plan.rows, [r => safeFloat(r.value)], ['desc']),
         [plan]
+    );
+
+    // Si toca reajustar según el criterio de Indexa, y por qué.
+    const evaluacionReajuste = useMemo(
+        () => evaluarReajuste(tableData, { vixAlto }),
+        [tableData, vixAlto]
     );
 
     // --- ACTIONS ---
@@ -597,6 +628,9 @@ function App() {
                             chartData={chartData}
                             onImportarTR={aplicarImportacionTR}
                             aportacionesPrevias={aportacionesPrevias}
+                            evaluacionReajuste={evaluacionReajuste}
+                            minOperacion={minOperacion}
+                            onCambiarMinOperacion={guardarMinOperacion}
                             overrides={overrides}
                             setOverride={setOverride}
                             clearOverrides={clearOverrides}

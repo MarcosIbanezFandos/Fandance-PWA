@@ -1,3 +1,5 @@
+import { umbralActivo, repartirConMinimo, OPERACION_MINIMA } from './lib/reglasReajuste.js';
+
 export const safeFloat = (input) => {
     if (input === null || input === undefined || input === '') return 0;
     const strVal = String(input).replace(',', '.');
@@ -560,7 +562,7 @@ export const ttwror = (evolution) => {
  * Fijar uno y poner el resto a 0 es lo que permite aportar a un solo activo,
  * que antes era imposible: el reparto siempre tocaba todo.
  */
-export const buildRebalancePlan = (items, contributionInput, mode = 'contribute', overrides = {}) => {
+export const buildRebalancePlan = (items, contributionInput, mode = 'contribute', overrides = {}, minimo = OPERACION_MINIMA) => {
     const list = Array.isArray(items) ? items : [];
     const contribution = Math.max(0, safeFloat(contributionInput));
 
@@ -597,20 +599,25 @@ export const buildRebalancePlan = (items, contributionInput, mode = 'contribute'
         });
     } else {
         // Sólo aportar: nunca vende, y gasta exactamente lo repartible.
+        //
+        // El reparto sale de la necesidad de cada fondo, pero pasa por el
+        // mínimo por operación: dividir la aportación del mes en cinco compras
+        // de 12 € son cinco comisiones y ningún efecto sobre los pesos. Lo que
+        // no llega al mínimo se reasigna al que más lo necesita.
         const deficits = libres.map((i) => Math.max(0, futureTotal * frac(i) - safeFloat(i.value)));
         const sumDef = deficits.reduce((a, b) => a + b, 0);
 
-        if (repartible <= 0) {
-            libres.forEach((i) => allocations.set(i.id, 0));
-        } else if (sumDef <= 1e-9) {
-            const fracLibre = libres.reduce((s, i) => s + frac(i), 0) || 1;
-            libres.forEach((i) => allocations.set(i.id, repartible * (frac(i) / fracLibre)));
-        } else if (sumDef <= repartible) {
-            const leftover = repartible - sumDef;
-            const fracLibre = libres.reduce((s, i) => s + frac(i), 0) || 1;
-            libres.forEach((i, idx) => allocations.set(i.id, deficits[idx] + leftover * (frac(i) / fracLibre)));
-        } else {
-            libres.forEach((i, idx) => allocations.set(i.id, repartible * (deficits[idx] / sumDef)));
+        libres.forEach((i) => allocations.set(i.id, 0));
+
+        if (repartible > 0) {
+            // Sin déficit en ningún sitio, se reparte por peso objetivo; con
+            // déficit, la necesidad manda.
+            const pesos = {};
+            libres.forEach((i, idx) => {
+                pesos[i.id] = sumDef <= 1e-9 ? frac(i) : deficits[idx];
+            });
+            const reparto = repartirConMinimo(pesos, repartible, minimo);
+            Object.entries(reparto).forEach(([id, v]) => allocations.set(id, v));
         }
     }
 
@@ -714,18 +721,29 @@ export const computeDrift = (items = []) => {
     };
 };
 
-/** Umbral clásico de la regla 5/25 de Larimore, en puntos porcentuales. */
-export const driftBand = (targetPct) => {
-    const t = safeFloat(targetPct);
-    // Para pesos grandes manda el 5 absoluto; para los pequeños, el 25% relativo.
-    return Math.min(5, Math.max(1, t * 0.25));
-};
+/**
+ * Umbral de reajuste, en puntos porcentuales.
+ *
+ * Antes se usaba la regla 5/25 de Larimore, que depende del peso objetivo de
+ * cada fondo. Ahora se sigue el criterio de Indexa, que depende del tamaño de
+ * la cartera: es el mismo umbral para todos los fondos y se estrecha al pasar
+ * de 100.000 €, porque a partir de ahí el coste de operar pesa menos frente al
+ * beneficio de estar bien ajustado.
+ *
+ * `contexto` permite pasar el estado real de la cartera (volatilidad, desvío
+ * agregado). Sin él se devuelve el umbral base, que es lo correcto para una
+ * fila suelta.
+ */
+export const driftBand = (patrimonio, contexto = {}) =>
+    umbralActivo({ patrimonio, ...contexto });
 
-export const driftSeverity = (row) => {
+export const driftSeverity = (row, patrimonio = 0, contexto = {}) => {
     if (!row) return 'ok';
-    const band = driftBand(row.target);
-    if (row.absDrift >= band * 1.5) return 'high';
-    if (row.absDrift >= band) return 'warn';
+    const band = driftBand(patrimonio, { clase: row.clase, ...contexto });
+    // Fuera de banda es fuera de banda: el aviso rojo se reserva para el doble,
+    // donde ya no es deriva sino una cartera que dejó de parecerse al plan.
+    if (row.absDrift >= band * 2) return 'high';
+    if (row.absDrift > band) return 'warn';
     return 'ok';
 };
 

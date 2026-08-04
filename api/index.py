@@ -18,6 +18,9 @@ SUPABASE_KEY = os.getenv("SUPABASE_KEY", "")
 
 # Orígenes autorizados. "*" junto a allow_credentials=True no es válido y deja
 # que cualquier web haga peticiones autenticadas en nombre del usuario.
+# Umbral de VIX a partir del cual Indexa ensancha la banda de reajuste.
+VIX_UMBRAL = 35.0
+
 ALLOWED_ORIGINS = [
     o.strip() for o in os.getenv(
         "ALLOWED_ORIGINS",
@@ -1381,5 +1384,38 @@ def seed_defaults(user_id: str = Seed):
     except Exception as e:
         print(f"SEED ERROR: {e}")
         raise HTTPException(500, "No se pudieron crear las carteras de ejemplo")
+
+@app.get("/api/mercado/volatilidad")
+def volatilidad_mercado(user_id: str = External):
+    """VIX de las últimas sesiones y si procede ensanchar la banda de reajuste.
+
+    Indexa ensancha el umbral 0,5 p.p. cuando el VIX supera 35 durante más de
+    tres días hábiles. Se mira una ventana corta y se cuentan los cierres por
+    encima del umbral: pedir tres *consecutivos* dejaría fuera un pico que baja
+    un día y vuelve a subir, que es exactamente el mercado revuelto que la regla
+    quiere cubrir.
+
+    Si Yahoo no responde se devuelve `alto=False`: ante la duda, la banda normal.
+    Ensanchar por un fallo de red significaría dejar de avisar de desviaciones
+    reales.
+    """
+    try:
+        hist = yf.Ticker("^VIX").history(period="1mo")["Close"].dropna()
+        if hist.empty:
+            return {"disponible": False, "alto": False, "ultimo": None, "dias_por_encima": 0}
+        ultimos = [float(x) for x in hist.tail(10)]
+        recientes = ultimos[-6:]
+        por_encima = sum(1 for v in recientes if v > VIX_UMBRAL)
+        return {
+            "disponible": True,
+            "alto": por_encima > 3,
+            "ultimo": round(ultimos[-1], 2),
+            "dias_por_encima": por_encima,
+            "umbral": VIX_UMBRAL,
+        }
+    except Exception as e:
+        print(f"VIX ERROR: {e}")
+        return {"disponible": False, "alto": False, "ultimo": None, "dias_por_encima": 0}
+
 
 # --- Vercel Serverless Handler ---

@@ -27,6 +27,7 @@ import { RebalanceHistoryPage } from './pages/RebalanceHistoryPage';
 import { RecordatorioCsv } from './components/RecordatorioCsv';
 import Papa from 'papaparse';
 import { parseTradeRepublicRows } from './lib/trImport';
+import { evaluarReajuste } from './lib/reglasReajuste';
 import { buildXray, computeOverlap, computeConcentration, computeDrift, buildPlanStatus, formatNumber, buildRebalancePlan, safeFloat } from './utils';
 import { Sun, Moon } from 'lucide-react';
 
@@ -175,6 +176,9 @@ function Preview() {
                     overrides={overrides}
                     setOverride={(id, v) => setOverrides(o => { const n = { ...o }; if (v === '' || v == null) delete n[id]; else n[id] = safeFloat(v); return n; })}
                     clearOverrides={() => setOverrides({})}
+                    evaluacionReajuste={evaluarReajuste(ITEMS.map(i => ({ ...i, target_weight: i.targetWeight })), { vixAlto: dark })}
+                    minOperacion={100}
+                    onCambiarMinOperacion={(v) => console.log('minimo', v)}
                     onImportarTR={async (c) => console.log('aplicar', c)}
                 />
             ) : view === 'movs' ? (
