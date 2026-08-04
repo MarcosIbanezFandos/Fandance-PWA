@@ -449,43 +449,56 @@ function App() {
     // A diferencia de persistItem, aquí los fallos se propagan: el importador
     // sólo puede decir "actualizado" si el backend lo confirmó.
     const aplicarImportacionTR = async (cambios, contexto = {}) => {
-        // El CSV se guarda aunque no cambie ninguna unidad: es lo que alimenta
-        // el histórico de movimientos y silencia el aviso del mes.
-        if (contexto.movimientos && activePortfolio) {
-            // Se guarda como un fichero más: sólo entra lo que no estuviera ya.
+        if (!activePortfolio) return;
+
+        // 1. El CSV se guarda aunque no cambie ninguna unidad: es lo que
+        //    alimenta el histórico y silencia el aviso del mes.
+        if (contexto.movimientos) {
             anadirCarga(activePortfolio.id, {
                 nombre: contexto.nombreFichero,
                 txs: contexto.movimientos,
             });
             recargarCsv(activePortfolio.id);
             setAvisoCerrado(true);
-            if (contexto.precios && Object.keys(contexto.precios).length) {
-                try {
-                    await savePrefs(activePortfolio.id, {
-                        preciosCsv: { ...(contributionPlan?.preciosCsv || {}), ...contexto.precios },
-                    });
-                    await refrescarPrefs();
-                } catch (e) { console.error(e); }
-            }
         }
-        if (!cambios?.length) return;
-        const porId = new Map(cambios.map(c => [c.id, safeFloat(c.unidades)]));
 
-        const actualizados = portfolioItems.map(i => {
-            if (!porId.has(i.id)) return i;
-            const u = porId.get(i.id);
-            return { ...i, units_held: u, value: roundTo(u * safeFloat(i.current_price), 2) };
-        });
-
-        await Promise.all(actualizados
-            .filter(i => porId.has(i.id))
-            .map(i => api.put(`${import.meta.env.VITE_API_URL}/portfolio/update`, {
-                item_id: i.id,
-                units_held: safeFloat(i.units_held),
-                target_weight: safeFloat(i.target_weight),
+        // 2. Las unidades, que es lo que el usuario ha aceptado aplicar.
+        if (cambios?.length) {
+            await Promise.all(cambios.map(c => api.put(`${import.meta.env.VITE_API_URL}/portfolio/update`, {
+                item_id: c.id,
+                units_held: safeFloat(c.unidades),
+                target_weight: safeFloat(portfolioItems.find(i => i.id === c.id)?.target_weight),
             })));
+        }
 
-        setPortfolioItems(actualizados);
+        // 3. Los activos cuya cotización no se corresponde con lo que se pagó se
+        //    reapuntan a un símbolo que cotice de verdad, usando el ISIN del CSV.
+        //    Si se consigue, el precio pasa a ser en vivo y el del bróker queda
+        //    sólo de respaldo.
+        const resueltos = new Set();
+        for (const r of contexto.aResolver || []) {
+            try {
+                const res = await api.post(`${import.meta.env.VITE_API_URL}/assets/resolver_isin`, r);
+                if (res.data?.resuelto) resueltos.add(r.item_id);
+            } catch (e) { /* sin cotización se sigue con el precio del bróker */ }
+        }
+
+        if (contexto.precios && Object.keys(contexto.precios).length) {
+            const precios = { ...contexto.precios };
+            for (const id of resueltos) {
+                if (precios[id]) precios[id] = { ...precios[id], preferir: false };
+            }
+            try {
+                await savePrefs(activePortfolio.id, {
+                    preciosCsv: { ...(contributionPlan?.preciosCsv || {}), ...precios },
+                });
+                await refrescarPrefs();
+            } catch (e) { console.error(e); }
+        }
+
+        // 4. Una sola recarga al final, con los tickers ya corregidos: así los
+        //    precios que se pintan son los del activo bueno.
+        await loadItems(activePortfolio.id);
     };
 
     // Set every asset to the same target weight (adds up to 100%).

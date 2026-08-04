@@ -76,6 +76,12 @@ export const ImportarTR = ({ portfolioItems = [], aportacionesPrevias = [], onAp
                     }
                     const precioRaro = emparejadas.filter(e => e.precioDiscrepa);
 
+                    // Activos que conviene reapuntar a un símbolo con cotización
+                    // real. El ISIN del CSV identifica el fondo sin ambigüedad.
+                    const aResolver = precioRaro
+                        .filter(e => e.csv.isin && e.csv.ultimoPrecio > 0)
+                        .map(e => ({ item_id: e.item.id, isin: e.csv.isin, precio_ref: e.csv.ultimoPrecio }));
+
                     setAnalisis({
                         precios, precioRaro,
                         txs: txs.length,
@@ -83,7 +89,7 @@ export const ImportarTR = ({ portfolioItems = [], aportacionesPrevias = [], onAp
                         nombreFichero: file.name,
                         aportaciones,
                         nuevas: aportacionesNuevas(aportaciones, aportacionesPrevias),
-                        cambios, sinEmparejar, soloEnCsv,
+                        cambios, sinEmparejar, soloEnCsv, aResolver,
                     });
                 } catch (e) {
                     console.error(e);
@@ -105,6 +111,7 @@ export const ImportarTR = ({ portfolioItems = [], aportacionesPrevias = [], onAp
                     aportaciones: analisis.aportaciones,
                     nombreFichero: analisis.nombreFichero,
                     precios: analisis.precios,
+                    aResolver: analisis.aResolver,
                 },
             );
             setHecho(true);
