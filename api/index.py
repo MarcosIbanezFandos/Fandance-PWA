@@ -1500,7 +1500,7 @@ def resolver_isin(data: ResolverIsinInput, user_id: str = External):
         raise HTTPException(502, "No se pudo consultar el proveedor de cotizaciones")
 
     mejor, mejor_puntos, mejor_desvio, mejor_precio = None, None, None, 0.0
-    for sym in candidatos[:6]:
+    for sym in candidatos[:5]:
         precio = fetch_live_price(sym)
         if precio <= 0:
             continue
