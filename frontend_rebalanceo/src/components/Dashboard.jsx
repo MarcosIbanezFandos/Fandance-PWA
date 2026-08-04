@@ -103,29 +103,6 @@ export const Dashboard = ({
                 <StatTile label={t('kpi.composition')} value={portfolioItems.length} sub={assetSummary} />
             </div>
 
-            {/* 2. SEARCH — full width */}
-            <motion.div variants={fadeInUp} className="relative z-50">
-                    <div className="bg-surface p-4 rounded-card shadow-card relative z-50">
-                        <div className="relative flex items-center gap-2 bg-surface-2 rounded-control px-3.5 h-11 focus-within:bg-surface-3 transition-colors">
-                            <Search className="text-ink-3 shrink-0" size={17} strokeWidth={2} />
-                            <input className="bg-transparent w-full outline-none text-body text-ink placeholder:text-ink-3" enterKeyHint="search" onKeyDown={e => { if (e.key === "Enter") e.currentTarget.blur(); }} placeholder={t('dash.search')} value={query} onChange={e => { setQuery(e.target.value); searchAsset(e.target.value) }} />
-                            {isSearching && <Loader2 className="animate-spin text-brand" size={18} />}
-                        </div>
-                        <AnimatePresence>
-                            {searchResults.length > 0 && (
-                                <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} className="absolute top-full left-0 right-0 mt-3 bg-surface rounded-card shadow-pop border border-line max-h-80 overflow-y-auto z-[100]">
-                                    {searchResults.map(r => (
-                                        <div key={r.ticker} onClick={() => addAsset(r)} className="p-4 hover:bg-indigo-50 dark:hover:bg-slate-700 cursor-pointer flex justify-between items-center border-b border-line last:border-0 transition-colors">
-                                            <div><div className="font-bold text-footnote text-ink">{r.name}</div><div className="text-caption2 font-semibold text-brand">{r.ticker} • {r.type_display}</div></div>
-                                            <PlusCircle size={18} className="text-brand" />
-                                        </div>
-                                    ))}
-                                </motion.div>
-                            )}
-                        </AnimatePresence>
-                    </div>
-                </motion.div>
-
                 {/* Sincronización con el bróker. Va antes del plan porque el
                     reparto sólo tiene sentido sobre las unidades reales. */}
                 {onImportarTR && (
@@ -400,6 +377,30 @@ export const Dashboard = ({
                                 {calculating ? <Loader2 className="animate-spin" /> : (rebalanceMode === 'contribute' ? t('dash.apply_contribute') : t('dash.apply_full'))}
                             </BounceButton>
                         </div>
+                    </div>
+                </motion.div>
+
+                {/* Alta de activos. Va al final por frecuencia de uso: se
+                    toca un par de veces al año, no cada mes. */}
+            <motion.div variants={fadeInUp} className="relative z-50">
+                    <div className="bg-surface p-4 rounded-card shadow-card relative z-50">
+                        <div className="relative flex items-center gap-2 bg-surface-2 rounded-control px-3.5 h-11 focus-within:bg-surface-3 transition-colors">
+                            <Search className="text-ink-3 shrink-0" size={17} strokeWidth={2} />
+                            <input className="bg-transparent w-full outline-none text-body text-ink placeholder:text-ink-3" enterKeyHint="search" onKeyDown={e => { if (e.key === "Enter") e.currentTarget.blur(); }} placeholder={t('dash.search')} value={query} onChange={e => { setQuery(e.target.value); searchAsset(e.target.value) }} />
+                            {isSearching && <Loader2 className="animate-spin text-brand" size={18} />}
+                        </div>
+                        <AnimatePresence>
+                            {searchResults.length > 0 && (
+                                <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} className="absolute top-full left-0 right-0 mt-3 bg-surface rounded-card shadow-pop border border-line max-h-80 overflow-y-auto z-[100]">
+                                    {searchResults.map(r => (
+                                        <div key={r.ticker} onClick={() => addAsset(r)} className="p-4 hover:bg-indigo-50 dark:hover:bg-slate-700 cursor-pointer flex justify-between items-center border-b border-line last:border-0 transition-colors">
+                                            <div><div className="font-bold text-footnote text-ink">{r.name}</div><div className="text-caption2 font-semibold text-brand">{r.ticker} • {r.type_display}</div></div>
+                                            <PlusCircle size={18} className="text-brand" />
+                                        </div>
+                                    ))}
+                                </motion.div>
+                            )}
+                        </AnimatePresence>
                     </div>
                 </motion.div>
 
