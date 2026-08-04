@@ -183,7 +183,12 @@ export const Dashboard = ({
                                                 <span className={`w-2 h-2 rounded-full shrink-0 ${dotM}`} />
                                                 <div className="min-w-0">
                                                     <div className="font-bold text-subhead text-ink truncate">{item.asset?.name || item.asset?.ticker}</div>
-                                                    <div className="text-caption2 font-bold text-indigo-400">{item.asset?.ticker} · {formatNumber(item.current_price, 2)}€</div>
+                                                    <div className="text-caption2 font-semibold text-brand">
+                                                        {item.asset?.ticker} · {formatNumber(item.current_price, 2)}€
+                                                        {item.precioDeCsv && (
+                                                            <span className="text-ink-3 font-normal"> · {t('pos.precio_csv')}</span>
+                                                        )}
+                                                    </div>
                                                 </div>
                                             </div>
                                             {/* Importe editable. Fijar uno y poner el resto a 0
@@ -300,7 +305,12 @@ export const Dashboard = ({
                                                             </div>
                                                         </div>
                                                     </td>
-                                                    <td className="p-3 text-right text-footnote font-mono text-ink-3 whitespace-nowrap">{formatNumber(item.current_price, 2)}€</td>
+                                                    <td className="p-3 text-right text-footnote font-mono text-ink-3 whitespace-nowrap">
+                                                        {formatNumber(item.current_price, 2)}€
+                                                        {item.precioDeCsv && (
+                                                            <span className="block text-caption2 font-sans text-ink-3">{t('pos.precio_csv')}</span>
+                                                        )}
+                                                    </td>
                                                     <td className="p-3 text-center">
                                                         <input className="w-16 h-10 bg-surface-2 text-ink rounded-field px-2 text-center text-subhead font-semibold tabular-nums outline-none focus:bg-surface-3 transition-colors" value={item.units_held} onChange={e => handleUpdate(item.id, 'units_held', e.target.value)} onFocus={e => e.target.select()} />
                                                     </td>

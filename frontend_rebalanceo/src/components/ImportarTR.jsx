@@ -59,7 +59,26 @@ export const ImportarTR = ({ portfolioItems = [], aportacionesPrevias = [], onAp
                         }))
                         .filter(c => Math.abs(c.delta) > 1e-6);
 
+                    // Precio al que el bróker ejecutó cada activo, para poder
+                    // valorar la posición aunque el mercado no dé cotización.
+                    const precios = {};
+                    for (const e of emparejadas) {
+                        if (e.csv.ultimoPrecio > 0) {
+                            precios[e.item.id] = { precio: e.csv.ultimoPrecio, fecha: e.csv.ultimaFecha };
+                        }
+                    }
+
+                    // Activos cuya cotización no cuadra con lo que se pagó: casi
+                    // siempre es que están dados de alta con otro ticker.
+                    const precioRaro = emparejadas.filter(e => {
+                        const app = safeFloat(e.item.current_price);
+                        const csv = e.csv.ultimoPrecio;
+                        if (app <= 0 || csv <= 0) return false;
+                        return Math.max(app, csv) / Math.min(app, csv) - 1 > 0.15;
+                    });
+
                     setAnalisis({
+                        precios, precioRaro,
                         txs: txs.length,
                         movimientos: txs,
                         nombreFichero: file.name,
@@ -87,6 +106,7 @@ export const ImportarTR = ({ portfolioItems = [], aportacionesPrevias = [], onAp
                     movimientos: analisis.movimientos,
                     aportaciones: analisis.aportaciones,
                     nombreFichero: analisis.nombreFichero,
+                    precios: analisis.precios,
                 },
             );
             setHecho(true);
@@ -187,6 +207,20 @@ export const ImportarTR = ({ portfolioItems = [], aportacionesPrevias = [], onAp
                         </div>
                     ) : (
                         <p className="text-footnote text-ink-2">{t('sync.up_to_date')}</p>
+                    )}
+
+                    {analisis.precioRaro?.length > 0 && (
+                        <Disclosure icon={AlertTriangle} tone="warning" title={t('sync.stale_price')}>
+                            <p>{t('sync.stale_price_hint')}</p>
+                            <ul className="mt-1.5 space-y-0.5 tabular-nums">
+                                {analisis.precioRaro.map(e => (
+                                    <li key={e.item.id}>
+                                        {e.item.asset?.name}: {formatNumber(safeFloat(e.item.current_price), 2)} €
+                                        {' → '}{formatNumber(e.csv.ultimoPrecio, 2)} €
+                                    </li>
+                                ))}
+                            </ul>
+                        </Disclosure>
                     )}
 
                     {analisis.descartadas?.length > 0 && (

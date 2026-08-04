@@ -101,7 +101,10 @@ export const posicionesDesdeCsv = (txs) => {
     for (const t of operaciones(txs)) {
         const clave = t.isin;
         if (!clave) continue;
-        const p = pos.get(clave) || { isin: clave, nombre: t.nombre, unidades: 0, coste: 0, ops: 0 };
+        const p = pos.get(clave) || {
+            isin: clave, nombre: t.nombre, unidades: 0, coste: 0, ops: 0,
+            ultimoPrecio: 0, ultimaFecha: null,
+        };
         if (t.tipo === 'BUY') {
             p.unidades += t.unidades;
             p.coste += Math.abs(t.importe);
@@ -115,6 +118,13 @@ export const posicionesDesdeCsv = (txs) => {
         }
         p.ops += 1;
         p.nombre = p.nombre || t.nombre;
+        // Último precio al que Trade Republic ejecutó. Es la mejor referencia
+        // que hay del valor real de la participación cuando el proveedor de
+        // cotizaciones no reconoce el activo.
+        if (t.precio > 0 && (!p.ultimaFecha || t.fecha >= p.ultimaFecha)) {
+            p.ultimoPrecio = t.precio;
+            p.ultimaFecha = t.fecha;
+        }
         pos.set(clave, p);
     }
     return [...pos.values()]
