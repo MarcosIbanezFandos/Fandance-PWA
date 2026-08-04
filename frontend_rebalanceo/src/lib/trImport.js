@@ -179,3 +179,37 @@ export const emparejarPosiciones = (items = [], posCsv = []) => {
 
     return { emparejadas, sinEmparejar, soloEnCsv };
 };
+
+/* ------------------------------------------------------------------ *
+ *  Puente hacia las métricas de rentabilidad
+ * ------------------------------------------------------------------ */
+
+/**
+ * Traduce los movimientos normalizados al formato que espera
+ * `computeMetricsForPeriod`.
+ *
+ * Existe para que el CSV se suba una sola vez: rentabilidad y posiciones beben
+ * del mismo almacén en vez de pedir el fichero cada una por su lado.
+ */
+export const aFormatoMetricas = (txs = []) => txs.map(t => ({
+    date: new Date(t.datetime || `${t.fecha}T12:00:00`),
+    type: t.tipo,
+    category: t.categoria,
+    // En TRADING el símbolo es el ISIN; si falta, el nombre sirve de clave
+    // estable para el seguimiento de coste medio.
+    symbol: t.isin || t.nombre || 'Unknown',
+    shares: Math.abs(t.unidades),
+    price: t.precio,
+    amount: t.importe,
+    fee: Math.abs(t.comision),
+    tax: Math.abs(t.impuesto),
+}));
+
+/** Fecha de la primera compra: desde cuándo tienen sentido las estadísticas. */
+export const primeraCompra = (txs = []) => {
+    const compras = txs
+        .filter(t => t.categoria === 'TRADING' && t.tipo === 'BUY' && t.fecha)
+        .map(t => t.fecha)
+        .sort();
+    return compras.length ? new Date(`${compras[0]}T12:00:00`).toISOString() : null;
+};

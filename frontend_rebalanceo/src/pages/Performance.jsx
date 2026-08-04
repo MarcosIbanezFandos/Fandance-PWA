@@ -1,12 +1,15 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import api from '../api'
 import { motion } from 'framer-motion';
-import { Loader2, TrendingUp, TrendingDown, Receipt, Info, Upload, RefreshCw, CheckCircle2 } from 'lucide-react';
+import { Loader2, TrendingUp, TrendingDown, Receipt, Info, Upload, RefreshCw, CheckCircle2, ArrowRight } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import { AreaChart, Area, ResponsiveContainer, YAxis, XAxis, Tooltip } from 'recharts';
 import { GlassCard, staggerContainer, fadeInUp } from '../components/UI';
 import { Dropdown } from '../components/Dropdown';
 import { BenchmarkCompare } from '../components/BenchmarkCompare';
-import { TRCsvParser } from '../components/TRCsvParser';
+import { Card, SectionHeader, Button, EmptyState } from '../components/UI';
+import { leerTxs } from '../lib/csvStore';
+import { aFormatoMetricas, primeraCompra } from '../lib/trImport';
 import { useGlobal } from '../context/GlobalContext';
 import { safeFloat, formatNumber, xirr, computeMetricsForPeriod, ttwror, formatSeriesDates } from '../utils';
 
@@ -60,7 +63,7 @@ export const Performance = ({ portfolios, activePortfolioId }) => {
     const [evolution, setEvolution] = useState([]);
     const [period, setPeriod] = useState('ytd');
     const [loading, setLoading] = useState(false);
-    const [csvMetrics, setCsvMetrics] = useState(null);
+    const navigate = useNavigate();
 
     // Pick a default portfolio
     useEffect(() => {
@@ -70,28 +73,32 @@ export const Performance = ({ portfolios, activePortfolioId }) => {
         }
     }, [portfolios, activePortfolioId]);
 
-    useEffect(() => {
-        if (!pid) return;
-        const savedCsv = localStorage.getItem(`perf_csv_${pid}`);
-        if (savedCsv) {
-            try { 
-                const parsed = JSON.parse(savedCsv);
-                if (parsed && parsed.transactions) {
-                    setCsvMetrics(parsed); 
-                } else {
-                    setCsvMetrics(null);
-                    localStorage.removeItem(`perf_csv_${pid}`);
-                }
-            } catch (e) { }
-        } else { setCsvMetrics(null); }
-    }, [pid]);
-
-    useEffect(() => { 
-        if (pid) {
-            if (csvMetrics) localStorage.setItem(`perf_csv_${pid}`, JSON.stringify(csvMetrics));
-            else localStorage.removeItem(`perf_csv_${pid}`);
+    // El CSV se sube una sola vez, en Posiciones. Esta pantalla sólo lee el
+    // almacén: antes cada una pedía el mismo fichero por su cuenta.
+    const datosCsv = useMemo(() => {
+        if (!pid) return null;
+        const guardado = leerTxs(pid);
+        if (guardado?.txs?.length) {
+            return {
+                movimientos: aFormatoMetricas(guardado.txs),
+                primeraCompra: primeraCompra(guardado.txs),
+                importadoEn: guardado.importadoEn,
+            };
         }
-    }, [csvMetrics, pid]);
+        // Carteras que importaron antes de unificar: se siguen leyendo sus
+        // datos para no dejarlas en blanco hasta que vuelvan a subir el CSV.
+        try {
+            const legado = JSON.parse(localStorage.getItem(`perf_csv_${pid}`) || 'null');
+            if (legado?.transactions?.length) {
+                return {
+                    movimientos: legado.transactions.map(x => ({ ...x, date: new Date(x.date) })),
+                    primeraCompra: legado.firstPurchase,
+                    legado: true,
+                };
+            }
+        } catch { /* un JSON corrupto no debe dejar la pantalla rota */ }
+        return null;
+    }, [pid]);
 
     useEffect(() => {
         if (!pid) return;
@@ -128,14 +135,9 @@ export const Performance = ({ portfolios, activePortfolioId }) => {
 
     // Period-filtered metrics from CSV data
     const periodMetrics = useMemo(() => {
-        if (!csvMetrics?.transactions?.length) return null;
-        // Reconstruct transactions from the stored data (dates are serialized as strings)
-        const txns = csvMetrics.transactions.map(t => ({
-            ...t,
-            date: new Date(t.date),
-        }));
-        return computeMetricsForPeriod(txns, currentValue, period);
-    }, [csvMetrics, currentValue, period]);
+        if (!datosCsv?.movimientos?.length) return null;
+        return computeMetricsForPeriod(datosCsv.movimientos, currentValue, period);
+    }, [datosCsv, currentValue, period]);
 
     // TTWROR from chart evolution data
     const ttwrorValue = useMemo(() => ttwror(evolution), [evolution]);
@@ -177,10 +179,10 @@ export const Performance = ({ portfolios, activePortfolioId }) => {
             case '3m': d = new Date(now.getFullYear(), now.getMonth() - 3, now.getDate()); break;
             case 'ytd': d = new Date(now.getFullYear(), 0, 1); break;
             case '1y': d = new Date(now.getFullYear() - 1, now.getMonth(), now.getDate()); break;
-            default: d = csvMetrics?.firstPurchase ? new Date(csvMetrics.firstPurchase) : null;
+            default: d = datosCsv?.primeraCompra ? new Date(datosCsv.primeraCompra) : null;
         }
         return d ? d.toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit', year: '2-digit' }) : null;
-    }, [period, csvMetrics]);
+    }, [period, datosCsv]);
 
     return (
         <motion.div variants={staggerContainer} initial="hidden" animate="visible" className="space-y-6">
@@ -228,92 +230,37 @@ export const Performance = ({ portfolios, activePortfolioId }) => {
                         </GlassCard>
                     </motion.div>
 
-                    {/* Trade Republic CSV import — COMPACT or FULL */}
-                    {hasCsv ? (
-                        /* ── Compact mode: data imported, show a discrete chip ── */
-                        <motion.div variants={fadeInUp}>
-                            <div className="flex items-center justify-between gap-3 px-5 py-3 bg-surface rounded-card border border-line shadow-card">
+                    {/* Estado del CSV. Ya no se sube desde aquí: el fichero se
+                        importa una sola vez en Posiciones y esta pantalla lo lee. */}
+                    <motion.div variants={fadeInUp}>
+                        {hasCsv ? (
+                            <div className="flex items-center justify-between gap-3 px-4 py-3 bg-surface rounded-card border border-line shadow-card">
                                 <div className="flex items-center gap-3 min-w-0">
-                                    <div className="p-2 bg-emerald-50 dark:bg-emerald-900/20 rounded-control">
-                                        <CheckCircle2 size={16} className="text-emerald-500" />
-                                    </div>
+                                    <span className="shrink-0 grid place-items-center w-9 h-9 rounded-control bg-positive-soft">
+                                        <CheckCircle2 size={16} className="text-positive" />
+                                    </span>
                                     <div className="min-w-0">
                                         <div className="text-footnote font-semibold text-ink">{t('tr.imported_title')}</div>
-                                        <div className="text-caption2 font-bold text-ink-3 truncate">
-                                            {csvMetrics?.firstPurchase
-                                                ? `${t('tr.since_first')}: ${new Date(csvMetrics.firstPurchase).toLocaleDateString('es-ES', { day: '2-digit', month: 'short', year: 'numeric' })}`
-                                                : t('tr.imported_hint')
-                                            }
+                                        <div className="text-caption1 text-ink-3 truncate">
+                                            {datosCsv?.primeraCompra
+                                                ? `${t('tr.since_first')}: ${new Date(datosCsv.primeraCompra).toLocaleDateString('es-ES', { day: 'numeric', month: 'short', year: 'numeric' })}`
+                                                : t('tr.imported_hint')}
                                         </div>
                                     </div>
                                 </div>
-                                <div className="flex items-center gap-2 shrink-0">
-                                    <label
-                                        htmlFor="csv-upload-input"
-                                        className="inline-flex items-center gap-1.5 px-3 py-2 bg-surface-2 hover:bg-indigo-50 dark:hover:bg-indigo-900/20 text-ink-3 hover:text-indigo-600 dark:hover:text-indigo-400 rounded-control text-caption2 font-semibold uppercase tracking-wide cursor-pointer transition-all"
-                                    >
-                                        <RefreshCw size={12} /> {t('tr.update')}
-                                    </label>
-                                    <TRCsvParser
-                                        currentValue={currentValue}
-                                        onParsed={setCsvMetrics}
-                                        onClear={() => setCsvMetrics(null)}
-                                        hasData={true}
-                                        compact={true}
-                                    />
-                                </div>
+                                <Button size="sm" variant="secondary" icon={RefreshCw} className="shrink-0" onClick={() => navigate('/posiciones')}>
+                                    {t('tr.update')}
+                                </Button>
                             </div>
-                        </motion.div>
-                    ) : (
-                        /* ── Full onboarding mode: premium upload experience ── */
-                        <motion.div variants={fadeInUp}>
-                            <GlassCard className="!p-0 overflow-hidden">
-                                <div className="relative">
-                                    {/* Gradient background */}
-                                    <div className="absolute inset-0 bg-gradient-to-br from-indigo-50 via-violet-50 to-purple-50 dark:from-indigo-950/40 dark:via-violet-950/30 dark:to-purple-950/20" />
-                                    
-                                    <div className="relative p-6 md:p-8">
-                                        {/* Header */}
-                                        <div className="text-center mb-6">
-                                            <div className="inline-flex items-center gap-2 px-3 py-1.5 bg-brand-soft rounded-full mb-4">
-                                                <Receipt size={13} className="text-brand" />
-                                                <span className="text-caption2 font-semibold text-brand">{t('tr.title')}</span>
-                                            </div>
-                                            <h3 className="text-title3 font-semibold text-ink mb-2">{t('tr.onboarding_title')}</h3>
-                                            <p className="text-footnote font-medium text-ink-3 max-w-md mx-auto leading-relaxed">{t('tr.onboarding_desc')}</p>
-                                        </div>
-
-                                        {/* Steps */}
-                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-6">
-                                            <div className="flex items-start gap-3 p-4 bg-surface/70 rounded-card backdrop-blur-sm border border-line">
-                                                <div className="w-7 h-7 shrink-0 bg-indigo-500 rounded-control flex items-center justify-center text-white text-footnote font-semibold">1</div>
-                                                <div>
-                                                    <div className="text-footnote font-semibold text-ink">{t('tr.step1_title')}</div>
-                                                    <div className="text-caption2 font-medium text-ink-3 mt-0.5">{t('tr.step1_desc')}</div>
-                                                </div>
-                                            </div>
-                                            <div className="flex items-start gap-3 p-4 bg-surface/70 rounded-card backdrop-blur-sm border border-line">
-                                                <div className="w-7 h-7 shrink-0 bg-indigo-500 rounded-control flex items-center justify-center text-white text-footnote font-semibold">2</div>
-                                                <div>
-                                                    <div className="text-footnote font-semibold text-ink">{t('tr.step2_title')}</div>
-                                                    <div className="text-caption2 font-medium text-ink-3 mt-0.5">{t('tr.step2_desc')}</div>
-                                                </div>
-                                            </div>
-                                        </div>
-
-                                        {/* Upload zone */}
-                                        <TRCsvParser
-                                            currentValue={currentValue}
-                                            onParsed={setCsvMetrics}
-                                            onClear={() => setCsvMetrics(null)}
-                                            hasData={false}
-                                            compact={false}
-                                        />
-                                    </div>
-                                </div>
-                            </GlassCard>
-                        </motion.div>
-                    )}
+                        ) : (
+                            <Card>
+                                <SectionHeader icon={Receipt} title={t('tr.onboarding_title')} hint={t('tr.onboarding_desc')} />
+                                <Button variant="secondary" className="w-full" size="lg" iconRight={ArrowRight} onClick={() => navigate('/posiciones')}>
+                                    {t('perf.go_import')}
+                                </Button>
+                            </Card>
+                        )}
+                    </motion.div>
 
                     {/* ═══ PARQET-STYLE STATS ═══ */}
                     {hasCsv && (
