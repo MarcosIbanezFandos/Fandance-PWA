@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { NavLink, useNavigate, useLocation } from 'react-router-dom';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion, AnimatePresence, useDragControls } from 'framer-motion';
 import {
     HomeIcon, Wallet, Activity, FlaskConical, MoreHorizontal,
     ScanSearch, TrendingUp, History, Newspaper, Settings,
@@ -32,6 +32,10 @@ export const BottomNav = ({ onLogout, portfolios = [], activePortfolio, setActiv
     const location = useLocation();
     const [moreOpen, setMoreOpen] = useState(false);
     const [portfolioOpen, setPortfolioOpen] = useState(false);
+    // El arrastre arranca sólo desde el tirador. Con drag en toda la hoja,
+    // Framer captura el gesto en cuanto el dedo se mueve un par de píxeles y
+    // el toque no llega nunca al elemento de abajo: la opción no se pulsaba.
+    const dragControls = useDragControls();
 
     // Con la hoja abierta el fondo no debe desplazarse.
     useEffect(() => {
@@ -52,7 +56,6 @@ export const BottomNav = ({ onLogout, portfolios = [], activePortfolio, setActiv
         document.body.style.overflow = '';
     }, [location.pathname]);
 
-    const handleMore = (to) => { setMoreOpen(false); navigate(to); };
 
     const handlePortfolioSelect = (p) => {
         setActivePortfolio(p);
@@ -124,6 +127,8 @@ export const BottomNav = ({ onLogout, portfolios = [], activePortfolio, setActiv
                             initial={{ y: '100%' }} animate={{ y: 0 }} exit={{ y: '100%' }}
                             transition={{ type: 'spring', damping: 34, stiffness: 380 }}
                             drag="y"
+                            dragControls={dragControls}
+                            dragListener={false}
                             dragConstraints={{ top: 0, bottom: 0 }}
                             dragElastic={{ top: 0, bottom: 0.4 }}
                             onDragEnd={(_, info) => { if (info.offset.y > 90) setMoreOpen(false); }}
@@ -133,7 +138,11 @@ export const BottomNav = ({ onLogout, portfolios = [], activePortfolio, setActiv
                                 'pb-[calc(1rem+env(safe-area-inset-bottom))]'
                             )}
                         >
-                            <div className="flex justify-center pt-3 pb-2 cursor-grab active:cursor-grabbing">
+                            {/* Única zona por la que se arrastra la hoja. */}
+                            <div
+                                onPointerDown={(e) => dragControls.start(e)}
+                                className="flex justify-center pt-3 pb-2 cursor-grab active:cursor-grabbing touch-none"
+                            >
                                 <div className="w-9 h-1 rounded-full bg-line-strong" />
                             </div>
 
@@ -192,9 +201,10 @@ export const BottomNav = ({ onLogout, portfolios = [], activePortfolio, setActiv
                                     color y galón a la derecha, como en Ajustes. */}
                                 <div className="rounded-card bg-surface-2 overflow-hidden">
                                     {moreItems.map(({ to, icon: Icon, labelKey }, i) => (
-                                        <button
+                                        <NavLink
                                             key={to}
-                                            onClick={() => handleMore(to)}
+                                            to={to}
+                                            onClick={() => setMoreOpen(false)}
                                             className="w-full flex items-center gap-3 px-3 min-h-tap text-left text-ink active:bg-surface-3 transition-colors"
                                             style={i > 0 ? { borderTop: '0.5px solid rgb(var(--c-line))' } : undefined}
                                         >
@@ -203,7 +213,7 @@ export const BottomNav = ({ onLogout, portfolios = [], activePortfolio, setActiv
                                             </span>
                                             <span className="flex-1 text-body">{t(labelKey)}</span>
                                             <ChevronRight size={17} className="text-ink-3 shrink-0" strokeWidth={2.5} />
-                                        </button>
+                                        </NavLink>
                                     ))}
                                 </div>
 

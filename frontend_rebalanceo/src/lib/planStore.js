@@ -55,6 +55,10 @@ export const getPrefs = (user, portfolioId) => {
         // Importe mínimo por operación. Indexa usa 100 €; quien aporta con un
         // plan automático que compra todos los fondos cada mes lo baja.
         minOperacion: p.minop === undefined || p.minop === null ? 100 : Number(p.minop) || 0,
+        // Último precio al que el bróker ejecutó cada activo, por item. Sirve de
+        // respaldo cuando el proveedor de cotizaciones no reconoce el ticker y
+        // devuelve 0: sin esto la posición vale 0 € y descuadra toda la cartera.
+        preciosCsv: (p.precios && typeof p.precios === 'object') ? p.precios : {},
     };
 };
 
@@ -91,6 +95,7 @@ export const savePrefs = async (portfolioId, cambios) => {
         ...(cambios.frequency !== undefined ? { freq: cambios.frequency || 'monthly' } : {}),
         ...(cambios.savedPlans !== undefined ? { saved: cambios.savedPlans } : {}),
         ...(cambios.minOperacion !== undefined ? { minop: Number(cambios.minOperacion) || 0 } : {}),
+        ...(cambios.preciosCsv !== undefined ? { precios: cambios.preciosCsv } : {}),
         ...(cambios.inception !== undefined ? { inception: cambios.inception || null } : {}),
         ...(cambios.pending !== undefined ? { pending: cambios.pending } : {}),
     };

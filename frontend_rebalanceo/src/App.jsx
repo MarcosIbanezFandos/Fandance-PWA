@@ -262,7 +262,8 @@ function App() {
             catch (e) { console.error(e) }
         }
         await refrescarPrefs()
-        setCsvTxs(null); setCargasCsv([]); setOverrides({})
+        // Los overrides viven en prefs.pending, que ya se ha limpiado arriba.
+        setCsvTxs(null); setCargasCsv([])
         if (activePortfolio) { await loadItems(activePortfolio.id); await loadRebalanceHistory(activePortfolio.id) }
         return res.data
     }, [portfolios, activePortfolio, refrescarPrefs])
@@ -369,9 +370,27 @@ function App() {
         } catch (e) { console.error(e) }
     }, [activePortfolio])
 
+    // Sin cotización, una posición vale 0 € y arrastra todos los porcentajes de
+    // la cartera. El último precio al que ejecutó el bróker es una referencia
+    // mucho mejor que cero, y viene del propio CSV.
+    const itemsValorados = useMemo(() => {
+        const respaldo = contributionPlan?.preciosCsv || {}
+        return portfolioItems.map(i => {
+            if (safeFloat(i.current_price) > 0) return i
+            const alt = respaldo[i.id]
+            if (!alt?.precio) return i
+            return {
+                ...i,
+                current_price: alt.precio,
+                value: roundTo(safeFloat(i.units_held) * safeFloat(alt.precio), 2),
+                precioDeCsv: alt.fecha || true,
+            }
+        })
+    }, [portfolioItems, contributionPlan])
+
     const plan = useMemo(
-        () => buildRebalancePlan(portfolioItems, contribution, rebalanceMode, overrides, minOperacion),
-        [portfolioItems, contribution, rebalanceMode, overrides, minOperacion]
+        () => buildRebalancePlan(itemsValorados, contribution, rebalanceMode, overrides, minOperacion),
+        [itemsValorados, contribution, rebalanceMode, overrides, minOperacion]
     );
     const tableData = useMemo(
         () => _.orderBy(plan.rows, [r => safeFloat(r.value)], ['desc']),
@@ -437,6 +456,14 @@ function App() {
             });
             recargarCsv(activePortfolio.id);
             setAvisoCerrado(true);
+            if (contexto.precios && Object.keys(contexto.precios).length) {
+                try {
+                    await savePrefs(activePortfolio.id, {
+                        preciosCsv: { ...(contributionPlan?.preciosCsv || {}), ...contexto.precios },
+                    });
+                    await refrescarPrefs();
+                } catch (e) { console.error(e); }
+            }
         }
         if (!cambios?.length) return;
         const porId = new Map(cambios.map(c => [c.id, safeFloat(c.unidades)]));
@@ -585,7 +612,7 @@ function App() {
     if (appLoading) return <div className="h-screen flex items-center justify-center bg-slate-900 text-white font-semibold uppercase tracking-tight"><Loader2 className="animate-spin mr-3 text-brand" /> Loading Fandance...</div>
     if (!session) return <AuthScreen onLogin={setSession} />
 
-    const totalVal = portfolioItems.reduce((s, i) => s + safeFloat(i.value), 0);
+    const totalVal = itemsValorados.reduce((s, i) => s + safeFloat(i.value), 0);
     const totalWeight = portfolioItems.reduce((s, i) => s + safeFloat(i.target_weight), 0);
 
     let riskScore = 0;
@@ -600,7 +627,7 @@ function App() {
         riskScore = Math.round(weightedRisk / totalWeight);
     }
 
-    const chartData = _(portfolioItems).groupBy(i => i.asset.type || 'Stock')
+    const chartData = _(itemsValorados).groupBy(i => i.asset.type || 'Stock')
         .map((g, type) => g.map((i, idx) => ({
             name: i.asset.name, value: safeFloat(i.value), fill: (TYPE_COLORS[type] || TYPE_COLORS['Other'])[idx % 5]
         }))).flatten().value().filter(x => x.value > 0);

@@ -205,6 +205,9 @@ export const GlobalProvider = ({ children }) => {
                 'perf.period_since': 'Desde',
                 // Trade Republic CSV import
                 'sync.title': "Sincronizar con Trade Republic",
+                'sync.stale_price': "Alguna cotización no cuadra con lo que pagaste",
+                'sync.stale_price_hint': "El precio que devuelve el mercado se aleja bastante del último al que ejecutó tu bróker. Suele significar que el activo está dado de alta con otro ticker o en otra divisa. Se muestra: precio de la app → precio del bróker.",
+                'pos.precio_csv': "precio del bróker",
                 'cargas.title': "Ficheros importados",
                 'cargas.hint': "Qué subiste cada día y cuánto movió tu patrimonio invertido.",
                 'cargas.empty': "Todavía no has importado ningún fichero",
@@ -672,6 +675,9 @@ export const GlobalProvider = ({ children }) => {
                 'perf.period_since': 'Since',
                 // Trade Republic CSV import
                 'sync.title': "Sync with Trade Republic",
+                'sync.stale_price': "Some quote does not match what you paid",
+                'sync.stale_price_hint': "The market price is well away from the last one your broker executed. That usually means the asset is registered under a different ticker or currency. Shown as: app price → broker price.",
+                'pos.precio_csv': "broker price",
                 'cargas.title': "Imported files",
                 'cargas.hint': "What you uploaded each day and how it moved your invested total.",
                 'cargas.empty': "You haven't imported any file yet",
