@@ -13,6 +13,7 @@ import { anadirCarga, leerTxs, borrarTxs, borrarCarga, listarCargas, novedadesDe
 import { debeAvisar, mesClave } from './lib/recordatorio'
 import { aportadoPorMes, detectarAportaciones } from './lib/trImport'
 import { evaluarReajuste } from './lib/reglasReajuste'
+import { valorarItems } from './lib/valoracion'
 import { RecordatorioCsv } from './components/RecordatorioCsv'
 import { PageSkeleton } from './components/UI'
 import { AuthScreen } from './components/AuthScreen'
@@ -374,25 +375,12 @@ function App() {
         } catch (e) { console.error(e) }
     }, [activePortfolio])
 
-    // Sin cotización, una posición vale 0 € y arrastra todos los porcentajes de
-    // la cartera. El último precio al que ejecutó el bróker es una referencia
-    // mucho mejor que cero, y viene del propio CSV.
-    const itemsValorados = useMemo(() => {
-        const respaldo = contributionPlan?.preciosCsv || {}
-        return portfolioItems.map(i => {
-            const alt = respaldo[i.id]
-            if (!alt?.precio) return i
-            // Se usa el precio del bróker si la app no tiene cotización, o si la
-            // que tiene es de otro instrumento (`preferir`).
-            if (safeFloat(i.current_price) > 0 && !alt.preferir) return i
-            return {
-                ...i,
-                current_price: alt.precio,
-                value: roundTo(safeFloat(i.units_held) * safeFloat(alt.precio), 2),
-                precioDeCsv: alt.fecha || true,
-            }
-        })
-    }, [portfolioItems, contributionPlan])
+    // Una sola definición de "cuánto vale una posición", compartida con
+    // Rentabilidad para que las dos pantallas no puedan discrepar.
+    const itemsValorados = useMemo(
+        () => valorarItems(portfolioItems, contributionPlan?.preciosCsv || {}),
+        [portfolioItems, contributionPlan]
+    )
 
     const plan = useMemo(
         () => buildRebalancePlan(itemsValorados, contribution, rebalanceMode, overrides, minOperacion),
@@ -792,7 +780,7 @@ function App() {
                         onCargarPlanGuardado={cargarPlanGuardado}
                     />
                 } />
-                <Route path="/rendimiento" element={<Performance portfolios={portfolios} activePortfolioId={activePortfolio?.id} />} />
+                <Route path="/rendimiento" element={<Performance portfolios={portfolios} activePortfolioId={activePortfolio?.id} preciosCsv={contributionPlan?.preciosCsv || {}} />} />
                 <Route path="/xray" element={<Xray portfolios={portfolios} activePortfolioId={activePortfolio?.id} />} />
                 <Route path="/noticias" element={<NewsView portfolios={portfolios} activePortfolioId={activePortfolio?.id} />} />
                 <Route path="/historial" element={
