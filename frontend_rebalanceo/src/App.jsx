@@ -8,7 +8,8 @@ import { supabase } from './supabaseClient'
 import { safeFloat, buildRebalancePlan, roundTo } from './utils'
 import { isAdmin, applyDefaultTargets, DEFAULT_CONTRIBUTION_PLAN } from './config/allocation'
 import { getPrefs, savePrefs, mesActual, planGuardadoAActivo } from './lib/planStore'
-import { guardarTxs, leerTxs, borrarTxs, mesesConAportacion, leerDescarte, guardarDescarte, borrarTodoElCsv } from './lib/csvStore'
+import { anadirCarga, leerTxs, borrarTxs, borrarCarga, listarCargas, novedadesDe,
+         mesesConAportacion, leerDescarte, guardarDescarte, borrarTodoElCsv } from './lib/csvStore'
 import { debeAvisar, mesClave } from './lib/recordatorio'
 import { aportadoPorMes, detectarAportaciones } from './lib/trImport'
 import { evaluarReajuste } from './lib/reglasReajuste'
@@ -183,10 +184,17 @@ function App() {
     const [csvTxs, setCsvTxs] = useState(null)
     const [avisoCerrado, setAvisoCerrado] = useState(false)
 
+    const [cargasCsv, setCargasCsv] = useState([])
+
+    const recargarCsv = useCallback((pid) => {
+        setCsvTxs(pid ? leerTxs(pid) : null)
+        setCargasCsv(pid ? listarCargas(pid) : [])
+    }, [])
+
     useEffect(() => {
         setAvisoCerrado(false)
-        setCsvTxs(activePortfolio ? leerTxs(activePortfolio.id) : null)
-    }, [activePortfolio])
+        recargarCsv(activePortfolio?.id)
+    }, [activePortfolio, recargarCsv])
 
     // El aviso sólo aparece cuando la aportación del mes ya está ejecutada y no
     // consta en el CSV guardado. Cerrarlo lo silencia hasta el mes siguiente.
@@ -228,8 +236,36 @@ function App() {
     const olvidarCsv = () => {
         if (!activePortfolio) return
         borrarTxs(activePortfolio.id)
-        setCsvTxs(null)
+        recargarCsv(activePortfolio.id)
     }
+
+    const olvidarCarga = (cargaId) => {
+        if (!activePortfolio) return
+        borrarCarga(activePortfolio.id, cargaId)
+        recargarCsv(activePortfolio.id)
+    }
+
+    // Qué trae un fichero que no estuviera ya, para enseñarlo antes de aplicar.
+    const resumenNovedades = useCallback(
+        (txs) => (activePortfolio ? novedadesDe(activePortfolio.id, txs) : null),
+        [activePortfolio, csvTxs]
+    )
+
+    // Reinicio de datos. Borra lo acumulado y conserva la estructura de la
+    // cartera: rehacer a mano el reparto de cinco fondos es trabajo real.
+    const reiniciarCuenta = useCallback(async () => {
+        const res = await api.post(`${import.meta.env.VITE_API_URL}/cuenta/reset`, { confirmacion: true })
+        borrarTodoElCsv()
+        for (const p of portfolios) {
+            try { await savePrefs(p.id, { monthly: 0, annualGrowthPct: 0, startDate: null, targetDate: null,
+                                          frequency: 'monthly', savedPlans: [], pending: null, inception: null }) }
+            catch (e) { console.error(e) }
+        }
+        await refrescarPrefs()
+        setCsvTxs(null); setCargasCsv([]); setOverrides({})
+        if (activePortfolio) { await loadItems(activePortfolio.id); await loadRebalanceHistory(activePortfolio.id) }
+        return res.data
+    }, [portfolios, activePortfolio, refrescarPrefs])
 
     // UI State
     const [query, setQuery] = useState('')
@@ -394,7 +430,12 @@ function App() {
         // El CSV se guarda aunque no cambie ninguna unidad: es lo que alimenta
         // el histórico de movimientos y silencia el aviso del mes.
         if (contexto.movimientos && activePortfolio) {
-            setCsvTxs(guardarTxs(activePortfolio.id, contexto.movimientos));
+            // Se guarda como un fichero más: sólo entra lo que no estuviera ya.
+            anadirCarga(activePortfolio.id, {
+                nombre: contexto.nombreFichero,
+                txs: contexto.movimientos,
+            });
+            recargarCsv(activePortfolio.id);
             setAvisoCerrado(true);
         }
         if (!cambios?.length) return;
@@ -628,6 +669,7 @@ function App() {
                             chartData={chartData}
                             onImportarTR={aplicarImportacionTR}
                             aportacionesPrevias={aportacionesPrevias}
+                            resumenNovedades={resumenNovedades}
                             evaluacionReajuste={evaluacionReajuste}
                             minOperacion={minOperacion}
                             onCambiarMinOperacion={guardarMinOperacion}
@@ -678,6 +720,8 @@ function App() {
                         csvTxs={csvTxs?.txs || []}
                         csvImportadoEn={csvTxs?.importadoEn}
                         onBorrarCsv={olvidarCsv}
+                        cargas={cargasCsv}
+                        onBorrarCarga={olvidarCarga}
                     />
                 } />
                 <Route path="/settings" element={
@@ -691,6 +735,7 @@ function App() {
                         onNormalize={normalizeTargets}
                         onApplyDefaults={applyAdminDefaults}
                         isAdmin={isAdmin(session.user?.email)}
+                        onReiniciarCuenta={reiniciarCuenta}
                     />
                 } />
             </Route>
@@ -704,6 +749,7 @@ function App() {
             pendientes={aviso.pendientes}
             portfolioItems={portfolioItems}
             aportacionesPrevias={aportacionesPrevias}
+            resumenNovedades={resumenNovedades}
             onAplicar={aplicarImportacionTR}
             onCerrar={cerrarAviso}
         />

@@ -18,7 +18,7 @@ import { cn } from '../lib/cn';
  *
  * El fichero se procesa entero en el navegador; no se sube a ningún sitio.
  */
-export const ImportarTR = ({ portfolioItems = [], aportacionesPrevias = [], onAplicar }) => {
+export const ImportarTR = ({ portfolioItems = [], aportacionesPrevias = [], onAplicar, resumenNovedades }) => {
     const { t } = useGlobal();
     const inputRef = useRef(null);
     const [analisis, setAnalisis] = useState(null);
@@ -26,6 +26,8 @@ export const ImportarTR = ({ portfolioItems = [], aportacionesPrevias = [], onAp
     const [ocupado, setOcupado] = useState(false);
     const [aplicando, setAplicando] = useState(false);
     const [hecho, setHecho] = useState(false);
+    // Qué trae este fichero que no estuviera ya guardado.
+    const resumen = analisis && resumenNovedades ? resumenNovedades(analisis.movimientos) : null;
 
     // papaparse se trae sólo cuando hay un CSV que leer. Es la única pantalla
     // que lo usa y no tiene por qué pesar en el arranque de la app.
@@ -44,7 +46,7 @@ export const ImportarTR = ({ portfolioItems = [], aportacionesPrevias = [], onAp
 
                     const aportaciones = detectarAportaciones(txs);
                     const posCsv = posicionesDesdeCsv(txs);
-                    const { emparejadas, sinEmparejar, soloEnCsv } = emparejarPosiciones(portfolioItems, posCsv);
+                    const { emparejadas, sinEmparejar, soloEnCsv, descartadas } = emparejarPosiciones(portfolioItems, posCsv);
 
                     // Sólo se ofrecen los cambios reales: si las unidades ya
                     // coinciden, no hay nada que aplicar.
@@ -60,9 +62,11 @@ export const ImportarTR = ({ portfolioItems = [], aportacionesPrevias = [], onAp
                     setAnalisis({
                         txs: txs.length,
                         movimientos: txs,
+                        nombreFichero: file.name,
                         aportaciones,
                         nuevas: aportacionesNuevas(aportaciones, aportacionesPrevias),
                         cambios, sinEmparejar, soloEnCsv,
+                        descartadas,
                     });
                 } catch (e) {
                     console.error(e);
@@ -79,7 +83,11 @@ export const ImportarTR = ({ portfolioItems = [], aportacionesPrevias = [], onAp
         try {
             await onAplicar(
                 analisis.cambios.map(c => ({ id: c.item.id, unidades: c.nuevas })),
-                { movimientos: analisis.movimientos, aportaciones: analisis.aportaciones },
+                {
+                    movimientos: analisis.movimientos,
+                    aportaciones: analisis.aportaciones,
+                    nombreFichero: analisis.nombreFichero,
+                },
             );
             setHecho(true);
             setAnalisis(null);
@@ -123,6 +131,12 @@ export const ImportarTR = ({ portfolioItems = [], aportacionesPrevias = [], onAp
                 <div className="space-y-4">
                     <div className="flex flex-wrap items-center gap-2">
                         <Badge tone="neutral">{analisis.txs} {t('sync.transactions')}</Badge>
+                        {resumen && resumen.nuevas.length > 0 && (
+                            <Badge tone="positive">{resumen.nuevas.length} {t('sync.new_ops')}</Badge>
+                        )}
+                        {resumen && resumen.repetidas > 0 && (
+                            <Badge tone="neutral">{resumen.repetidas} {t('sync.already')}</Badge>
+                        )}
                         <Badge tone="brand">{analisis.aportaciones.length} {t('sync.contributions')}</Badge>
                         {analisis.nuevas.length > 0 && (
                             <Badge tone="positive">{analisis.nuevas.length} {t('sync.new')}</Badge>
@@ -173,6 +187,17 @@ export const ImportarTR = ({ portfolioItems = [], aportacionesPrevias = [], onAp
                         </div>
                     ) : (
                         <p className="text-footnote text-ink-2">{t('sync.up_to_date')}</p>
+                    )}
+
+                    {analisis.descartadas?.length > 0 && (
+                        <Disclosure icon={AlertTriangle} tone="warning" title={t('sync.price_mismatch')}>
+                            <p>{t('sync.price_mismatch_hint')}</p>
+                            <ul className="mt-1.5 space-y-0.5">
+                                {analisis.descartadas.map(d => (
+                                    <li key={d.item.id}>{d.item.asset?.name} ↔ {d.csv.nombre}</li>
+                                ))}
+                            </ul>
+                        </Disclosure>
                     )}
 
                     {(analisis.sinEmparejar.length > 0 || analisis.soloEnCsv.length > 0) && (

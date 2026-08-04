@@ -24,9 +24,11 @@ import { SimulationView } from './components/SimulationView';
 import { ContributionPlan } from './components/ContributionPlan';
 import { BottomNav } from './components/BottomNav';
 import { RebalanceHistoryPage } from './pages/RebalanceHistoryPage';
+import { Settings } from './pages/Settings';
 import { RecordatorioCsv } from './components/RecordatorioCsv';
 import Papa from 'papaparse';
 import { parseTradeRepublicRows } from './lib/trImport';
+import { esOperacionDeActivo } from './lib/csvStore';
 import { evaluarReajuste } from './lib/reglasReajuste';
 import { buildXray, computeOverlap, computeConcentration, computeDrift, buildPlanStatus, formatNumber, buildRebalancePlan, safeFloat } from './utils';
 import { Sun, Moon } from 'lucide-react';
@@ -99,7 +101,18 @@ const CSV_DEMO = (() => {
         header: true, skipEmptyLines: true,
         transformHeader: (h) => String(h || '').trim().toLowerCase(),
     });
-    return parseTradeRepublicRows(data);
+    // Como en producción: al almacén sólo entra compraventa de activos.
+    return parseTradeRepublicRows(data).filter(esOperacionDeActivo);
+})();
+
+// Dos ficheros subidos: el segundo sólo trae la aportación nueva.
+const CARGAS_DEMO = (() => {
+    const compras = CSV_DEMO.filter(t => t.categoria === 'TRADING' && t.tipo === 'BUY');
+    const corte = Math.max(1, compras.length - 3);
+    return [
+        { id: 'c2', nombre: 'Exportación agosto.csv', importadoEn: new Date().toISOString(), txs: compras.slice(corte) },
+        { id: 'c1', nombre: 'Exportación julio.csv', importadoEn: new Date(now.getFullYear(), now.getMonth() - 1, 8).toISOString(), txs: compras.slice(0, corte) },
+    ];
 })();
 
 function Preview() {
@@ -136,6 +149,7 @@ function Preview() {
                         { value: 'analisis', label: 'Análisis' },
                         { value: 'calc', label: 'Cálculos' },
                         { value: 'movs', label: 'Histor.' },
+                        { value: 'ajustes', label: 'Ajustes' },
                     ]} />
                     <Button variant="secondary" size="sm" onClick={() => setAvisoAbierto(true)}>Aviso</Button>
                     <Button variant="secondary" size="sm" icon={dark ? Sun : Moon} onClick={() => setDark(d => !d)} />
@@ -181,12 +195,25 @@ function Preview() {
                     onCambiarMinOperacion={(v) => console.log('minimo', v)}
                     onImportarTR={async (c) => console.log('aplicar', c)}
                 />
+            ) : view === 'ajustes' ? (
+                <Settings
+                    session={{ user: { email: 'demo@fandance.app' } }}
+                    onLogout={() => { }}
+                    activePortfolio={{ id: 'p1', name: 'Cartera principal' }}
+                    portfolioItems={ITEMS}
+                    handleUpdate={() => { }}
+                    onEqualSplit={() => { }} onNormalize={() => { }} onApplyDefaults={() => { }}
+                    isAdmin={false}
+                    onReiniciarCuenta={async () => ({ historial: 5, posiciones: 3 })}
+                />
             ) : view === 'movs' ? (
                 <RebalanceHistoryPage
                     history={HISTORY}
                     csvTxs={CSV_DEMO}
                     csvImportadoEn={new Date().toISOString()}
                     onBorrarCsv={() => { }}
+                    cargas={CARGAS_DEMO}
+                    onBorrarCarga={(id) => console.log('borrar carga', id)}
                 />
             ) : view === 'analisis' ? (
                 <Analysis portfolios={[{ id: 'p1', name: 'Cartera principal' }]} activePortfolioId="p1" />

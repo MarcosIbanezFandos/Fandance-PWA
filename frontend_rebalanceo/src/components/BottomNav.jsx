@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { NavLink, useNavigate } from 'react-router-dom';
+import { NavLink, useNavigate, useLocation } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
     HomeIcon, Wallet, Activity, FlaskConical, MoreHorizontal,
@@ -29,6 +29,7 @@ const moreItems = [
 export const BottomNav = ({ onLogout, portfolios = [], activePortfolio, setActivePortfolio }) => {
     const { t } = useGlobal();
     const navigate = useNavigate();
+    const location = useLocation();
     const [moreOpen, setMoreOpen] = useState(false);
     const [portfolioOpen, setPortfolioOpen] = useState(false);
 
@@ -39,6 +40,17 @@ export const BottomNav = ({ onLogout, portfolios = [], activePortfolio, setActiv
     }, [moreOpen]);
 
     useEffect(() => { if (!moreOpen) setPortfolioOpen(false); }, [moreOpen]);
+
+    // La hoja se cierra siempre que cambia la ruta, no sólo al pulsar dentro.
+    // Cerrarla y navegar en el mismo gesto depende de que ese estado sobreviva
+    // a una navegación que puede suspender mientras llega el trozo de la
+    // pantalla nueva; atarlo a la ruta lo hace incondicional. También devuelve
+    // el desplazamiento del fondo, que si no podía quedarse bloqueado.
+    useEffect(() => {
+        setMoreOpen(false);
+        setPortfolioOpen(false);
+        document.body.style.overflow = '';
+    }, [location.pathname]);
 
     const handleMore = (to) => { setMoreOpen(false); navigate(to); };
 
