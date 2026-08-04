@@ -18,7 +18,7 @@ import { cn } from '../lib/cn';
  *
  * El fichero se procesa entero en el navegador; no se sube a ningún sitio.
  */
-export const ImportarTR = ({ portfolioItems = [], aportacionesPrevias = [], onAplicar, resumenNovedades }) => {
+export const ImportarTR = ({ portfolioItems = [], aportacionesPrevias = [], onAplicar, resumenNovedades, isinConocido = {} }) => {
     const { t } = useGlobal();
     const inputRef = useRef(null);
     const [analisis, setAnalisis] = useState(null);
@@ -47,7 +47,7 @@ export const ImportarTR = ({ portfolioItems = [], aportacionesPrevias = [], onAp
 
                     const aportaciones = detectarAportaciones(txs);
                     const posCsv = posicionesDesdeCsv(txs);
-                    const { emparejadas, sinEmparejar, soloEnCsv } = emparejarPosiciones(portfolioItems, posCsv);
+                    const { emparejadas, sinEmparejar, soloEnCsv } = emparejarPosiciones(portfolioItems, posCsv, { isinConocido });
 
                     // Sólo se ofrecen los cambios reales: si las unidades ya
                     // coinciden, no hay nada que aplicar.
@@ -72,6 +72,10 @@ export const ImportarTR = ({ portfolioItems = [], aportacionesPrevias = [], onAp
                                 precio: e.csv.ultimoPrecio,
                                 fecha: e.csv.ultimaFecha,
                                 preferir: !!e.precioDiscrepa,
+                                // Recordar el ISIN es lo que mantiene estable el
+                                // emparejamiento: al resolverlo, el activo se
+                                // renombra y deja de parecerse al del bróker.
+                                isin: e.csv.isin,
                             };
                         }
                     }
@@ -107,7 +111,7 @@ export const ImportarTR = ({ portfolioItems = [], aportacionesPrevias = [], onAp
             },
             error: (e) => { setError(e.message); setOcupado(false); },
         });
-    }, [portfolioItems, aportacionesPrevias, t]);
+    }, [portfolioItems, aportacionesPrevias, isinConocido, t]);
 
     const aplicar = async () => {
         if (!analisis || !onAplicar) return;

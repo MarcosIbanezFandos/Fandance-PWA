@@ -218,6 +218,16 @@ function App() {
         [csvTxs]
     )
 
+    // ISIN que ya se emparejó con cada activo. Sobrevive a que el activo cambie
+    // de nombre o de ticker al resolverse.
+    const isinConocido = useMemo(() => {
+        const out = {}
+        for (const [id, v] of Object.entries(contributionPlan?.preciosCsv || {})) {
+            if (v?.isin) out[id] = v.isin
+        }
+        return out
+    }, [contributionPlan])
+
     const aportadoCsv = useMemo(
         () => (csvTxs?.txs?.length ? aportadoPorMes(csvTxs.txs) : null),
         [csvTxs]
@@ -733,6 +743,7 @@ function App() {
                             onImportarTR={aplicarImportacionTR}
                             aportacionesPrevias={aportacionesPrevias}
                             resumenNovedades={resumenNovedades}
+                            isinConocido={isinConocido}
                             evaluacionReajuste={evaluacionReajuste}
                             minOperacion={minOperacion}
                             onCambiarMinOperacion={guardarMinOperacion}
@@ -821,6 +832,7 @@ function App() {
             portfolioItems={portfolioItems}
             aportacionesPrevias={aportacionesPrevias}
             resumenNovedades={resumenNovedades}
+            isinConocido={isinConocido}
             onAplicar={aplicarImportacionTR}
             onCerrar={cerrarAviso}
         />

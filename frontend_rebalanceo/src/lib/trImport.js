@@ -154,17 +154,23 @@ export const aportacionesNuevas = (aportaciones, previas = []) => {
  *  Emparejar con las posiciones de la app
  * ------------------------------------------------------------------ */
 
-// Se quitan el envoltorio legal y la clase de participación, pero NO la
-// gestora: "iShares S&P 500" y "Vanguard S&P 500" son fondos distintos, con
-// precios por participación que no se parecen en nada. Borrarla los hacía
-// indistinguibles y era la puerta por la que entraban emparejamientos falsos.
-const normalizarNombre = (s) => String(s || '')
+// Envoltorio legal y clase de participación fuera: "UCITS ETF USD (Acc)" no
+// distingue un fondo de otro. La gestora se conserva en la forma estricta y se
+// quita en la laxa, porque el bróker la omite —llama "S&P 500 USD (Acc)" a lo
+// que la gestora llama "Vanguard S&P 500 UCITS ETF USD Accumulation"— pero
+// borrarla también hace indistinguibles dos fondos distintos con el mismo
+// índice. Por eso la forma laxa sólo vale con el precio como testigo.
+const LIMPIEZA = /\b(ucits|etf|acc|accumulating|accumulation|dist|distributing|distribution|usd|eur|gbp|chf|plc|fund[s]?|index)\b/g;
+const GESTORAS = /\b(ishares|vanguard|amundi|xtrackers|spdr|invesco|lyxor|blackrock|hsbc|ubs|state street)\b/g;
+
+const base = (s) => String(s || '')
     .toLowerCase()
     .normalize('NFD').replace(/[\u0300-\u036f]/g, '')     // sin acentos
     .replace(/\(.*?\)/g, ' ')                            // fuera "(Acc)", "(Dist)"
-    .replace(/\b(ucits|etf|acc|accumulating|dist|distributing|usd|eur|gbp|plc|fund[s]?)\b/g, ' ')
-    .replace(/[^a-z0-9]+/g, ' ')
-    .trim();
+    .replace(LIMPIEZA, ' ');
+
+const normalizarNombre = (s) => base(s).replace(/[^a-z0-9]+/g, ' ').trim();
+const normalizarSinGestora = (s) => base(s).replace(GESTORAS, ' ').replace(/[^a-z0-9]+/g, ' ').trim();
 
 /**
  * A partir de qué diferencia se deja de creer al proveedor de cotizaciones.
@@ -203,9 +209,10 @@ const precioDiscrepa = (item, pos) => {
  * normalizado —quitando acentos, sufijos de clase y la gestora— porque en la
  * práctica es lo que coincide: la app y Trade Republic llaman igual al fondo.
  */
-export const emparejarPosiciones = (items = [], posCsv = []) => {
+export const emparejarPosiciones = (items = [], posCsv = [], { isinConocido = {} } = {}) => {
     const porIsin = new Map(posCsv.map(p => [String(p.isin).toUpperCase(), p]));
     const porNombre = new Map(posCsv.map(p => [normalizarNombre(p.nombre), p]));
+    const porNombreLaxo = new Map(posCsv.map(p => [normalizarSinGestora(p.nombre), p]));
 
     const emparejadas = [];
     const sinEmparejar = [];
@@ -216,17 +223,34 @@ export const emparejarPosiciones = (items = [], posCsv = []) => {
 
     for (const it of items) {
         const ticker = String(it.asset?.ticker || '').toUpperCase();
-        const nombre = normalizarNombre(it.asset?.name);
-        const porIsinM = porIsin.get(ticker);
-        const m = porIsinM || porNombre.get(nombre) || null;
 
+        // 1. ISIN recordado de una importación anterior. Es lo que hace estable
+        //    el emparejamiento: al resolver el ISIN, el activo se renombra con
+        //    el nombre de la gestora y deja de parecerse al del bróker, así que
+        //    sin memoria la siguiente importación ya no lo reconocería.
+        const recordado = isinConocido?.[it.id]
+            ? porIsin.get(String(isinConocido[it.id]).toUpperCase())
+            : null;
+
+        // 2. El activo dado de alta directamente con su ISIN.
+        const porTicker = porIsin.get(ticker);
+
+        // 3. Nombre completo, gestora incluida.
+        const porNombreM = porNombre.get(normalizarNombre(it.asset?.name));
+
+        // 4. Nombre sin gestora. Aquí sí puede colarse otro fondo del mismo
+        //    índice, así que se exige que el precio cuadre.
+        const laxo = porNombreLaxo.get(normalizarSinGestora(it.asset?.name));
+        const porNombreLaxoM = laxo && !precioDiscrepa(it, laxo) ? laxo : null;
+
+        const m = recordado || porTicker || porNombreM || porNombreLaxoM || null;
         if (!m || yaAsignadas.has(m.isin)) { sinEmparejar.push(it); continue; }
 
         yaAsignadas.add(m.isin);
         emparejadas.push({
             item: it,
             csv: m,
-            via: porIsinM ? 'isin' : 'nombre',
+            via: recordado ? 'memoria' : porTicker ? 'isin' : porNombreM ? 'nombre' : 'nombre-laxo',
             // Si la cotización de la app no se parece a lo que se pagó, la
             // posición se valora con el precio del bróker.
             precioDiscrepa: precioDiscrepa(it, m),
