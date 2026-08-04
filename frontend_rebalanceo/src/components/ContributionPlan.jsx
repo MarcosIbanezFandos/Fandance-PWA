@@ -29,7 +29,7 @@ export const ContributionPlan = ({
     savedPlans = [], onGuardarConNombre, onBorrarGuardado, onCargarGuardado,
     // Quien ya enseña un resumen aparte abre directamente el editor: pasar
     // por la vista de lectura otra vez sería un toque de más.
-    iniciarEditando = false, onCerrarEdicion,
+    iniciarEditando = false, onCerrarEdicion, aportadoCsv = null,
 }) => {
     const { t } = useGlobal();
     const [editing, setEditing] = useState(iniciarEditando);
@@ -53,8 +53,8 @@ export const ContributionPlan = ({
     }, [plan?.monthly, plan?.annualGrowthPct, plan?.frequency, plan?.targetDate, planDefaults]);
 
     const status = useMemo(
-        () => buildPlanStatus({ plan, history, months: compact ? 6 : 12, ahead: compact ? 3 : FUTUROS }),
-        [plan, history, compact]
+        () => buildPlanStatus({ plan, history, months: compact ? 6 : 12, ahead: compact ? 3 : FUTUROS, aportadoCsv }),
+        [plan, history, compact, aportadoCsv]
     );
 
     const active = safeFloat(plan?.monthly) > 0;

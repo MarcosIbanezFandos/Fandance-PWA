@@ -1,13 +1,13 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import api from '../api'
 import { motion } from 'framer-motion';
-import { Loader2, TrendingUp, TrendingDown, Receipt, Info, Upload, RefreshCw, CheckCircle2, ArrowRight } from 'lucide-react';
+import { TrendingUp, TrendingDown, Receipt, Info, RefreshCw, CheckCircle2, ArrowRight } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { AreaChart, Area, ResponsiveContainer, YAxis, XAxis, Tooltip } from 'recharts';
 import { GlassCard, staggerContainer, fadeInUp } from '../components/UI';
 import { Dropdown } from '../components/Dropdown';
 import { BenchmarkCompare } from '../components/BenchmarkCompare';
-import { Card, SectionHeader, Button, EmptyState, ChartSkeleton, Skeleton } from '../components/UI';
+import { Card, SectionHeader, Button, ChartSkeleton } from '../components/UI';
 import { leerTxs } from '../lib/csvStore';
 import { aFormatoMetricas, primeraCompra } from '../lib/trImport';
 import { useGlobal } from '../context/GlobalContext';

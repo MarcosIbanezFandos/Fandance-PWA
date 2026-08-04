@@ -20,7 +20,7 @@ export const Dashboard = ({
     totalValue, riskProfile, contribution, setContribution,
     rebalanceHistory, searchResults, isSearching, query, setQuery,
     handleUpdate, deleteItem, applyRebalance, calculating, addAsset, searchAsset, undoRebalance, deleteHistoryItem,
-    chartData, overrides = {}, setOverride, clearOverrides, onImportarTR
+    chartData, overrides = {}, setOverride, clearOverrides, onImportarTR, aportacionesPrevias = []
 }) => {
     const { t } = useGlobal();
 
@@ -111,7 +111,7 @@ export const Dashboard = ({
                     <motion.div variants={fadeInUp}>
                         <ImportarTR
                             portfolioItems={portfolioItems}
-                            rebalanceHistory={rebalanceHistory}
+                            aportacionesPrevias={aportacionesPrevias}
                             onAplicar={onImportarTR}
                         />
                     </motion.div>

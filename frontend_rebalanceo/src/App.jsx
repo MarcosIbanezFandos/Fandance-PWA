@@ -8,8 +8,9 @@ import { supabase } from './supabaseClient'
 import { safeFloat, buildRebalancePlan, roundTo } from './utils'
 import { isAdmin, applyDefaultTargets, DEFAULT_CONTRIBUTION_PLAN } from './config/allocation'
 import { getPrefs, savePrefs, mesActual, planGuardadoAActivo } from './lib/planStore'
-import { guardarTxs, leerTxs, borrarTxs, mesesConAportacion, leerDescarte, guardarDescarte } from './lib/csvStore'
+import { guardarTxs, leerTxs, borrarTxs, mesesConAportacion, leerDescarte, guardarDescarte, borrarTodoElCsv } from './lib/csvStore'
 import { debeAvisar, mesClave } from './lib/recordatorio'
+import { aportadoPorMes, detectarAportaciones } from './lib/trImport'
 import { RecordatorioCsv } from './components/RecordatorioCsv'
 import { PageSkeleton } from './components/UI'
 import { AuthScreen } from './components/AuthScreen'
@@ -172,10 +173,32 @@ function App() {
         })
     }, [activePortfolio, csvTxs, avisoCerrado])
 
+    // Lo aportado de verdad, según el CSV. Es lo que hace que el plan se marque
+    // solo para quien aporta con el plan automático del bróker y nunca pulsa
+    // "aplicar rebalanceo" aquí dentro.
+    // Fechas ya importadas: lo que permite distinguir aportaciones nuevas de
+    // las que ya estaban en el CSV anterior.
+    const aportacionesPrevias = useMemo(
+        () => (csvTxs?.txs?.length ? detectarAportaciones(csvTxs.txs).map(a => a.fecha) : []),
+        [csvTxs]
+    )
+
+    const aportadoCsv = useMemo(
+        () => (csvTxs?.txs?.length ? aportadoPorMes(csvTxs.txs) : null),
+        [csvTxs]
+    )
+
     const cerrarAviso = () => {
         if (activePortfolio) guardarDescarte(activePortfolio.id, mesClave(new Date()))
         setAvisoCerrado(true)
     }
+
+    // Cerrar sesión no debe dejar los movimientos del bróker en el disco.
+    const cerrarSesion = useCallback(async () => {
+        borrarTodoElCsv()
+        setCsvTxs(null)
+        await supabase.auth.signOut()
+    }, [])
 
     const olvidarCsv = () => {
         if (!activePortfolio) return
@@ -521,7 +544,7 @@ function App() {
                     activePortfolio={activePortfolio}
                     setActivePortfolio={setActivePortfolio}
                     onCreatePortfolio={handleCreatePort}
-                    onLogout={() => supabase.auth.signOut()}
+                    onLogout={cerrarSesion}
                     onRename={handleRenamePort}
                     onDuplicate={handleDuplicatePort}
                     onDelete={handleDeletePort}
@@ -541,6 +564,7 @@ function App() {
                         planError={planError}
                         inception={portfolioInception}
                         onSaveInception={saveInception}
+                        aportadoCsv={aportadoCsv}
                         onGuardarPlanConNombre={guardarPlanConNombre}
                         onBorrarPlanGuardado={borrarPlanGuardado}
                         onCargarPlanGuardado={cargarPlanGuardado}
@@ -572,6 +596,7 @@ function App() {
                             deleteHistoryItem={deleteHistoryItem}
                             chartData={chartData}
                             onImportarTR={aplicarImportacionTR}
+                            aportacionesPrevias={aportacionesPrevias}
                             overrides={overrides}
                             setOverride={setOverride}
                             clearOverrides={clearOverrides}
@@ -602,6 +627,7 @@ function App() {
                         planSaving={planSaving}
                         planError={planError}
                         rebalanceHistory={rebalanceHistory}
+                        aportadoCsv={aportadoCsv}
                         onGuardarPlanConNombre={guardarPlanConNombre}
                         onBorrarPlanGuardado={borrarPlanGuardado}
                         onCargarPlanGuardado={cargarPlanGuardado}
@@ -623,7 +649,7 @@ function App() {
                 <Route path="/settings" element={
                     <Settings
                         session={session}
-                        onLogout={() => supabase.auth.signOut()}
+                        onLogout={cerrarSesion}
                         activePortfolio={activePortfolio}
                         portfolioItems={portfolioItems}
                         handleUpdate={handleUpdate}
@@ -643,7 +669,7 @@ function App() {
             abierto={aviso.avisar}
             pendientes={aviso.pendientes}
             portfolioItems={portfolioItems}
-            rebalanceHistory={rebalanceHistory}
+            aportacionesPrevias={aportacionesPrevias}
             onAplicar={aplicarImportacionTR}
             onCerrar={cerrarAviso}
         />

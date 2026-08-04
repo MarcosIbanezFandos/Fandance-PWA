@@ -1,5 +1,5 @@
 import React, { useRef, useState, useCallback } from 'react';
-import { FileUp, Check, AlertTriangle, Loader2, ArrowRight } from 'lucide-react';
+import { FileUp, Check, AlertTriangle, ArrowRight } from 'lucide-react';
 import { Card, SectionHeader, Button, Badge, Disclosure } from './UI';
 import { useGlobal } from '../context/GlobalContext';
 import { formatNumber, formatUnits, safeFloat } from '../utils';
@@ -18,7 +18,7 @@ import { cn } from '../lib/cn';
  *
  * El fichero se procesa entero en el navegador; no se sube a ningún sitio.
  */
-export const ImportarTR = ({ portfolioItems = [], rebalanceHistory = [], onAplicar }) => {
+export const ImportarTR = ({ portfolioItems = [], aportacionesPrevias = [], onAplicar }) => {
     const { t } = useGlobal();
     const inputRef = useRef(null);
     const [analisis, setAnalisis] = useState(null);
@@ -61,7 +61,7 @@ export const ImportarTR = ({ portfolioItems = [], rebalanceHistory = [], onAplic
                         txs: txs.length,
                         movimientos: txs,
                         aportaciones,
-                        nuevas: aportacionesNuevas(aportaciones, rebalanceHistory),
+                        nuevas: aportacionesNuevas(aportaciones, aportacionesPrevias),
                         cambios, sinEmparejar, soloEnCsv,
                     });
                 } catch (e) {
@@ -71,7 +71,7 @@ export const ImportarTR = ({ portfolioItems = [], rebalanceHistory = [], onAplic
             },
             error: (e) => { setError(e.message); setOcupado(false); },
         });
-    }, [portfolioItems, rebalanceHistory, t]);
+    }, [portfolioItems, aportacionesPrevias, t]);
 
     const aplicar = async () => {
         if (!analisis || !onAplicar) return;

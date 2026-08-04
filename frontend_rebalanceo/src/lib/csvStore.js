@@ -85,3 +85,19 @@ export const leerDescarte = (pid) => (pid ? localStorage.getItem(CLAVE_DESCARTE(
 export const guardarDescarte = (pid, mes) => {
     if (pid && mes) localStorage.setItem(CLAVE_DESCARTE(pid), mes);
 };
+
+/**
+ * Borra todo rastro del CSV de este navegador.
+ *
+ * Se llama al cerrar sesión: son movimientos bancarios y no tienen por qué
+ * seguir en el disco de un dispositivo que puede ser compartido. Recuperarlos
+ * cuesta un toque —volver a subir el fichero—, así que no se pierde nada.
+ */
+export const borrarTodoElCsv = () => {
+    try {
+        const claves = Object.keys(localStorage)
+            .filter(k => k.startsWith('tr_txs_') || k.startsWith('tr_aviso_') || k.startsWith('perf_csv_'));
+        claves.forEach(k => localStorage.removeItem(k));
+        return claves.length;
+    } catch { return 0; }
+};

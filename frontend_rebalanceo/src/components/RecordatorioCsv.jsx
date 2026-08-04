@@ -15,7 +15,7 @@ const nombreMes = (clave) =>
  * el móvil es descartarla hacia abajo, y porque el importador que lleva dentro
  * necesita alto. Nunca bloquea: se puede cerrar y seguir.
  */
-export const RecordatorioCsv = ({ abierto, pendientes = [], portfolioItems, rebalanceHistory, onAplicar, onCerrar }) => {
+export const RecordatorioCsv = ({ abierto, pendientes = [], portfolioItems, aportacionesPrevias = [], onAplicar, onCerrar }) => {
     const { t } = useGlobal();
     const varios = pendientes.length > 1;
 
@@ -57,7 +57,7 @@ export const RecordatorioCsv = ({ abierto, pendientes = [], portfolioItems, reba
                         <div className="px-5 pb-5 space-y-3">
                             <ImportarTR
                                 portfolioItems={portfolioItems}
-                                rebalanceHistory={rebalanceHistory}
+                                aportacionesPrevias={aportacionesPrevias}
                                 onAplicar={onAplicar}
                             />
                             <Button variant="ghost" className="w-full" onClick={onCerrar}>

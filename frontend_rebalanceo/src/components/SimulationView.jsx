@@ -19,7 +19,7 @@ const MODEL_HINT = {
 export const SimulationView = ({
     portfolios = [], activePortfolioId,
     plan, planDefaults, onSavePlan, planSaving, planError, rebalanceHistory = [],
-    onGuardarPlanConNombre, onBorrarPlanGuardado, onCargarPlanGuardado,
+    onGuardarPlanConNombre, onBorrarPlanGuardado, onCargarPlanGuardado, aportadoCsv,
 }) => {
     const { t } = useGlobal();
     const [selectedPorts, setSelectedPorts] = useState([]);
@@ -125,6 +125,8 @@ export const SimulationView = ({
                         onGuardarConNombre={onGuardarPlanConNombre}
                         onBorrarGuardado={onBorrarPlanGuardado}
                         onCargarGuardado={onCargarPlanGuardado}
+                        aportadoCsv={aportadoCsv}
+                    aportadoCsv={aportadoCsv}
                     />
                 ) : (
                     <Card>

@@ -860,7 +860,13 @@ export const mesesHastaObjetivo = (plan, now = new Date()) => {
     return Math.max(0, m);
 };
 
-export const buildPlanStatus = ({ plan, history = [], months = 12, ahead = 0, now = new Date() }) => {
+export const buildPlanStatus = ({
+    plan, history = [], months = 12, ahead = 0, now = new Date(),
+    // Aportado por mes según el CSV del bróker: { 'AAAA-MM': importe }. Manda
+    // sobre el historial de la app porque es lo que se ejecutó de verdad; el
+    // historial sólo registra lo que se pulsó aquí dentro.
+    aportadoCsv = null,
+}) => {
     if (!plan || safeFloat(plan.monthly) <= 0) {
         return { rows: [], currentMonth: null, streak: 0, doneCount: 0, contributedTotal: 0, plannedTotal: 0 };
     }
@@ -883,7 +889,12 @@ export const buildPlanStatus = ({ plan, history = [], months = 12, ahead = 0, no
         const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
         if (monthsBetween(start, d) < 0) continue;
         const planned = planAmountFor(plan, d);
-        const contributed = byMonth[monthKey(d)] || 0;
+        // Si el CSV cubre ese mes, su cifra sustituye a la del historial. Sumar
+        // ambas contaría dos veces a quien hace las dos cosas.
+        const clave = monthKey(d);
+        const contributed = (aportadoCsv && aportadoCsv[clave] !== undefined)
+            ? aportadoCsv[clave]
+            : (byMonth[clave] || 0);
         const isFuture = d > new Date(now.getFullYear(), now.getMonth(), 1);
         const isCurrent = monthKey(d) === monthKey(now);
         // Nadie transfiere 316,42 €: se transfiere 316, o 315. Exigir el importe
