@@ -205,6 +205,8 @@ export const GlobalProvider = ({ children }) => {
                 'perf.period_since': 'Desde',
                 // Trade Republic CSV import
                 'sync.title': "Sincronizar con Trade Republic",
+                'sync.fixed': "Estos activos ya cotizan en vivo:",
+                'sync.not_fixed': "No he encontrado cotización para {n}. Se sigue usando el precio de tu bróker.",
                 'sync.stale_price': "Cotizaciones corregidas con el precio de tu bróker",
                 'sync.stale_price_hint': "El precio que devuelve el mercado se aleja del último al que ejecutó tu bróker, así que el activo debe de estar dado de alta con otro ticker o en otra divisa. Para que tu patrimonio cuadre se valora con el precio del bróker. Se muestra: precio de la app → precio usado.",
                 'pos.precio_csv': "precio del bróker",
@@ -673,6 +675,8 @@ export const GlobalProvider = ({ children }) => {
                 'perf.period_since': 'Since',
                 // Trade Republic CSV import
                 'sync.title': "Sync with Trade Republic",
+                'sync.fixed': "These assets now have live quotes:",
+                'sync.not_fixed': "No live quote found for {n}. Your broker price is still used.",
                 'sync.stale_price': "Quotes corrected with your broker price",
                 'sync.stale_price_hint': "The market price is far from the last one your broker executed, so the asset must be registered under a different ticker or currency. To keep your total right it is valued at the broker price. Shown as: app price → price used.",
                 'pos.precio_csv': "broker price",

@@ -259,7 +259,10 @@ function App() {
         borrarTodoElCsv()
         for (const p of portfolios) {
             try { await savePrefs(p.id, { monthly: 0, annualGrowthPct: 0, startDate: null, targetDate: null,
-                                          frequency: 'monthly', savedPlans: [], pending: null, inception: null }) }
+                                          frequency: 'monthly', savedPlans: [], pending: null, inception: null,
+                                          // Sin esto, los precios del bróker de la importación anterior
+                                          // seguirían mandando sobre activos que ya no tienen sus unidades.
+                                          preciosCsv: {} }) }
             catch (e) { console.error(e) }
         }
         await refrescarPrefs()
@@ -476,10 +479,14 @@ function App() {
         //    Si se consigue, el precio pasa a ser en vivo y el del bróker queda
         //    sólo de respaldo.
         const resueltos = new Set();
+        const detalleResueltos = [];
         for (const r of contexto.aResolver || []) {
             try {
                 const res = await api.post(`${import.meta.env.VITE_API_URL}/assets/resolver_isin`, r);
-                if (res.data?.resuelto) resueltos.add(r.item_id);
+                if (res.data?.resuelto) {
+                    resueltos.add(r.item_id);
+                    detalleResueltos.push({ nombre: r.nombre, ticker: res.data.ticker, precio: res.data.precio });
+                }
             } catch (e) { /* sin cotización se sigue con el precio del bróker */ }
         }
 
@@ -499,6 +506,16 @@ function App() {
         // 4. Una sola recarga al final, con los tickers ya corregidos: así los
         //    precios que se pintan son los del activo bueno.
         await loadItems(activePortfolio.id);
+
+        // Lo que se ha conseguido arreglar, para poder decírselo al usuario en
+        // vez de dejarle adivinando si la corrección funcionó.
+        return {
+            resueltos: detalleResueltos,
+            sinResolver: (contexto.aResolver || [])
+                .filter(r => !resueltos.has(r.item_id))
+                .map(r => r.nombre)
+                .filter(Boolean),
+        };
     };
 
     // Set every asset to the same target weight (adds up to 100%).

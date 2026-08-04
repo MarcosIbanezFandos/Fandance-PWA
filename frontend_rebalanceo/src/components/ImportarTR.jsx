@@ -1,5 +1,5 @@
 import React, { useRef, useState, useCallback } from 'react';
-import { FileUp, Check, AlertTriangle, ArrowRight } from 'lucide-react';
+import { FileUp, Check, AlertTriangle, ArrowRight, Sparkles } from 'lucide-react';
 import { Card, SectionHeader, Button, Badge, Disclosure } from './UI';
 import { useGlobal } from '../context/GlobalContext';
 import { formatNumber, formatUnits, safeFloat } from '../utils';
@@ -26,6 +26,7 @@ export const ImportarTR = ({ portfolioItems = [], aportacionesPrevias = [], onAp
     const [ocupado, setOcupado] = useState(false);
     const [aplicando, setAplicando] = useState(false);
     const [hecho, setHecho] = useState(false);
+    const [resultado, setResultado] = useState(null);
     // Qué trae este fichero que no estuviera ya guardado.
     const resumen = analisis && resumenNovedades ? resumenNovedades(analisis.movimientos) : null;
 
@@ -80,7 +81,12 @@ export const ImportarTR = ({ portfolioItems = [], aportacionesPrevias = [], onAp
                     // real. El ISIN del CSV identifica el fondo sin ambigüedad.
                     const aResolver = precioRaro
                         .filter(e => e.csv.isin && e.csv.ultimoPrecio > 0)
-                        .map(e => ({ item_id: e.item.id, isin: e.csv.isin, precio_ref: e.csv.ultimoPrecio }));
+                        .map(e => ({
+                            item_id: e.item.id,
+                            isin: e.csv.isin,
+                            precio_ref: e.csv.ultimoPrecio,
+                            nombre: e.item.asset?.name || e.csv.nombre,
+                        }));
 
                     setAnalisis({
                         precios, precioRaro,
@@ -104,7 +110,7 @@ export const ImportarTR = ({ portfolioItems = [], aportacionesPrevias = [], onAp
         if (!analisis || !onAplicar) return;
         setAplicando(true);
         try {
-            await onAplicar(
+            const r = await onAplicar(
                 analisis.cambios.map(c => ({ id: c.item.id, unidades: c.nuevas })),
                 {
                     movimientos: analisis.movimientos,
@@ -114,6 +120,7 @@ export const ImportarTR = ({ portfolioItems = [], aportacionesPrevias = [], onAp
                     aResolver: analisis.aResolver,
                 },
             );
+            setResultado(r || null);
             setHecho(true);
             setAnalisis(null);
         } catch (e) {
@@ -141,9 +148,36 @@ export const ImportarTR = ({ portfolioItems = [], aportacionesPrevias = [], onAp
             )}
 
             {hecho && (
-                <p className="flex items-center gap-2 text-subhead text-positive mt-1">
-                    <Check size={16} strokeWidth={2.5} /> {t('sync.done')}
-                </p>
+                <div className="mt-1 space-y-1.5">
+                    <p className="flex items-center gap-2 text-subhead text-positive">
+                        <Check size={16} strokeWidth={2.5} /> {t('sync.done')}
+                    </p>
+
+                    {/* Qué activos han pasado a cotizar en vivo. Sin esto la
+                        corrección del ticker ocurre a ciegas. */}
+                    {resultado?.resueltos?.length > 0 && (
+                        <div className="text-footnote text-ink-2">
+                            <p className="flex items-start gap-2">
+                                <Sparkles size={14} className="text-brand shrink-0 mt-0.5" />
+                                {t('sync.fixed')}
+                            </p>
+                            <ul className="mt-1 space-y-0.5 tabular-nums">
+                                {resultado.resueltos.map(r => (
+                                    <li key={r.ticker}>
+                                        {r.nombre} → {r.ticker} · {formatNumber(r.precio, 2)} €
+                                    </li>
+                                ))}
+                            </ul>
+                        </div>
+                    )}
+
+                    {resultado?.sinResolver?.length > 0 && (
+                        <p className="flex items-start gap-2 text-footnote text-ink-2">
+                            <AlertTriangle size={14} className="text-warning shrink-0 mt-0.5" />
+                            {t('sync.not_fixed').replace('{n}', resultado.sinResolver.join(', '))}
+                        </p>
+                    )}
+                </div>
             )}
 
             {error && (
