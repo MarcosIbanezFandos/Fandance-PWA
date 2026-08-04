@@ -9,6 +9,7 @@ import { Dropdown } from '../components/Dropdown';
 import { BenchmarkCompare } from '../components/BenchmarkCompare';
 import { Card, SectionHeader, Button, ChartSkeleton } from '../components/UI';
 import { leerTxs } from '../lib/csvStore';
+import { patrimonioTotal } from '../lib/valoracion';
 import { aFormatoMetricas, primeraCompra } from '../lib/trImport';
 import { useGlobal } from '../context/GlobalContext';
 import { safeFloat, formatNumber, xirr, computeMetricsForPeriod, ttwror, formatSeriesDates } from '../utils';
@@ -55,7 +56,7 @@ const StatRow = ({ label, value, badge, borderTop, borderBottom, bold, tooltip }
     </div>
 );
 
-export const Performance = ({ portfolios, activePortfolioId }) => {
+export const Performance = ({ portfolios, activePortfolioId, preciosCsv = {} }) => {
     const { t } = useGlobal();
     const [pid, setPid] = useState('');
     const [items, setItems] = useState([]);
@@ -131,7 +132,9 @@ export const Performance = ({ portfolios, activePortfolioId }) => {
     }, [pid, period]);
 
     // Current portfolio value
-    const currentValue = useMemo(() => items.reduce((s, i) => s + safeFloat(i.value), 0), [items]);
+    // Misma valoración que en Posiciones: sin esto, una posición sin
+    // cotización daba aquí un total —y una TIR— distintos de los de la cartera.
+    const currentValue = useMemo(() => patrimonioTotal(items, preciosCsv), [items, preciosCsv]);
 
     // Period-filtered metrics from CSV data
     const periodMetrics = useMemo(() => {
