@@ -1417,5 +1417,56 @@ def volatilidad_mercado(user_id: str = External):
         print(f"VIX ERROR: {e}")
         return {"disponible": False, "alto": False, "ultimo": None, "dias_por_encima": 0}
 
+@app.post("/api/cuenta/reset")
+def reset_cuenta(data: Dict[str, Any], user_id: str = Standard):
+    """Deja los datos del usuario a cero sin desmontarle la cartera.
+
+    Se borra lo acumulado —historial de rebalanceos y unidades— y se conservan
+    las carteras, los activos y los pesos objetivo: rehacer a mano un reparto de
+    cinco fondos es trabajo real, y "poner los datos a cero" no significa
+    empezar de nuevo desde la pantalla vacía. Las simulaciones no se tocan
+    porque no se guardan: se calculan cada vez.
+
+    Exige confirmacion=True en el cuerpo. Es irreversible y no hay papelera.
+    """
+    if not data.get("confirmacion"):
+        raise HTTPException(400, "Falta la confirmación")
+
+    try:
+        carteras = supabase.table("portfolios").select("id").eq("user_id", user_id).execute().data or []
+        ids = [c["id"] for c in carteras]
+        if not ids:
+            return {"status": "ok", "carteras": 0, "historial": 0, "posiciones": 0}
+
+        # El historial se borra por cartera; los items de cada entrada caen con
+        # ella si hay ON DELETE CASCADE, y si no, se limpian antes.
+        borradas = 0
+        for pid in ids:
+            hist = supabase.table("rebalance_history").select("id").eq("portfolio_id", pid).execute().data or []
+            for h in hist:
+                try:
+                    supabase.table("rebalance_history_items").delete().eq("history_id", h["id"]).execute()
+                except Exception:
+                    pass
+            if hist:
+                supabase.table("rebalance_history").delete().eq("portfolio_id", pid).execute()
+                borradas += len(hist)
+
+        # Unidades a cero, objetivos intactos.
+        posiciones = 0
+        for pid in ids:
+            items = supabase.table("portfolio_items").select("id").eq("portfolio_id", pid).execute().data or []
+            if items:
+                supabase.table("portfolio_items").update({"units_held": 0}).eq("portfolio_id", pid).execute()
+                posiciones += len(items)
+            supabase.table("portfolios").update({"last_contribution": 0}).eq("id", pid).execute()
+
+        return {"status": "ok", "carteras": len(ids), "historial": borradas, "posiciones": posiciones}
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"RESET ERROR: {e}")
+        raise HTTPException(500, "No se pudieron reiniciar los datos")
+
 
 # --- Vercel Serverless Handler ---

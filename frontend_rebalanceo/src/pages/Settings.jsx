@@ -1,6 +1,7 @@
 import React from 'react';
-import { GlassCard, BounceButton, Disclosure } from '../components/UI';
-import { Moon, Sun, Globe, Shield, LogOut, Target, Scale, Sparkles, CheckCircle2, AlertTriangle, HelpCircle } from 'lucide-react';
+import { GlassCard, BounceButton, Disclosure, SectionHeader, Button } from '../components/UI';
+import { Moon, Sun, Globe, Shield, LogOut, Target, Scale, Sparkles, CheckCircle2, AlertTriangle, HelpCircle, RotateCcw } from 'lucide-react';
+import { cn } from '../lib/cn';
 import { useGlobal } from '../context/GlobalContext';
 import { Dropdown } from '../components/Dropdown';
 import { safeFloat, formatNumber } from '../utils';
@@ -79,7 +80,22 @@ const TargetAllocationCard = ({ activePortfolio, portfolioItems, handleUpdate, o
     );
 };
 
-export const Settings = ({ session, onLogout, activePortfolio, portfolioItems, handleUpdate, onEqualSplit, onNormalize, onApplyDefaults, isAdmin }) => {
+export const Settings = ({ session, onLogout, activePortfolio, portfolioItems, handleUpdate, onEqualSplit, onNormalize, onApplyDefaults, isAdmin, onReiniciarCuenta }) => {
+    const [confirmando, setConfirmando] = React.useState(false);
+    const [reiniciando, setReiniciando] = React.useState(false);
+    const [resultado, setResultado] = React.useState(null);
+
+    const reiniciar = async () => {
+        setReiniciando(true);
+        try {
+            const r = await onReiniciarCuenta();
+            setResultado({ ok: true, ...r });
+            setConfirmando(false);
+        } catch (e) {
+            setResultado({ ok: false, msg: e?.response?.data?.detail || e?.message });
+        } finally { setReiniciando(false); }
+    };
+
     const { theme, setTheme, language, setLanguage, t } = useGlobal();
 
     return (
@@ -150,7 +166,7 @@ export const Settings = ({ session, onLogout, activePortfolio, portfolioItems, h
                     <div className="flex items-center gap-4 mb-4">
                         <div className="p-2 bg-surface rounded-control shadow-card text-ink"><Shield size={20} /></div>
                         <div>
-                            <div className="font-bold text-ink text-subhead">Current Session</div>
+                            <div className="font-bold text-ink text-subhead">{t('settings.session')}</div>
                             <div className="text-caption2 text-ink-3 font-bold uppercase">{session?.user?.email}</div>
                         </div>
                     </div>
@@ -181,6 +197,51 @@ export const Settings = ({ session, onLogout, activePortfolio, portfolioItems, h
                     </p>
                 </div>
             </GlassCard>
+
+            {/* Zona de peligro. Al final y detrás de una confirmación explícita:
+                es irreversible y no hay papelera. */}
+            {onReiniciarCuenta && (
+                <GlassCard>
+                    <SectionHeader
+                        icon={AlertTriangle}
+                        title={t('reset.title')}
+                        hint={t('reset.hint')}
+                    />
+
+                    {!confirmando ? (
+                        <Button variant="danger-ghost" icon={RotateCcw} onClick={() => { setResultado(null); setConfirmando(true); }}>
+                            {t('reset.cta')}
+                        </Button>
+                    ) : (
+                        <div className="rounded-control border border-negative/30 bg-negative-soft p-4">
+                            <p className="text-subhead font-semibold text-ink">{t('reset.confirm_title')}</p>
+                            <ul className="text-footnote text-ink-2 mt-2 space-y-0.5 list-disc pl-4">
+                                <li>{t('reset.item_history')}</li>
+                                <li>{t('reset.item_units')}</li>
+                                <li>{t('reset.item_plans')}</li>
+                                <li>{t('reset.item_csv')}</li>
+                            </ul>
+                            <p className="text-footnote text-ink-2 mt-2">{t('reset.keeps')}</p>
+                            <div className="flex gap-2 mt-4">
+                                <Button variant="danger" onClick={reiniciar} loading={reiniciando}>
+                                    {t('reset.confirm_cta')}
+                                </Button>
+                                <Button variant="ghost" onClick={() => setConfirmando(false)}>{t('plan.cancel')}</Button>
+                            </div>
+                        </div>
+                    )}
+
+                    {resultado && (
+                        <p className={cn('text-footnote mt-3', resultado.ok ? 'text-positive' : 'text-negative')}>
+                            {resultado.ok
+                                ? t('reset.done')
+                                    .replace('{h}', resultado.historial ?? 0)
+                                    .replace('{p}', resultado.posiciones ?? 0)
+                                : `${t('reset.error')} ${resultado.msg || ''}`}
+                        </p>
+                    )}
+                </GlassCard>
+            )}
         </div>
     );
 };

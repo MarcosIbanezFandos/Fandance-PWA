@@ -21,7 +21,7 @@ export const Dashboard = ({
     totalValue, riskProfile, contribution, setContribution,
     rebalanceHistory, searchResults, isSearching, query, setQuery,
     handleUpdate, deleteItem, applyRebalance, calculating, addAsset, searchAsset, undoRebalance, deleteHistoryItem,
-    chartData, overrides = {}, setOverride, clearOverrides, onImportarTR, aportacionesPrevias = [],
+    chartData, overrides = {}, setOverride, clearOverrides, onImportarTR, aportacionesPrevias = [], resumenNovedades,
     evaluacionReajuste, minOperacion, onCambiarMinOperacion
 }) => {
     const { t } = useGlobal();
@@ -114,6 +114,7 @@ export const Dashboard = ({
                         <ImportarTR
                             portfolioItems={portfolioItems}
                             aportacionesPrevias={aportacionesPrevias}
+                            resumenNovedades={resumenNovedades}
                             onAplicar={onImportarTR}
                         />
                     </motion.div>

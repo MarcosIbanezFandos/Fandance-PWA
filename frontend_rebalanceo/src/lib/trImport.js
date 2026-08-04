@@ -144,13 +144,38 @@ export const aportacionesNuevas = (aportaciones, previas = []) => {
  *  Emparejar con las posiciones de la app
  * ------------------------------------------------------------------ */
 
+// Se quitan el envoltorio legal y la clase de participación, pero NO la
+// gestora: "iShares S&P 500" y "Vanguard S&P 500" son fondos distintos, con
+// precios por participación que no se parecen en nada. Borrarla los hacía
+// indistinguibles y era la puerta por la que entraban emparejamientos falsos.
 const normalizarNombre = (s) => String(s || '')
     .toLowerCase()
-    .normalize('NFD').replace(/[̀-ͯ]/g, '')   // sin acentos
+    .normalize('NFD').replace(/[\u0300-\u036f]/g, '')     // sin acentos
     .replace(/\(.*?\)/g, ' ')                            // fuera "(Acc)", "(Dist)"
-    .replace(/\b(ucits|etf|acc|dist|usd|eur|plc|fund[s]?|ishares|vanguard|amundi|xtrackers|spdr|invesco)\b/g, ' ')
+    .replace(/\b(ucits|etf|acc|accumulating|dist|distributing|usd|eur|gbp|plc|fund[s]?)\b/g, ' ')
     .replace(/[^a-z0-9]+/g, ' ')
     .trim();
+
+/**
+ * Cuánto puede separarse el precio del activo en la app del precio medio pagado
+ * según el CSV antes de considerar que no son el mismo instrumento.
+ *
+ * El precio medio de compra y el precio de hoy difieren por el mercado, y en
+ * unos años esa diferencia puede ser grande. Pero un múltiplo de 2 no lo
+ * explica el mercado: lo explica que sean clases de participación distintas, o
+ * divisas distintas. Ahí es mejor no emparejar que inflar el patrimonio.
+ */
+export const DESVIO_PRECIO_MAXIMO = 1.0;
+
+const precioCompatible = (item, pos) => {
+    const precioApp = safeFloat(item?.current_price);
+    const precioCsv = pos?.unidades > 0 ? pos.coste / pos.unidades : 0;
+    // Sin precio en alguno de los dos lados no hay nada que comprobar.
+    if (precioApp <= 0 || precioCsv <= 0) return true;
+    const mayor = Math.max(precioApp, precioCsv);
+    const menor = Math.min(precioApp, precioCsv);
+    return (mayor / menor) - 1 <= DESVIO_PRECIO_MAXIMO;
+};
 
 /**
  * Cruza cada posición de la cartera con su línea del CSV.
@@ -167,19 +192,36 @@ export const emparejarPosiciones = (items = [], posCsv = []) => {
     const emparejadas = [];
     const sinEmparejar = [];
 
+    // Una línea del CSV no puede alimentar a dos activos de la app: sería
+    // contar el mismo dinero dos veces.
+    const yaAsignadas = new Set();
+    const descartadas = [];
+
     for (const it of items) {
         const ticker = String(it.asset?.ticker || '').toUpperCase();
         const nombre = normalizarNombre(it.asset?.name);
-        const m = porIsin.get(ticker) || porNombre.get(nombre) || null;
-        if (m) emparejadas.push({ item: it, csv: m, via: porIsin.get(ticker) ? 'isin' : 'nombre' });
-        else sinEmparejar.push(it);
+        const porIsinM = porIsin.get(ticker);
+        const m = porIsinM || porNombre.get(nombre) || null;
+
+        if (!m || yaAsignadas.has(m.isin)) { sinEmparejar.push(it); continue; }
+
+        // El ISIN es identificador único y no admite discusión. Un cruce por
+        // nombre, en cambio, se comprueba contra el precio antes de aceptarlo.
+        if (!porIsinM && !precioCompatible(it, m)) {
+            descartadas.push({ item: it, csv: m });
+            sinEmparejar.push(it);
+            continue;
+        }
+
+        yaAsignadas.add(m.isin);
+        emparejadas.push({ item: it, csv: m, via: porIsinM ? 'isin' : 'nombre' });
     }
 
     // Lo que hay en el CSV y no está dado de alta en la cartera.
     const usados = new Set(emparejadas.map(e => e.csv.isin));
     const soloEnCsv = posCsv.filter(p => !usados.has(p.isin));
 
-    return { emparejadas, sinEmparejar, soloEnCsv };
+    return { emparejadas, sinEmparejar, soloEnCsv, descartadas };
 };
 
 /* ------------------------------------------------------------------ *
@@ -231,3 +273,7 @@ export const aportadoPorMes = (txs = []) => {
     }
     return porMes;
 };
+
+/** Patrimonio invertido según el CSV: suma del coste de las posiciones vivas. */
+export const invertidoTotal = (txs = []) =>
+    posicionesDesdeCsv(txs).reduce((s, p) => s + p.coste, 0);
