@@ -5,6 +5,7 @@ import { GlassCard, Card, StatTile, CountUp, BounceButton, NumericField, Segment
 import { safeFloat, formatNumber, formatUnits } from '../utils';
 import { useGlobal } from '../context/GlobalContext';
 import { ImportarTR } from './ImportarTR';
+import { BandaReajuste } from './BandaReajuste';
 
 // Igual que en Inicio: el reparto se dibuja cuando llega recharts, no antes.
 const DonutReparto = lazy(() => import('./charts/DonutReparto').then(m => ({ default: m.DonutReparto })));
@@ -20,7 +21,8 @@ export const Dashboard = ({
     totalValue, riskProfile, contribution, setContribution,
     rebalanceHistory, searchResults, isSearching, query, setQuery,
     handleUpdate, deleteItem, applyRebalance, calculating, addAsset, searchAsset, undoRebalance, deleteHistoryItem,
-    chartData, overrides = {}, setOverride, clearOverrides, onImportarTR, aportacionesPrevias = []
+    chartData, overrides = {}, setOverride, clearOverrides, onImportarTR, aportacionesPrevias = [],
+    evaluacionReajuste, minOperacion, onCambiarMinOperacion
 }) => {
     const { t } = useGlobal();
 
@@ -128,6 +130,15 @@ export const Dashboard = ({
                                 <p className="text-footnote text-ink-2 mt-2">
                                     {rebalanceMode === 'contribute' ? t('dash.mode_contribute_hint') : t('dash.mode_full_hint')}
                                 </p>
+                                {/* La regla que decide si toca mover dinero, a un toque
+                                    de distancia pero sin ocupar sitio hasta que se pida. */}
+                                <div className="mt-3">
+                                    <BandaReajuste
+                                        evaluacion={evaluacionReajuste}
+                                        minOperacion={minOperacion}
+                                        onCambiarMinimo={onCambiarMinOperacion}
+                                    />
+                                </div>
                             </div>
                             <div className={`shrink-0 rounded-card px-4 py-3 border ${targetsBalanced ? 'bg-emerald-50 dark:bg-emerald-900/20 border-emerald-100 dark:border-emerald-900/40' : 'bg-amber-50 dark:bg-amber-900/20 border-amber-100 dark:border-amber-900/40'}`}>
                                 <div className="flex items-center gap-2">

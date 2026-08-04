@@ -52,6 +52,9 @@ export const getPrefs = (user, portfolioId) => {
         // Se guarda con su mes para que la del mes pasado no reaparezca.
         pending: (p.pending && typeof p.pending === 'object') ? p.pending : null,
         savedPlans: Array.isArray(p.saved) ? p.saved : [],
+        // Importe mínimo por operación. Indexa usa 100 €; quien aporta con un
+        // plan automático que compra todos los fondos cada mes lo baja.
+        minOperacion: p.minop === undefined || p.minop === null ? 100 : Number(p.minop) || 0,
     };
 };
 
@@ -87,6 +90,7 @@ export const savePrefs = async (portfolioId, cambios) => {
         ...(cambios.targetDate !== undefined ? { target: cambios.targetDate || null } : {}),
         ...(cambios.frequency !== undefined ? { freq: cambios.frequency || 'monthly' } : {}),
         ...(cambios.savedPlans !== undefined ? { saved: cambios.savedPlans } : {}),
+        ...(cambios.minOperacion !== undefined ? { minop: Number(cambios.minOperacion) || 0 } : {}),
         ...(cambios.inception !== undefined ? { inception: cambios.inception || null } : {}),
         ...(cambios.pending !== undefined ? { pending: cambios.pending } : {}),
     };
