@@ -478,16 +478,29 @@ function App() {
         //    reapuntan a un símbolo que cotice de verdad, usando el ISIN del CSV.
         //    Si se consigue, el precio pasa a ser en vivo y el del bróker queda
         //    sólo de respaldo.
+        // Todos en una sola petición: cada ISIN son varias llamadas al
+        // proveedor de cotizaciones y de uno en uno se hacía eterno.
         const resueltos = new Set();
-        const detalleResueltos = [];
-        for (const r of contexto.aResolver || []) {
+        const detalle = [];
+        const porItem = new Map((contexto.aResolver || []).map(r => [r.item_id, r]));
+        if (porItem.size) {
             try {
-                const res = await api.post(`${import.meta.env.VITE_API_URL}/assets/resolver_isin`, r);
-                if (res.data?.resuelto) {
-                    resueltos.add(r.item_id);
-                    detalleResueltos.push({ nombre: r.nombre, ticker: res.data.ticker, precio: res.data.precio });
+                const res = await api.post(`${import.meta.env.VITE_API_URL}/assets/resolver_isin`, {
+                    activos: [...porItem.values()].map(({ item_id, isin, precio_ref }) => ({ item_id, isin, precio_ref })),
+                });
+                for (const r of res.data?.resultados || []) {
+                    const origen = porItem.get(r.item_id);
+                    if (r.resuelto) resueltos.add(r.item_id);
+                    detalle.push({
+                        nombre: origen?.nombre,
+                        unidades: origen?.unidades,
+                        resuelto: !!r.resuelto,
+                        ticker: r.ticker,
+                        precio: r.precio,
+                        motivo: r.motivo,
+                    });
                 }
-            } catch (e) { /* sin cotización se sigue con el precio del bróker */ }
+            } catch (e) { console.error('resolver ISIN', e) }
         }
 
         if (contexto.precios && Object.keys(contexto.precios).length) {
@@ -510,11 +523,13 @@ function App() {
         // Lo que se ha conseguido arreglar, para poder decírselo al usuario en
         // vez de dejarle adivinando si la corrección funcionó.
         return {
-            resueltos: detalleResueltos,
-            sinResolver: (contexto.aResolver || [])
-                .filter(r => !resueltos.has(r.item_id))
-                .map(r => r.nombre)
-                .filter(Boolean),
+            resueltos: detalle.filter(d => d.resuelto),
+            sinResolver: detalle.filter(d => !d.resuelto).map(d => d.nombre).filter(Boolean),
+            // Lo que la app va a mostrar tras la importación, para poder
+            // compararlo de un vistazo con la pantalla del bróker.
+            total: detalle
+                .filter(d => d.resuelto)
+                .reduce((s2, d) => s2 + safeFloat(d.unidades) * safeFloat(d.precio), 0),
         };
     };
 

@@ -77,15 +77,18 @@ export const ImportarTR = ({ portfolioItems = [], aportacionesPrevias = [], onAp
                     }
                     const precioRaro = emparejadas.filter(e => e.precioDiscrepa);
 
-                    // Activos que conviene reapuntar a un símbolo con cotización
-                    // real. El ISIN del CSV identifica el fondo sin ambigüedad.
-                    const aResolver = precioRaro
+                    // Se resuelven TODAS las posiciones por ISIN, no sólo las
+                    // que se ven mal. Que un precio se parezca no garantiza que
+                    // sea el mismo fondo, y el ISIN no deja lugar a dudas: es la
+                    // única forma de que la cartera cuadre con la del bróker.
+                    const aResolver = emparejadas
                         .filter(e => e.csv.isin && e.csv.ultimoPrecio > 0)
                         .map(e => ({
                             item_id: e.item.id,
                             isin: e.csv.isin,
                             precio_ref: e.csv.ultimoPrecio,
                             nombre: e.item.asset?.name || e.csv.nombre,
+                            unidades: e.csv.unidades,
                         }));
 
                     setAnalisis({
@@ -148,26 +151,43 @@ export const ImportarTR = ({ portfolioItems = [], aportacionesPrevias = [], onAp
             )}
 
             {hecho && (
-                <div className="mt-1 space-y-1.5">
+                <div className="mt-1 space-y-3">
                     <p className="flex items-center gap-2 text-subhead text-positive">
                         <Check size={16} strokeWidth={2.5} /> {t('sync.done')}
                     </p>
 
-                    {/* Qué activos han pasado a cotizar en vivo. Sin esto la
-                        corrección del ticker ocurre a ciegas. */}
+                    {/* Qué precio queda usando cada posición y cuánto suma. Es lo
+                        que permite comparar de un vistazo con la pantalla del
+                        bróker en vez de dar por bueno el resultado a ciegas. */}
                     {resultado?.resueltos?.length > 0 && (
-                        <div className="text-footnote text-ink-2">
-                            <p className="flex items-start gap-2">
+                        <div>
+                            <p className="flex items-start gap-2 text-footnote text-ink-2 mb-2">
                                 <Sparkles size={14} className="text-brand shrink-0 mt-0.5" />
                                 {t('sync.fixed')}
                             </p>
-                            <ul className="mt-1 space-y-0.5 tabular-nums">
+                            <ul className="rounded-card bg-surface-2 divide-y divide-line overflow-hidden">
                                 {resultado.resueltos.map(r => (
-                                    <li key={r.ticker}>
-                                        {r.nombre} → {r.ticker} · {formatNumber(r.precio, 2)} €
+                                    <li key={r.ticker + r.nombre} className="flex items-center gap-2 px-3 py-2">
+                                        <span className="min-w-0 flex-1">
+                                            <span className="block text-footnote text-ink truncate">{r.nombre}</span>
+                                            <span className="block text-caption2 text-ink-3 tabular-nums">
+                                                {r.ticker} · {formatNumber(r.precio, 2)} € · {formatUnits(r.unidades)} ud.
+                                            </span>
+                                        </span>
+                                        <span className="text-footnote font-semibold text-ink tabular-nums shrink-0">
+                                            {formatNumber(safeFloat(r.unidades) * safeFloat(r.precio), 2)} €
+                                        </span>
                                     </li>
                                 ))}
                             </ul>
+                            {resultado.total > 0 && (
+                                <p className="flex items-center justify-between gap-3 mt-2 pt-2 border-t border-line">
+                                    <span className="text-footnote text-ink-2">{t('sync.total')}</span>
+                                    <span className="text-subhead font-semibold text-ink tabular-nums">
+                                        {formatNumber(resultado.total, 2)} €
+                                    </span>
+                                </p>
+                            )}
                         </div>
                     )}
 

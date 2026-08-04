@@ -1468,69 +1468,95 @@ def reset_cuenta(data: Dict[str, Any], user_id: str = Standard):
         print(f"RESET ERROR: {e}")
         raise HTTPException(500, "No se pudieron reiniciar los datos")
 
-class ResolverIsinInput(BaseModel):
+class IsinAResolver(BaseModel):
     item_id: str = Field(min_length=1, max_length=64)
     isin: str = Field(min_length=8, max_length=16)
     # Último precio al que el bróker ejecutó, en euros. Sirve para elegir entre
-    # los distintos símbolos del mismo fondo: el ISIN cotiza en varias bolsas y
-    # divisas, y sólo uno se corresponde con lo que el usuario pagó.
+    # los símbolos del mismo fondo: un ISIN cotiza en varias bolsas y divisas, y
+    # sólo uno se corresponde con lo que el usuario pagó.
     precio_ref: float = Field(gt=0, le=1e7)
+
+
+class ResolverIsinInput(BaseModel):
+    activos: List[IsinAResolver] = Field(min_length=1, max_length=25)
 
 
 @app.post("/api/assets/resolver_isin")
 def resolver_isin(data: ResolverIsinInput, user_id: str = External):
-    """Deja la posición apuntando a un símbolo con cotización en vivo.
+    """Deja cada posición apuntando a un símbolo con cotización en vivo.
 
-    Los activos dados de alta buscando por nombre acaban a veces en un símbolo
-    de otra clase de participación —o de otra divisa, o sin cotización— y
-    entonces la posición se valora mal o directamente a cero. El ISIN sí
-    identifica el fondo sin ambigüedad, y viene en el CSV del bróker.
+    Los activos dados de alta buscando por nombre acaban a veces en otra clase
+    de participación, en otra divisa o en un símbolo sin datos, y entonces la
+    posición se valora mal o a cero. El ISIN identifica el fondo sin ambigüedad
+    y viene en el CSV del bróker, así que es la referencia buena.
 
-    Entre los candidatos se elige el que menos se aleja del último precio
-    ejecutado, ya convertido a euros. Si ninguno se acerca lo suficiente no se
-    toca nada: dejar la posición como está es mejor que apuntarla a otro fondo.
+    Se resuelven todos en una sola petición: cada ISIN son varias llamadas al
+    proveedor y hacerlo de uno en uno multiplicaba las idas y venidas. Hay un
+    presupuesto de tiempo porque la función tiene límite; lo que no dé tiempo a
+    resolver se devuelve como pendiente y se reintenta en la siguiente
+    importación, en vez de agotar la petición entera.
     """
-    assert_owns_item(user_id, data.item_id)
+    inicio = _time.time()
+    PRESUPUESTO = 40.0
 
-    isin = data.isin.strip().upper()
-    try:
-        candidatos = [q.get("symbol") for q in yf.Search(isin, max_results=8).quotes if q.get("symbol")]
-    except Exception as e:
-        print(f"RESOLVER ISIN buscar {isin}: {e}")
-        raise HTTPException(502, "No se pudo consultar el proveedor de cotizaciones")
+    resultados = []
+    for a in data.activos:
+        assert_owns_item(user_id, a.item_id)
 
-    mejor, mejor_puntos, mejor_desvio, mejor_precio = None, None, None, 0.0
-    for sym in candidatos[:5]:
-        precio = fetch_live_price(sym)
-        if precio <= 0:
+        if _time.time() - inicio > PRESUPUESTO:
+            resultados.append({"item_id": a.item_id, "isin": a.isin, "resuelto": False, "motivo": "tiempo"})
             continue
-        desvio = abs(precio / data.precio_ref - 1)
-        # Yahoo devuelve también listados con el ISIN por símbolo (Stuttgart,
-        # Berlín). Cotizan el mismo fondo pero con poco volumen y datos que se
-        # quedan viejos, así que ante dos candidatos parecidos gana el que tiene
-        # símbolo propio. La penalización es pequeña: si el de bolsa principal
-        # se aleja de verdad, sigue ganando el otro.
-        puntos = desvio + (0.02 if sym.upper().startswith(isin) else 0.0)
-        if mejor_puntos is None or puntos < mejor_puntos:
-            mejor, mejor_puntos, mejor_desvio, mejor_precio = sym, puntos, desvio, precio
 
-    # Un 35% cubre de sobra el movimiento de mercado desde la última compra;
-    # más que eso ya no es el mismo instrumento.
-    if not mejor or mejor_desvio > 0.35:
-        return {"resuelto": False, "isin": isin, "candidatos": len(candidatos)}
+        isin = a.isin.strip().upper()
+        try:
+            candidatos = [q.get("symbol") for q in yf.Search(isin, max_results=8).quotes if q.get("symbol")]
+        except Exception as e:
+            print(f"RESOLVER ISIN buscar {isin}: {e}")
+            resultados.append({"item_id": a.item_id, "isin": isin, "resuelto": False, "motivo": "busqueda"})
+            continue
 
-    asset_id = _get_or_create_asset(mejor)
-    if not asset_id:
-        return {"resuelto": False, "isin": isin, "candidatos": len(candidatos)}
+        mejor, mejor_puntos, mejor_desvio, mejor_precio = None, None, None, 0.0
+        for sym in candidatos[:5]:
+            precio = fetch_live_price(sym)
+            if precio <= 0:
+                continue
+            desvio = abs(precio / a.precio_ref - 1)
+            # Un candidato a menos del 5% del precio ejecutado ya es el bueno:
+            # seguir preguntando por los demás sólo gasta el presupuesto de
+            # tiempo, y son cinco activos por importación.
+            if desvio <= 0.05 and not sym.upper().startswith(isin):
+                mejor, mejor_desvio, mejor_precio = sym, desvio, precio
+                break
+            # Yahoo devuelve también listados con el ISIN por símbolo (Stuttgart,
+            # Berlín): cotizan el mismo fondo pero con poco volumen y datos que
+            # se quedan viejos, así que ante dos candidatos parecidos gana el de
+            # bolsa principal. La penalización es pequeña a propósito.
+            puntos = desvio + (0.02 if sym.upper().startswith(isin) else 0.0)
+            if mejor_puntos is None or puntos < mejor_puntos:
+                mejor, mejor_puntos, mejor_desvio, mejor_precio = sym, puntos, desvio, precio
 
-    supabase.table("portfolio_items").update({"asset_id": asset_id}).eq("id", data.item_id).execute()
-    return {
-        "resuelto": True,
-        "isin": isin,
-        "ticker": mejor,
-        "precio": round(mejor_precio, 4),
-        "desvio_pct": round(mejor_desvio * 100, 2),
-    }
+        # Un 35% cubre de sobra el movimiento de mercado desde la última compra;
+        # más que eso ya no es el mismo instrumento.
+        if not mejor or mejor_desvio > 0.35:
+            resultados.append({
+                "item_id": a.item_id, "isin": isin, "resuelto": False,
+                "motivo": "sin_candidato", "candidatos": len(candidatos),
+            })
+            continue
+
+        asset_id = _get_or_create_asset(mejor)
+        if not asset_id:
+            resultados.append({"item_id": a.item_id, "isin": isin, "resuelto": False, "motivo": "alta_activo"})
+            continue
+
+        supabase.table("portfolio_items").update({"asset_id": asset_id}).eq("id", a.item_id).execute()
+        resultados.append({
+            "item_id": a.item_id, "isin": isin, "resuelto": True,
+            "ticker": mejor, "precio": round(mejor_precio, 4),
+            "desvio_pct": round(mejor_desvio * 100, 2),
+        })
+
+    return {"resultados": resultados}
 
 
 # --- Vercel Serverless Handler ---
