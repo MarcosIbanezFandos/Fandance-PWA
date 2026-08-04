@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import api from '../api'
 import { AnimatePresence, motion } from 'framer-motion';
-import { Loader2, Scale, Activity, ChevronDown, Check, Info } from 'lucide-react';
+import { Scale, Activity, ChevronDown, Check, Info } from 'lucide-react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import { GlassCard, ChartSkeleton } from './UI';
 import { useGlobal } from '../context/GlobalContext';

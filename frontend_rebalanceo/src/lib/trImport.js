@@ -124,18 +124,20 @@ export const posicionesDesdeCsv = (txs) => {
 };
 
 /**
- * Aportaciones que aún no están registradas en la app.
+ * Aportaciones que no estaban en la importación anterior.
  *
- * Se compara por fecha contra el historial de rebalanceos ya aplicado, así que
- * reimportar el mismo CSV no duplica nada.
+ * Se compara contra las fechas del CSV ya guardado, no contra los rebalanceos
+ * aplicados: quien aporta con el plan automático del bróker no pulsa nada en la
+ * app, así que ese historial está vacío y todas las aportaciones salían como
+ * nuevas en cada reimportación.
  */
-export const aportacionesNuevas = (aportaciones, historial = []) => {
-    const yaRegistradas = new Set(
-        historial
-            .map(h => String(h.created_at || h.date || '').slice(0, 10))
+export const aportacionesNuevas = (aportaciones, previas = []) => {
+    const yaVistas = new Set(
+        (previas || [])
+            .map(x => (typeof x === 'string' ? x : String(x?.fecha || x?.created_at || x?.date || '')).slice(0, 10))
             .filter(Boolean)
     );
-    return aportaciones.filter(a => !yaRegistradas.has(a.fecha));
+    return aportaciones.filter(a => !yaVistas.has(a.fecha));
 };
 
 /* ------------------------------------------------------------------ *
@@ -212,4 +214,20 @@ export const primeraCompra = (txs = []) => {
         .map(t => t.fecha)
         .sort();
     return compras.length ? new Date(`${compras[0]}T12:00:00`).toISOString() : null;
+};
+
+/**
+ * Aportado por mes según el CSV: { 'AAAA-MM': importe }.
+ *
+ * Es la fuente de verdad del seguimiento del plan. Antes el cumplimiento sólo
+ * salía de los rebalanceos aplicados dentro de la app, así que quien aporta con
+ * el plan automático de Trade Republic y se limita a sincronizar el CSV veía
+ * cero meses cumplidos por muchos meses que llevara aportando.
+ */
+export const aportadoPorMes = (txs = []) => {
+    const porMes = {};
+    for (const a of detectarAportaciones(txs)) {
+        porMes[a.mes] = (porMes[a.mes] || 0) + a.total;
+    }
+    return porMes;
 };

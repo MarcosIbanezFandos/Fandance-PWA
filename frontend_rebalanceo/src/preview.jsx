@@ -16,7 +16,7 @@ if (new URLSearchParams(location.search).has('static')) {
 }
 import './index.css';
 import { GlobalProvider } from './context/GlobalContext';
-import { Card, Button, Segmented, ChartSkeleton, DonutSkeleton, PageSkeleton, Skeleton } from './components/UI';
+import { Card, Button, Segmented, ChartSkeleton, DonutSkeleton } from './components/UI';
 import { Home } from './pages/Home';
 import { Analysis } from './pages/Analysis';
 import { Dashboard } from './components/Dashboard';
@@ -115,6 +115,13 @@ function Preview() {
     const conc = computeConcentration(xray.companies);
     const drift = computeDrift(ITEMS);
     const status = buildPlanStatus({ plan, history: HISTORY, months: 12 });
+    // Caso del usuario que sólo sincroniza el CSV: sin historial de rebalanceos.
+    const APORTADO_CSV = Object.fromEntries(
+        [0, 1, 2, 3, 4, 5].map(b => {
+            const d = new Date(now.getFullYear(), now.getMonth() - b, 1);
+            return [`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`, 300];
+        })
+    );
 
     return (
         <div className="h-full app-scroll bg-canvas text-ink p-4 md:p-8 pb-24 space-y-6">
@@ -248,7 +255,7 @@ function Preview() {
                         </div>
                     </Card>
 
-                    <ContributionPlan plan={plan} onSave={setPlan} history={HISTORY} savedPlans={plan.savedPlans || []}
+                    <ContributionPlan plan={plan} onSave={setPlan} history={[]} aportadoCsv={APORTADO_CSV} savedPlans={plan.savedPlans || []}
                         onGuardarConNombre={() => {}} onBorrarGuardado={() => {}} onCargarGuardado={() => {}} />
                 </div>
             )}
@@ -257,7 +264,7 @@ function Preview() {
                 abierto={avisoAbierto}
                 pendientes={[`${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`]}
                 portfolioItems={ITEMS}
-                rebalanceHistory={HISTORY}
+                aportacionesPrevias={[]}
                 onAplicar={async () => setAvisoAbierto(false)}
                 onCerrar={() => setAvisoAbierto(false)}
             />

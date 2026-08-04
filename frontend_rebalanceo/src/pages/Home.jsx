@@ -35,7 +35,7 @@ export const Home = ({
     portfolios = [], activePortfolio, portfolioItems = [], totalValue = 0,
     rebalanceHistory = [], plan, planDefaults, onSavePlan, planSaving, planError,
     inception, onSaveInception,
-    onGuardarPlanConNombre, onBorrarPlanGuardado, onCargarPlanGuardado,
+    onGuardarPlanConNombre, onBorrarPlanGuardado, onCargarPlanGuardado, aportadoCsv,
 }) => {
     const { t } = useGlobal();
     const [period, setPeriod] = useState('1y');
@@ -236,6 +236,7 @@ export const Home = ({
                     onGuardarConNombre={onGuardarPlanConNombre}
                     onBorrarGuardado={onBorrarPlanGuardado}
                     onCargarGuardado={onCargarPlanGuardado}
+                    aportadoCsv={aportadoCsv}
                     compact
                 />
 

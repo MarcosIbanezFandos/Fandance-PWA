@@ -1,6 +1,6 @@
 import React from 'react';
-import { GlassCard, BounceButton } from '../components/UI';
-import { Moon, Sun, Globe, Shield, LogOut, Target, Scale, Sparkles, CheckCircle2, AlertTriangle } from 'lucide-react';
+import { GlassCard, BounceButton, Disclosure } from '../components/UI';
+import { Moon, Sun, Globe, Shield, LogOut, Target, Scale, Sparkles, CheckCircle2, AlertTriangle, HelpCircle } from 'lucide-react';
 import { useGlobal } from '../context/GlobalContext';
 import { Dropdown } from '../components/Dropdown';
 import { safeFloat, formatNumber } from '../utils';
@@ -162,34 +162,23 @@ export const Settings = ({ session, onLogout, activePortfolio, portfolioItems, h
 
             <GlassCard>
                 <h3 className="text-footnote font-semibold text-ink-3 mb-6">{t('settings.about')}</h3>
-                <div className="p-6 bg-brand-soft rounded-card border border-indigo-100 mb-6">
-                    <h4 className="text-title3 font-semibold text-indigo-900 mb-2">About Fandance</h4>
-                    <p className="text-subhead text-indigo-700/80 mb-4 leading-relaxed font-medium">
-                        Fandance is a professional portfolio rebalancing tool designed for individual investors.
-                        Our mission is to simplify asset management and optimize your wealth with accurate data and a superior user experience.
+                {/* Se usa Disclosure y tokens del sistema: este bloque llevaba
+                    colores indigo fijos, ilegibles sobre el fondo oscuro, y el
+                    texto en inglés en una app que está en castellano. */}
+                <div className="space-y-2">
+                    <p className="text-subhead text-ink-2 leading-relaxed">{t('about.what')}</p>
+
+                    <Disclosure icon={HelpCircle} title={t('about.q_rebalance')}>
+                        {t('about.a_rebalance')}
+                    </Disclosure>
+
+                    <Disclosure icon={Shield} title={t('about.q_data')}>
+                        {t('about.a_data')}
+                    </Disclosure>
+
+                    <p className="text-caption2 text-ink-3 uppercase tracking-wide text-right pt-2">
+                        {t('about.version')} 1.2.1
                     </p>
-                    <div className="flex flex-col gap-2">
-                        <div className="text-footnote font-bold text-indigo-400">Frequently Asked Questions</div>
-                        <details className="group">
-                            <summary className="cursor-pointer text-subhead font-bold text-indigo-800 list-none flex items-center justify-between">
-                                How are rebalances calculated?
-                                <span className="text-indigo-400 group-open:rotate-180 transition-transform">▼</span>
-                            </summary>
-                            <p className="text-footnote text-indigo-700/70 mt-2 pl-2 border-l-2 border-indigo-200">
-                                In "Contribute only" mode we spread your monthly money across the assets that are furthest below their Target %, so you drift back toward your plan without ever selling. "Full rebalance" mode also sells to land exactly on target. This follows the passive index-fund rebalancing approach used by robo-advisors like Indexa Capital.
-                            </p>
-                        </details>
-                        <details className="group mt-2">
-                            <summary className="cursor-pointer text-subhead font-bold text-indigo-800 list-none flex items-center justify-between">
-                                Is my data safe?
-                                <span className="text-indigo-400 group-open:rotate-180 transition-transform">▼</span>
-                            </summary>
-                            <p className="text-footnote text-indigo-700/70 mt-2 pl-2 border-l-2 border-indigo-200">
-                                Yes. All information is securely stored in Supabase with robust authentication. We do not share your data with third parties.
-                            </p>
-                        </details>
-                        <div className="mt-4 text-caption2 text-indigo-300 font-bold uppercase text-right">Version 2.0.0 (SaaS Release)</div>
-                    </div>
                 </div>
             </GlassCard>
         </div>
