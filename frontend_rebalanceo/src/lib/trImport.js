@@ -239,9 +239,15 @@ export const emparejarPosiciones = (items = [], posCsv = [], { isinConocido = {}
         const porNombreM = porNombre.get(normalizarNombre(it.asset?.name));
 
         // 4. Nombre sin gestora. Aquí sí puede colarse otro fondo del mismo
-        //    índice, así que se exige que el precio cuadre.
+        //    índice, así que se exige que el precio cuadre, o bien que el nombre
+        //    sea único tanto en la cartera como en el CSV (no hay ambigüedad).
         const laxo = porNombreLaxo.get(normalizarSinGestora(it.asset?.name));
-        const porNombreLaxoM = laxo && !precioDiscrepa(it, laxo) ? laxo : null;
+        const nombreLaxoStr = normalizarSinGestora(it.asset?.name);
+        const laxoEsUnico = laxo &&
+            items.filter(x => normalizarSinGestora(x.asset?.name) === nombreLaxoStr).length === 1 &&
+            posCsv.filter(x => normalizarSinGestora(x.nombre) === nombreLaxoStr).length === 1;
+
+        const porNombreLaxoM = laxo && (laxoEsUnico || !precioDiscrepa(it, laxo)) ? laxo : null;
 
         const m = recordado || porTicker || porNombreM || porNombreLaxoM || null;
         if (!m || yaAsignadas.has(m.isin)) { sinEmparejar.push(it); continue; }

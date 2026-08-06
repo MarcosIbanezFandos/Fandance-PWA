@@ -126,7 +126,6 @@ export const SimulationView = ({
                         onBorrarGuardado={onBorrarPlanGuardado}
                         onCargarGuardado={onCargarPlanGuardado}
                         aportadoCsv={aportadoCsv}
-                    aportadoCsv={aportadoCsv}
                     />
                 ) : (
                     <Card>
