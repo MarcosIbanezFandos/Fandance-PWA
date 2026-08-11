@@ -10,14 +10,25 @@ export default defineConfig({
         // Las librerías pesadas van en trozos aparte para que un cambio en el
         // código de la app no obligue a volver a descargarlas, y para que el
         // arranque no espere a las que sólo usan pantallas concretas.
-        manualChunks: {
-          react: ['react', 'react-dom', 'react-router-dom'],
+        //
+        // Vite 8 (Rolldown) requiere una función en vez de un objeto.
+        manualChunks(id) {
+          if (id.includes('node_modules/react/') ||
+              id.includes('node_modules/react-dom/') ||
+              id.includes('node_modules/react-router-dom/') ||
+              id.includes('node_modules/react-router/')) {
+            return 'react';
+          }
           // recharts NO se declara aquí a propósito: un trozo manual se
           // considera alcanzable desde la entrada y Vite lo precarga, que es
           // justo lo contrario de lo que se busca. Dejándolo automático,
           // acaba dentro de los trozos que lo importan de forma diferida.
-          motion: ['framer-motion'],
-          supabase: ['@supabase/supabase-js'],
+          if (id.includes('node_modules/framer-motion/')) {
+            return 'motion';
+          }
+          if (id.includes('node_modules/@supabase/')) {
+            return 'supabase';
+          }
         },
       },
     },
