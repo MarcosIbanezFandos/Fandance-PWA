@@ -1,0 +1,48 @@
+name: CI
+
+# Red de seguridad: comprueba que el frontend construye y que las garantías de
+# seguridad de la API siguen en pie antes de que un cambio llegue a producción.
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  frontend:
+    name: Frontend (Node 24)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: frontend_rebalanceo/package-lock.json
+      - name: Instalar
+        working-directory: frontend_rebalanceo
+        run: npm ci
+      - name: Build
+        working-directory: frontend_rebalanceo
+        run: npm run build
+
+  api:
+    name: API (seguridad)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"   # el runtime de Vercel para funciones Python
+          cache: pip
+          cache-dependency-path: api/requirements-dev.txt
+      - name: Instalar
+        run: pip install -r api/requirements-dev.txt
+      - name: Tests de seguridad
+        # Cubren: que ningún endpoint quede sin autenticación, que el user_id
+        # salga del token y no del cliente, la validación de entradas y el
+        # rate limiting.
+        run: pytest api/test_security.py -q
