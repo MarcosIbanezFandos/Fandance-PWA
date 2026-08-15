@@ -6,6 +6,6 @@
         "build": "cd frontend_rebalanceo && npm ci && npm run build"
     },
     "engines": {
-        "node": "20.x"
+        "node": "24.x"
     }
 }
