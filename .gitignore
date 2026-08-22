@@ -8,6 +8,8 @@ __pycache__/
 .env
 .env.*
 !.env.example
+# Config de la demo para regenerar capturas: sin secretos (localhost + clave falsa)
+!.env.demo
 
 # Build output
 dist/

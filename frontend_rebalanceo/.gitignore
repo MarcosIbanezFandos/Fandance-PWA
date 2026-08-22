@@ -1,6 +1,8 @@
 # Environment variables (NEVER commit secrets)
 .env
 .env.*
+# Config de la demo para regenerar capturas: sin secretos (localhost + clave falsa)
+!.env.demo
 !.env.example
 
 # Logs

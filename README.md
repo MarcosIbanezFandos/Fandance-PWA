@@ -12,6 +12,14 @@
   <img alt="Vercel" src="https://img.shields.io/badge/Vercel-serverless-000000?style=flat-square&logo=vercel&logoColor=white">
 </p>
 
+<p align="center">
+  <img src="docs/screenshots/01-inicio.png" alt="Dashboard: portfolio value over a year, a drift alert and the per-asset gap against target" width="900">
+</p>
+
+<p align="center">
+  <sub>Every screenshot on this page is generated from synthetic data by <a href="scripts/demo"><code>scripts/demo</code></a> — no real holdings are shown. The interface ships in English and Spanish.</sub>
+</p>
+
 ---
 
 ## Why this exists
@@ -44,6 +52,14 @@ Two modes, both driven by target weights you define:
 Target weights are editable inline or from a dedicated allocation editor with a
 live "sum = 100%" check, equal-split and normalise helpers.
 
+<p align="center">
+  <img src="docs/screenshots/02-rebalanceo.png" alt="Rebalance table: current versus target weight per asset and the euro amount to invest in each" width="900">
+</p>
+
+<p align="center">
+  <sub>The <strong>A invertir</strong> column is the answer: how much of this month's contribution goes to each fund. Assets already at or above target get nothing, and the drift chip flags how many sit outside the tolerance band.</sub>
+</p>
+
 ### Portfolio X-ray (ETF look-through)
 Funds hide what you actually own. The X-ray resolves each ETF into its
 underlying holdings and aggregates them across the whole portfolio, so a company
@@ -56,6 +72,14 @@ held inside several funds is **summed into a single real exposure**:
 Holdings and sector weights come from `yfinance`; country and currency are
 inferred from the exchange suffix of each underlying ticker (`2330.TW` →
 Taiwan / TWD).
+
+<p align="center">
+  <img src="docs/screenshots/03-radiografia.png" alt="X-ray: companies aggregated across funds, each with the funds it comes from, plus region and country breakdowns" width="900">
+</p>
+
+<p align="center">
+  <sub>NVIDIA is held through both the S&amp;P 500 and the MSCI World fund; the X-ray adds the two into one real position and shows which funds it came from. Same for regions, countries, currencies and sectors.</sub>
+</p>
 
 ### Performance & benchmarking
 - **Money-weighted return (IRR/XIRR)** computed from real contribution dates, not a naive percentage.
@@ -78,6 +102,10 @@ monthly via the CSV import or edited directly.
 ### Also included
 - Installable **PWA** with offline caching; mobile layout with bottom navigation.
 - Multiple portfolios, operation history with undo, projections (deterministic and Monte Carlo), market news with an RSI sentiment indicator.
+
+<p align="center">
+  <img src="docs/screenshots/04-simulacion.png" alt="Projection screen: contribution plan, model and horizon on the left, projected growth curve on the right" width="900">
+</p>
 - English / Spanish, light / dark.
 - New accounts are seeded with three example portfolios (20 / 50 / 80 % risk) spanning ETFs, equities, bonds, gold and crypto.
 
@@ -121,7 +149,7 @@ See [`SECURITY.md`](SECURITY.md) for the full baseline.
 
 ## Running locally
 
-**Prerequisites:** Node.js 20+, Python 3.10+, a Supabase project (free tier is enough).
+**Prerequisites:** Node.js 24, Python 3.10+, a Supabase project (free tier is enough).
 
 ```bash
 # Frontend
@@ -145,9 +173,27 @@ Environment variables — use placeholders, never commit real keys:
 | `VITE_ADMIN_EMAIL` | frontend | optional: account that receives the default target allocation |
 | `SUPABASE_URL` | backend | project URL |
 | `SUPABASE_KEY` | backend | **service_role** key, server-side only |
+| `ALLOWED_ORIGINS` | backend | comma-separated origins allowed by CORS. Defaults to localhost, so production needs the real domain |
 
 Tables: `portfolios`, `portfolio_items`, `assets`, `rebalance_history`,
 `rebalance_history_items`.
+
+---
+
+## Regenerating the screenshots
+
+The images in this README are produced from synthetic data, so they can be
+refreshed after a redesign without touching a real account:
+
+```bash
+cd frontend_rebalanceo && npm run build -- --mode demo && cd ..
+python scripts/demo/servidor.py &     # serves dist/ plus stubbed /api/*
+python scripts/demo/capturar.py       # headless Chrome -> docs/screenshots/
+```
+
+`servidor.py` answers every endpoint the screens need with a fixed, invented
+portfolio; `capturar.py` drives a headless Chrome, seeds a fake session so the
+login is skipped, and writes one PNG per screen at 2x.
 
 ---
 
