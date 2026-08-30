@@ -5,7 +5,7 @@
 </p>
 
 <p align="center">
-  <a href="https://fandios.vercel.app/fandance"><img alt="Live" src="https://img.shields.io/badge/live-fandios.vercel.app%2Ffandance-10b981?style=flat-square"></a>
+  <a href="https://fandos.vercel.app/fandance"><img alt="Live" src="https://img.shields.io/badge/live-fandos.vercel.app%2Ffandance-10b981?style=flat-square"></a>
   <img alt="React" src="https://img.shields.io/badge/React-18-61dafb?style=flat-square&logo=react&logoColor=white">
   <img alt="FastAPI" src="https://img.shields.io/badge/FastAPI-Python-009688?style=flat-square&logo=fastapi&logoColor=white">
   <img alt="Supabase" src="https://img.shields.io/badge/Supabase-Postgres-3ecf8e?style=flat-square&logo=supabase&logoColor=white">
@@ -204,7 +204,7 @@ login is skipped, and writes one PNG per screen at 2x.
 
 Since August 2026 production runs **inside the FANDiOS deployment** to share a
 single free Vercel project and a single free Supabase project between both
-apps: the live app is served at `fandios.vercel.app/fandance`, its API at
+apps: the live app is served at `fandos.vercel.app/fandance` (the FANDOS portal: FANDiOS lives at `/fandios` and the domain root is a landing page), its API at
 `/fandance/api/*`, and its tables live in the `fandance` schema of the FANDiOS
 database ([`supabase/fandance_schema.sql`](supabase/fandance_schema.sql)). The
 deployable copy of this code lives in the `Fandios-App` repository
