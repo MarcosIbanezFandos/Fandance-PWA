@@ -12,9 +12,16 @@ import numpy as np
 import feedparser
 from typing import Annotated, List, Literal, Optional, Dict, Any
 from supabase import create_client, Client
+from supabase.lib.client_options import SyncClientOptions
+
 # --- CONFIG ---
-SUPABASE_URL = os.getenv("SUPABASE_URL", "")
-SUPABASE_KEY = os.getenv("SUPABASE_KEY", "")
+# Proyecto fusionado: este backend habla con el Supabase de FANDiOS y sus
+# tablas viven en el esquema 'fandance' ('public' pertenece a FANDiOS).
+# Reutiliza las variables que el proyecto Vercel ya define para Next si las
+# propias no están, para no duplicar secretos.
+SUPABASE_URL = os.getenv("SUPABASE_URL") or os.getenv("NEXT_PUBLIC_SUPABASE_URL", "")
+SUPABASE_KEY = os.getenv("SUPABASE_KEY") or os.getenv("SUPABASE_SERVICE_ROLE_KEY", "")
+DB_SCHEMA = os.getenv("SUPABASE_DB_SCHEMA", "fandance")
 
 # Orígenes autorizados. "*" junto a allow_credentials=True no es válido y deja
 # que cualquier web haga peticiones autenticadas en nombre del usuario.
@@ -28,7 +35,37 @@ ALLOWED_ORIGINS = [
     ).split(",") if o.strip()
 ]
 
+# En Vercel el frontend se sirve desde el mismo origen (mismo dominio, ruta
+# /fandance), así que CORS ni siquiera entra en juego en producción. Se añaden
+# los dominios del despliegue por si algún día se sirviera desde otro origen,
+# y para que los previews funcionen sin tocar variables.
+for _var in ("VERCEL_URL", "VERCEL_BRANCH_URL", "VERCEL_PROJECT_PRODUCTION_URL"):
+    _host = os.getenv(_var, "").strip()
+    if _host and f"https://{_host}" not in ALLOWED_ORIGINS:
+        ALLOWED_ORIGINS.append(f"https://{_host}")
+
 app = FastAPI(title="Fandance API")
+
+
+class QuitarPrefijoFandance:
+    """En el despliegue fusionado la API se sirve bajo /fandance/api/* (el
+    rewrite de vercel.json apunta aquí pero conserva la ruta original). Las
+    rutas internas siguen declaradas como /api/*: este middleware quita el
+    prefijo antes del enrutado, así no se tocan los decoradores y en local
+    (uvicorn, sin prefijo) todo funciona igual."""
+
+    def __init__(self, app, prefijo: str = "/fandance"):
+        self.app = app
+        self.prefijo = prefijo
+
+    async def __call__(self, scope, receive, send):
+        if scope["type"] == "http" and scope["path"].startswith(self.prefijo + "/"):
+            scope["path"] = scope["path"][len(self.prefijo):]
+            scope["raw_path"] = scope["path"].encode()
+        await self.app(scope, receive, send)
+
+
+app.add_middleware(QuitarPrefijoFandance)
 
 app.add_middleware(
     CORSMiddleware,
@@ -41,7 +78,13 @@ app.add_middleware(
 supabase: Client = None
 try:
     if SUPABASE_URL and SUPABASE_KEY:
-        supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
+        # schema='fandance': todas las .table() y .rpc() van a ese esquema vía
+        # PostgREST (debe estar en "Exposed schemas" del proyecto). Auth no se
+        # ve afectado por esta opción.
+        supabase = create_client(
+            SUPABASE_URL, SUPABASE_KEY,
+            options=SyncClientOptions(schema=DB_SCHEMA),
+        )
 except Exception as e:
     print(f"Supabase init error: {e}")
 

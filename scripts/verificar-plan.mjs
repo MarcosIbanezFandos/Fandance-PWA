@@ -41,7 +41,7 @@ function loadConfig() {
     // función viven en el mismo dominio. Desde Node no hay origen implícito,
     // así que se compone con el de la app desplegada (o el que se pase por
     // la variable APP_ORIGIN, para apuntar a un preview).
-    const origen = (process.env.APP_ORIGIN || 'https://fandance-pwa.vercel.app').replace(/\/$/, '');
+    const origen = (process.env.APP_ORIGIN || 'https://fandios.vercel.app').replace(/\/$/, '');
     const apiRaw = app.VITE_API_URL || '/api';
     const cfg = {
         SUPABASE_URL: app.VITE_SUPABASE_URL,

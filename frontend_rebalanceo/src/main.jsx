@@ -15,7 +15,11 @@ buscarActualizacionAlVolver()
 
 createRoot(document.getElementById('root')).render(
   <StrictMode>
-    <BrowserRouter>
+    {/* basename derivado del `base` de Vite: '' aquí (standalone, base '/') y
+        '/fandance' en el despliegue fusionado dentro de FANDiOS. Sin la barra
+        final: React Router no casa '/fandance' contra el basename '/fandance/'
+        y se queda sin renderizar nada. */}
+    <BrowserRouter basename={import.meta.env.BASE_URL.replace(/\/$/, '')}>
       <GlobalProvider>
         <App />
       </GlobalProvider>

@@ -5,7 +5,7 @@
 </p>
 
 <p align="center">
-  <a href="https://fandance-pwa.vercel.app"><img alt="Live" src="https://img.shields.io/badge/live-fandance--pwa.vercel.app-10b981?style=flat-square"></a>
+  <a href="https://fandios.vercel.app/fandance"><img alt="Live" src="https://img.shields.io/badge/live-fandios.vercel.app%2Ffandance-10b981?style=flat-square"></a>
   <img alt="React" src="https://img.shields.io/badge/React-18-61dafb?style=flat-square&logo=react&logoColor=white">
   <img alt="FastAPI" src="https://img.shields.io/badge/FastAPI-Python-009688?style=flat-square&logo=fastapi&logoColor=white">
   <img alt="Supabase" src="https://img.shields.io/badge/Supabase-Postgres-3ecf8e?style=flat-square&logo=supabase&logoColor=white">
@@ -173,10 +173,13 @@ Environment variables — use placeholders, never commit real keys:
 | `VITE_ADMIN_EMAIL` | frontend | optional: account that receives the default target allocation |
 | `SUPABASE_URL` | backend | project URL |
 | `SUPABASE_KEY` | backend | **service_role** key, server-side only |
-| `ALLOWED_ORIGINS` | backend | comma-separated origins allowed by CORS. Defaults to localhost, so production needs the real domain |
+| `SUPABASE_DB_SCHEMA` | backend | Postgres schema holding the tables (default `fandance`) |
+| `ALLOWED_ORIGINS` | backend | comma-separated origins allowed by CORS. Defaults to localhost; the deployment's own `*.vercel.app` domains are added automatically |
 
 Tables: `portfolios`, `portfolio_items`, `assets`, `rebalance_history`,
-`rebalance_history_items`.
+`rebalance_history_items`, `rate_limits` — full DDL, RLS policies and the
+rate-limiting function in
+[`supabase/fandance_schema.sql`](supabase/fandance_schema.sql).
 
 ---
 
@@ -199,9 +202,20 @@ login is skipped, and writes one PNG per screen at 2x.
 
 ## Deployment
 
-`vercel.json` wires the whole repository into one Vercel project: it builds the
-SPA, serves the FastAPI app under `/api/*` and rewrites client-side routes.
-Pushing to `main` deploys to production.
+Since August 2026 production runs **inside the FANDiOS deployment** to share a
+single free Vercel project and a single free Supabase project between both
+apps: the live app is served at `fandios.vercel.app/fandance`, its API at
+`/fandance/api/*`, and its tables live in the `fandance` schema of the FANDiOS
+database ([`supabase/fandance_schema.sql`](supabase/fandance_schema.sql)). The
+deployable copy of this code lives in the `Fandios-App` repository
+(`fandance/` + `api/`); this repository remains the app's own home, and the two
+are kept in sync.
+
+The standalone setup still works: `vercel.json` wires this repository into one
+Vercel project on its own — it builds the SPA, serves the FastAPI app under
+`/api/*` and rewrites client-side routes. Point it at any Supabase project
+carrying the schema above (`SUPABASE_DB_SCHEMA=fandance`, or `public` if you
+apply the DDL there).
 
 ---
 
