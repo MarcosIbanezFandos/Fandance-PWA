@@ -56,10 +56,11 @@ export const AuthScreen = ({ onLogin, enlaceCaducado = false }) => {
         const res = await supabase.auth.signInWithPassword({ email, password });
         error = res.error;
       } else if (authMode === 'recovery') {
-        // El enlace vuelve a esta misma app: Supabase lo recoge al arrancar y
-        // App enseña la pantalla de contraseña nueva.
+        // El enlace vuelve a esta misma app (sin la barra final, que el
+        // despliegue quita con otra redirección): Supabase lo recoge al
+        // arrancar y App enseña la pantalla de contraseña nueva.
         const res = await supabase.auth.resetPasswordForEmail(email, {
-          redirectTo: window.location.origin + import.meta.env.BASE_URL,
+          redirectTo: (window.location.origin + import.meta.env.BASE_URL).replace(/\/$/, ''),
         });
         error = res.error;
         if (!error) {
