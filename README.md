@@ -143,7 +143,7 @@ The rebalancing maths lives client-side in `utils.js` (`buildRebalancePlan`,
 - **No secrets in the bundle.** The `service_role` key lives only in server-side environment variables; the frontend only ever sees the anon key.
 - Imported CSVs and cost-basis data are parsed and stored locally, never uploaded.
 
-See [`SECURITY.md`](SECURITY.md) for the full baseline.
+See [`docs/seguridad.md`](docs/seguridad.md) for the full baseline (in Spanish) and [`SECURITY.md`](SECURITY.md) to report a vulnerability.
 
 ---
 
