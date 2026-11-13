@@ -4,7 +4,7 @@ import _ from 'lodash'
 import { Loader2 } from 'lucide-react'
 import { Routes, Route, useNavigate, Navigate } from 'react-router-dom'
 
-import { supabase } from './supabaseClient'
+import { supabase, llegadaPorEnlace } from './supabaseClient'
 import { safeFloat, buildRebalancePlan, roundTo } from './utils'
 import { isAdmin, applyDefaultTargets, DEFAULT_CONTRIBUTION_PLAN } from './config/allocation'
 import { getPrefs, savePrefs, mesActual, planGuardadoAActivo } from './lib/planStore'
@@ -17,6 +17,7 @@ import { valorarItems } from './lib/valoracion'
 import { RecordatorioCsv } from './components/RecordatorioCsv'
 import { PageSkeleton } from './components/UI'
 import { AuthScreen } from './components/AuthScreen'
+import { NuevaClave } from './components/NuevaClave'
 import { Dashboard } from './components/Dashboard'
 import { MainLayout } from './layouts/MainLayout'
 
@@ -43,6 +44,9 @@ const TYPE_COLORS = {
 function App() {
     const [session, setSession] = useState(null)
     const [appLoading, setAppLoading] = useState(true)
+    // Se llega desde el enlace de «¿Has olvidado la contraseña?»: el enlace ya
+    // abre sesión, pero antes de entrar hay que elegir la contraseña nueva.
+    const [recuperando, setRecuperando] = useState(llegadaPorEnlace.recuperacion)
     const [portfolios, setPortfolios] = useState([])
     const [activePortfolio, setActivePortfolio] = useState(null)
     const navigate = useNavigate();
@@ -300,7 +304,8 @@ function App() {
             setAppLoading(false);
         };
         init();
-        const { data: { subscription } } = supabase.auth.onAuthStateChange((_e, s) => {
+        const { data: { subscription } } = supabase.auth.onAuthStateChange((evento, s) => {
+            if (evento === 'PASSWORD_RECOVERY') setRecuperando(true);
             setSession(s);
             if (!s) { setPortfolios([]); setActivePortfolio(null); }
             else if (s && portfolios.length === 0) loadPortfolios(s.user.id, s.user.email);
@@ -656,7 +661,8 @@ function App() {
     const handleDeletePort = async (pid) => { if (confirm("Delete entire portfolio?")) { await api.delete(`${import.meta.env.VITE_API_URL}/portfolios/delete/${pid}`); loadPortfolios(session.user.id); setActivePortfolio(null); } }
 
     if (appLoading) return <div className="h-screen flex items-center justify-center bg-slate-900 text-white font-semibold uppercase tracking-tight"><Loader2 className="animate-spin mr-3 text-brand" /> Loading Fandance...</div>
-    if (!session) return <AuthScreen onLogin={setSession} />
+    if (recuperando && session) return <NuevaClave email={session.user.email} onHecho={() => setRecuperando(false)} />
+    if (!session) return <AuthScreen onLogin={setSession} enlaceCaducado={llegadaPorEnlace.caducado} />
 
     const totalVal = itemsValorados.reduce((s, i) => s + safeFloat(i.value), 0);
     const totalWeight = portfolioItems.reduce((s, i) => s + safeFloat(i.target_weight), 0);
