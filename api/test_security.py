@@ -32,6 +32,8 @@ HISTORY_ID = "33333333-3333-4333-8333-333333333333"
 PORTFOLIOS = [{"id": PORTFOLIO_ID, "user_id": "ana", "name": "Cartera de Ana"}]
 ITEMS = [{"id": ITEM_ID, "portfolio_id": PORTFOLIO_ID, "portfolio": {"user_id": "ana"}}]
 HISTORY = [{"id": HISTORY_ID, "portfolio_id": PORTFOLIO_ID, "portfolio": {"user_id": "ana"}}]
+VISTAZOS = [{"user_id": "ana", "datos": {"titular": "Nada que hacer con tu cartera"}, "actualizado": "2026-11-21T10:00:00+00:00"}]
+GUARDADO = []
 
 
 class _Query:
@@ -69,6 +71,11 @@ class _Query:
         self._write = True
         return self
 
+    def upsert(self, fila, *a, **k):
+        self._write = True
+        GUARDADO.append(fila)
+        return self
+
     def execute(self):
         if getattr(self, "_write", False):
             return types.SimpleNamespace(data=[])
@@ -101,6 +108,7 @@ class FakeSupabase:
             "portfolios": PORTFOLIOS,
             "portfolio_items": ITEMS,
             "rebalance_history": HISTORY,
+            "vistazos": VISTAZOS,
         }.get(name, []))
 
     def rpc(self, fn, params):
@@ -171,6 +179,8 @@ def test_ningun_endpoint_queda_sin_dependencia_de_auth():
     ("POST", "/api/simulations/run"),
     ("POST", "/api/portfolios/seed_defaults"),
     ("GET", "/api/assets/search?q=aapl"),
+    ("GET", "/api/fandos/vistazo"),
+    ("POST", "/api/fandos/vistazo"),
 ])
 def test_sin_token_devuelve_401(client, method, url):
     assert client.request(method, url, json={}).status_code == 401
@@ -334,3 +344,52 @@ def test_sin_la_funcion_sql_la_app_sigue_funcionando(monkeypatch):
 def test_cors_no_es_comodin():
     """"*" junto a allow_credentials permite a cualquier web actuar por ti."""
     assert "*" not in index.ALLOWED_ORIGINS
+
+
+# --- Contrato FANDOS: el vistazo de la cartera --------------------------------
+
+VISTAZO = {
+    "v": 1, "app": "fandance", "generado": "2026-11-21T10:00:00Z", "tono": "ok",
+    "titular": "Nada que hacer con tu cartera", "href": "/fandance/",
+    "cifras": [{"etiqueta": "Cartera", "valor": "3.604 €", "privada": True}],
+    "avisos": [{"id": "fandance:csv:2026-11", "texto": "Sube el CSV", "href": "/fandance/", "nivel": "aviso"}],
+    "cartera": {"nombre": "Cartera Principal", "valor": 3604.0, "coste": 3327.6, "plusvalia": 276.4,
+                "mensual": 300, "posiciones": [{"ticker": "VUAA.L", "nombre": "S&P 500", "valor": 1600,
+                                                "peso": 44.4, "objetivo": 45, "coste": 1480}]},
+}
+
+
+def test_el_vistazo_se_guarda_a_nombre_de_quien_llama(client):
+    GUARDADO.clear()
+    r = client.post("/api/fandos/vistazo", json={**VISTAZO, "user_id": "mario"}, headers=auth("tok-ana"))
+    assert r.status_code == 200
+    assert GUARDADO and GUARDADO[-1]["user_id"] == "ana"
+    assert "user_id" not in GUARDADO[-1]["datos"]
+
+
+def test_cada_uno_lee_solo_su_vistazo(client):
+    assert client.get("/api/fandos/vistazo", headers=auth("tok-ana")).json()["titular"] == "Nada que hacer con tu cartera"
+    assert client.get("/api/fandos/vistazo", headers=auth("tok-mario")).status_code == 404
+
+
+@pytest.mark.parametrize("href", [
+    "https://malo.example/fandance",
+    "javascript:alert(1)",
+    "//malo.example/x",
+    "/fanwork/agenda",
+    "/fandance/../fanwork",
+])
+def test_el_vistazo_no_acepta_enlaces_fuera_de_fandance(client, href):
+    malo = {**VISTAZO, "href": href}
+    # Los enlaces de los avisos pasan por la misma regla.
+    r1 = client.post("/api/fandos/vistazo", json=malo, headers=auth("tok-ana"))
+    r2 = client.post("/api/fandos/vistazo", json={**VISTAZO, "avisos": [{**VISTAZO["avisos"][0], "href": href}]},
+                     headers=auth("tok-ana"))
+    assert r1.status_code == 422 and r2.status_code == 422
+
+
+def test_el_vistazo_tiene_tamaño_acotado(client):
+    largo = {**VISTAZO, "titular": "x" * 500}
+    muchas = {**VISTAZO, "cartera": {**VISTAZO["cartera"], "posiciones": VISTAZO["cartera"]["posiciones"] * 40}}
+    assert client.post("/api/fandos/vistazo", json=largo, headers=auth("tok-ana")).status_code == 422
+    assert client.post("/api/fandos/vistazo", json=muchas, headers=auth("tok-ana")).status_code == 422
