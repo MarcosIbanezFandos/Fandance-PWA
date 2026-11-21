@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useCallback, lazy, Suspense } from 'react'
+import React, { useState, useEffect, useMemo, useCallback, useRef, lazy, Suspense } from 'react'
 import api from './api'
 import _ from 'lodash'
 import { Loader2 } from 'lucide-react'
@@ -14,6 +14,7 @@ import { debeAvisar, mesClave } from './lib/recordatorio'
 import { aportadoPorMes, detectarAportaciones } from './lib/trImport'
 import { evaluarReajuste } from './lib/reglasReajuste'
 import { valorarItems } from './lib/valoracion'
+import { construirVistazo, publicarLocal, borrarVistazoLocal, REFRESCO_SERVIDOR_MS } from './lib/vistazoFandos'
 import { RecordatorioCsv } from './components/RecordatorioCsv'
 import { PageSkeleton } from './components/UI'
 import { AuthScreen } from './components/AuthScreen'
@@ -241,6 +242,7 @@ function App() {
     // Cerrar sesión no debe dejar los movimientos del bróker en el disco.
     const cerrarSesion = useCallback(async () => {
         borrarTodoElCsv()
+        borrarVistazoLocal()
         setCsvTxs(null)
         await supabase.auth.signOut()
     }, [])
@@ -406,6 +408,39 @@ function App() {
         () => evaluarReajuste(tableData, { vixAlto }),
         [tableData, vixAlto]
     );
+
+    // Contrato FANDOS: el vistazo de la cartera para el portal, el lanzador y FanWork
+    // (ver lib/vistazoFandos.js). Espera a que lleguen las cotizaciones para no publicar
+    // una cartera a cero, y solo se guarda en el servidor si cambia o cada seis horas.
+    const ultimoEnvioVistazo = useRef(0)
+    useEffect(() => {
+        if (!session || !activePortfolio || !tableData.length) return
+        const totalValor = itemsValorados.reduce((s, i) => s + safeFloat(i.value), 0)
+        const hayUnidades = itemsValorados.some(i => safeFloat(i.units_held) > 0)
+        if (hayUnidades && totalValor <= 0) return
+        const reloj = setTimeout(() => {
+            const vistazo = construirVistazo({
+                cartera: activePortfolio,
+                filas: tableData,
+                totalValor,
+                aviso: debeAvisar({
+                    mesesConAportacion: mesesConAportacion(csvTxs?.txs || []),
+                    descartadoHasta: leerDescarte(activePortfolio.id),
+                }),
+                reajuste: evaluacionReajuste,
+                mensual: safeFloat(contributionPlan?.monthly),
+                mesesConAportacion: mesesConAportacion(csvTxs?.txs || []),
+                txs: csvTxs?.txs || [],
+                isinPorItem: isinConocido,
+            })
+            const cambio = publicarLocal(vistazo)
+            if (cambio || Date.now() - ultimoEnvioVistazo.current > REFRESCO_SERVIDOR_MS) {
+                ultimoEnvioVistazo.current = Date.now()
+                api.post(`${import.meta.env.VITE_API_URL}/fandos/vistazo`, vistazo).catch(() => {})
+            }
+        }, 1500)
+        return () => clearTimeout(reloj)
+    }, [session, activePortfolio, tableData, itemsValorados, evaluacionReajuste, contributionPlan, csvTxs, isinConocido])
 
     // --- ACTIONS ---
     const handleUpdate = (id, field, val) => {

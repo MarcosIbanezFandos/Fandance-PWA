@@ -8,6 +8,7 @@ import {
 import api from '../api';
 import { Card, SectionHeader, Button, Badge, Segmented, EmptyState, Skeleton, ChartSkeleton, staggerContainer } from '../components/UI';
 import { ContributionPlan } from '../components/ContributionPlan';
+import { FiscalFanWork } from '../components/FiscalFanWork';
 import { useGlobal } from '../context/GlobalContext';
 
 // El gráfico llega después de la primera pintura: recharts pesa más que
@@ -222,6 +223,9 @@ export const Home = ({
                     </div>
                 </Card>
             )}
+
+            {/* ---------- Impuestos de la cartera, según FanWork (contrato FANDOS) ---------- */}
+            <FiscalFanWork />
 
             {/* ---------- Plan + desviación ---------- */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">

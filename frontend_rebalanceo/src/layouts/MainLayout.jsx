@@ -1,11 +1,26 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { Sidebar } from '../components/Sidebar';
 import { BottomNav } from '../components/BottomNav';
 import { Outlet, useLocation } from 'react-router-dom';
 import { useGlobal } from '../context/GlobalContext';
 import { cn } from '../lib/cn';
 
+// El lanzador de la familia FANDOS: un botón que abre las cinco apps con su vistazo de
+// hoy y un buscador que busca dentro de todas. Lo pinta este script del portal (mismo
+// dominio); en desarrollo o fuera de fandos.vercel.app no existe y no se ve nada.
+const LANZADOR = '/fandios/portal/lanzador.js';
+const useLanzadorFandos = () => {
+    useEffect(() => {
+        if (window.customElements?.get('fandos-lanzador') || document.querySelector(`script[src="${LANZADOR}"]`)) return;
+        const s = document.createElement('script');
+        s.src = LANZADOR;
+        s.async = true;
+        document.head.appendChild(s);
+    }, []);
+};
+
 export const MainLayout = (props) => {
+    useLanzadorFandos();
     const { session } = props;
     const location = useLocation();
     const { t } = useGlobal();
@@ -50,12 +65,13 @@ export const MainLayout = (props) => {
                     )}>
                         {getHeaderTitle()}
                     </h1>
-                    <div className="hidden md:flex items-center gap-2.5 shrink-0 pb-1">
-                        <div className="text-right">
+                    <div className="flex items-center gap-2.5 shrink-0 pb-1">
+                        <span className="text-ink-2 flex"><fandos-lanzador app="fandance"></fandos-lanzador></span>
+                        <div className="hidden md:block text-right">
                             <div className="text-caption1 text-ink-3">{t('header.user')}</div>
                             <div className="text-footnote font-medium text-ink-2 mt-0.5">{session?.user?.email}</div>
                         </div>
-                        <div className="w-9 h-9 rounded-full bg-brand-soft flex items-center justify-center shrink-0">
+                        <div className="hidden md:flex w-9 h-9 rounded-full bg-brand-soft items-center justify-center shrink-0">
                             <span className="text-caption1 font-semibold text-brand-ink uppercase">
                                 {(session?.user?.email || '?').slice(0, 2)}
                             </span>

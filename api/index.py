@@ -1603,3 +1603,97 @@ def resolver_isin(data: ResolverIsinInput, user_id: str = External):
 
 
 # --- Vercel Serverless Handler ---
+
+
+# --- CONTRATO FANDOS: EL VISTAZO DE LA CARTERA ---
+# Lo que Fandance enseña de sí misma a las otras apps del portal (ver
+# docs/conexiones.md). Lo calcula el navegador, que es el único que tiene los
+# movimientos del CSV, y aquí se guarda un resumen con cifras agregadas —nunca
+# los movimientos— para que FanWork, que es de servidor, lo lea desde cualquier
+# aparato (función fanwork.fandance_vistazo, protegida por su propia clave).
+# Todo se valida con límites estrictos: el texto acaba pintado en otras apps.
+
+TextoCorto = Annotated[str, StringConstraints(strip_whitespace=True, max_length=200)]
+EnlaceFandance = Annotated[str, StringConstraints(
+    strip_whitespace=True, max_length=200,
+    # Solo rutas de la propia app: ni otros dominios, ni esquemas tipo javascript:,
+    # ni «..» para salir de /fandance (por eso no se admite el punto).
+    pattern=r"^/fandance(/[A-Za-z0-9_\-/?=&%#]*)?$",
+)]
+
+
+class CifraVistazo(BaseModel):
+    etiqueta: Annotated[str, StringConstraints(strip_whitespace=True, max_length=40)]
+    valor: Annotated[str, StringConstraints(strip_whitespace=True, max_length=40)]
+    privada: bool = False
+
+
+class AvisoVistazo(BaseModel):
+    id: Annotated[str, StringConstraints(max_length=80)]
+    texto: TextoCorto
+    href: EnlaceFandance
+    nivel: Literal["urgente", "aviso", "info"]
+    fecha: Optional[Annotated[str, StringConstraints(pattern=r"^\d{4}-\d{2}-\d{2}$")]] = None
+
+
+class PosicionVistazo(BaseModel):
+    ticker: Annotated[str, StringConstraints(max_length=20)]
+    nombre: Annotated[str, StringConstraints(max_length=120)]
+    valor: float = Field(ge=0, le=1e9)
+    peso: float = Field(ge=0, le=100)
+    objetivo: float = Field(ge=0, le=100)
+    coste: Optional[float] = Field(default=None, ge=0, le=1e9)
+
+
+class CarteraVistazo(BaseModel):
+    nombre: Annotated[str, StringConstraints(max_length=60)]
+    valor: float = Field(ge=0, le=1e9)
+    coste: Optional[float] = Field(default=None, ge=0, le=1e9)
+    plusvalia: Optional[float] = Field(default=None, ge=-1e9, le=1e9)
+    mensual: float = Field(default=0, ge=0, le=1e7)
+    csvHasta: Optional[Annotated[str, StringConstraints(pattern=r"^\d{4}-\d{2}-\d{2}$")]] = None
+    posiciones: List[PosicionVistazo] = Field(default_factory=list, max_length=30)
+
+
+class VistazoInput(BaseModel):
+    v: Literal[1]
+    app: Literal["fandance"]
+    generado: Annotated[str, StringConstraints(max_length=40)]
+    tono: Literal["ok", "info", "aviso", "urgente"]
+    titular: TextoCorto
+    detalle: Optional[TextoCorto] = None
+    href: EnlaceFandance
+    cifras: List[CifraVistazo] = Field(default_factory=list, max_length=4)
+    avisos: List[AvisoVistazo] = Field(default_factory=list, max_length=6)
+    cartera: Optional[CarteraVistazo] = None
+
+
+@app.post("/api/fandos/vistazo")
+def guardar_vistazo(data: VistazoInput, user_id: str = Standard):
+    """Guarda el último vistazo de quien llama (una fila por usuario)."""
+    from datetime import datetime, timezone
+    try:
+        supabase.table("vistazos").upsert({
+            "user_id": user_id,
+            "datos": data.model_dump(exclude_none=True),
+            "actualizado": datetime.now(timezone.utc).isoformat(),
+        }).execute()
+    except Exception as e:
+        # Sin la tabla (migración pendiente) la app sigue igual: el vistazo es un extra.
+        print(f"VISTAZO guardar: {e}")
+        raise HTTPException(503, "No se ha podido guardar el vistazo")
+    return {"ok": True}
+
+
+@app.get("/api/fandos/vistazo")
+def leer_vistazo(user_id: str = Standard):
+    """El último vistazo guardado de quien llama, para el portal en otro aparato."""
+    try:
+        res = supabase.table("vistazos").select("datos,actualizado").eq("user_id", user_id).limit(1).execute()
+    except Exception as e:
+        print(f"VISTAZO leer: {e}")
+        raise HTTPException(503, "No se ha podido leer el vistazo")
+    if not res.data:
+        raise HTTPException(404, "Aún no hay vistazo: abre Fandance una vez")
+    fila = res.data[0]
+    return {**(fila.get("datos") or {}), "guardado": fila.get("actualizado")}
